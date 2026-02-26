@@ -114,6 +114,45 @@ export const insertDeliverySchema = createInsertSchema(deliveries).omit({ id: tr
 export type InsertDelivery = z.infer<typeof insertDeliverySchema>;
 export type Delivery = typeof deliveries.$inferSelect;
 
+export const suppliers = pgTable("suppliers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  phone: text("phone"),
+  company: text("company"),
+  address: text("address"),
+  active: boolean("active").notNull().default(true),
+});
+
+export const insertSupplierSchema = createInsertSchema(suppliers).omit({ id: true });
+export type InsertSupplier = z.infer<typeof insertSupplierSchema>;
+export type Supplier = typeof suppliers.$inferSelect;
+
+export const purchases = pgTable("purchases", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  supplierId: varchar("supplier_id").references(() => suppliers.id),
+  totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull(),
+  paidAmount: decimal("paid_amount", { precision: 12, scale: 2 }).notNull().default("0"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertPurchaseSchema = createInsertSchema(purchases).omit({ id: true, createdAt: true });
+export type InsertPurchase = z.infer<typeof insertPurchaseSchema>;
+export type Purchase = typeof purchases.$inferSelect;
+
+export const purchaseItems = pgTable("purchase_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  purchaseId: varchar("purchase_id").references(() => purchases.id).notNull(),
+  productId: varchar("product_id").references(() => products.id).notNull(),
+  quantity: integer("quantity").notNull(),
+  costPrice: decimal("cost_price", { precision: 12, scale: 2 }).notNull(),
+  total: decimal("total", { precision: 12, scale: 2 }).notNull(),
+});
+
+export const insertPurchaseItemSchema = createInsertSchema(purchaseItems).omit({ id: true });
+export type InsertPurchaseItem = z.infer<typeof insertPurchaseItemSchema>;
+export type PurchaseItem = typeof purchaseItems.$inferSelect;
+
 export const settings = pgTable("settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   key: text("key").notNull().unique(),

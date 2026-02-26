@@ -16,6 +16,8 @@ import Deliveries from "@/pages/deliveries";
 import Roles from "@/pages/roles";
 import Employees from "@/pages/employees";
 import Settings from "@/pages/settings";
+import Suppliers from "@/pages/suppliers";
+import Purchases from "@/pages/purchases";
 import PortalLogin from "@/pages/portal/login";
 import PortalLayout from "@/pages/portal/portal-layout";
 
@@ -31,6 +33,8 @@ function AdminRouter() {
       <Route path="/roles" component={Roles} />
       <Route path="/employees" component={Employees} />
       <Route path="/settings" component={Settings} />
+      <Route path="/suppliers" component={Suppliers} />
+      <Route path="/purchases" component={Purchases} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -47,8 +51,10 @@ function AdminLayout() {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
-          <header className="flex items-center gap-2 p-2 border-b shrink-0">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
+          <header className="flex items-center gap-3 px-4 py-3 border-b shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600">
+            <SidebarTrigger data-testid="button-sidebar-toggle" className="text-white [&]:bg-transparent" />
+            <div className="h-5 w-px bg-white/30" />
+            <h1 className="text-sm font-semibold text-white tracking-wide">MARKET_LINE</h1>
           </header>
           <main className="flex-1 overflow-hidden">
             <AdminRouter />

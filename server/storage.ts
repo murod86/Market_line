@@ -3,6 +3,7 @@ import { db } from "./db";
 import {
   roles, employees, categories, products, customers,
   sales, saleItems, deliveries, settings,
+  suppliers, purchases, purchaseItems,
   type InsertRole, type Role,
   type InsertEmployee, type Employee,
   type InsertCategory, type Category,
@@ -12,6 +13,9 @@ import {
   type InsertSaleItem, type SaleItem,
   type InsertDelivery, type Delivery,
   type InsertSetting, type Setting,
+  type InsertSupplier, type Supplier,
+  type InsertPurchase, type Purchase,
+  type InsertPurchaseItem, type PurchaseItem,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -55,6 +59,17 @@ export interface IStorage {
   getDelivery(id: string): Promise<Delivery | undefined>;
   createDelivery(delivery: InsertDelivery): Promise<Delivery>;
   updateDelivery(id: string, delivery: Partial<InsertDelivery>): Promise<Delivery | undefined>;
+
+  getSuppliers(): Promise<Supplier[]>;
+  getSupplier(id: string): Promise<Supplier | undefined>;
+  createSupplier(supplier: InsertSupplier): Promise<Supplier>;
+  updateSupplier(id: string, supplier: Partial<InsertSupplier>): Promise<Supplier | undefined>;
+
+  getPurchases(): Promise<Purchase[]>;
+  getPurchase(id: string): Promise<Purchase | undefined>;
+  createPurchase(purchase: InsertPurchase): Promise<Purchase>;
+  getPurchaseItems(purchaseId: string): Promise<PurchaseItem[]>;
+  createPurchaseItem(item: InsertPurchaseItem): Promise<PurchaseItem>;
 
   getSettings(): Promise<Setting[]>;
   getSetting(key: string): Promise<Setting | undefined>;
@@ -232,6 +247,48 @@ export class DatabaseStorage implements IStorage {
       return updated;
     }
     const [created] = await db.insert(settings).values({ key, value }).returning();
+    return created;
+  }
+
+  async getSuppliers(): Promise<Supplier[]> {
+    return await db.select().from(suppliers);
+  }
+
+  async getSupplier(id: string): Promise<Supplier | undefined> {
+    const [supplier] = await db.select().from(suppliers).where(eq(suppliers.id, id));
+    return supplier;
+  }
+
+  async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
+    const [created] = await db.insert(suppliers).values(supplier).returning();
+    return created;
+  }
+
+  async updateSupplier(id: string, supplier: Partial<InsertSupplier>): Promise<Supplier | undefined> {
+    const [updated] = await db.update(suppliers).set(supplier).where(eq(suppliers.id, id)).returning();
+    return updated;
+  }
+
+  async getPurchases(): Promise<Purchase[]> {
+    return await db.select().from(purchases).orderBy(desc(purchases.createdAt));
+  }
+
+  async getPurchase(id: string): Promise<Purchase | undefined> {
+    const [purchase] = await db.select().from(purchases).where(eq(purchases.id, id));
+    return purchase;
+  }
+
+  async createPurchase(purchase: InsertPurchase): Promise<Purchase> {
+    const [created] = await db.insert(purchases).values(purchase).returning();
+    return created;
+  }
+
+  async getPurchaseItems(purchaseId: string): Promise<PurchaseItem[]> {
+    return await db.select().from(purchaseItems).where(eq(purchaseItems.purchaseId, purchaseId));
+  }
+
+  async createPurchaseItem(item: InsertPurchaseItem): Promise<PurchaseItem> {
+    const [created] = await db.insert(purchaseItems).values(item).returning();
     return created;
   }
 }

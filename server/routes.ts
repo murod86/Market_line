@@ -2,11 +2,12 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { products, customers, sales, saleItems, deliveries } from "@shared/schema";
+import { products, customers, sales, saleItems, deliveries, purchases, purchaseItems } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 import {
   insertRoleSchema, insertEmployeeSchema, insertCategorySchema,
   insertProductSchema, insertCustomerSchema, insertDeliverySchema,
+  insertSupplierSchema,
 } from "@shared/schema";
 import { createHash } from "crypto";
 import multer from "multer";
@@ -311,6 +312,105 @@ export async function registerRoutes(
     const delivery = await storage.updateDelivery(req.params.id, req.body);
     if (!delivery) return res.status(404).json({ message: "Delivery not found" });
     res.json(delivery);
+  });
+
+  // ===== SUPPLIERS =====
+  app.get("/api/suppliers", async (_req, res) => {
+    const data = await storage.getSuppliers();
+    res.json(data);
+  });
+
+  app.post("/api/suppliers", async (req, res) => {
+    try {
+      const parsed = insertSupplierSchema.parse(req.body);
+      const supplier = await storage.createSupplier(parsed);
+      res.json(supplier);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/suppliers/:id", async (req, res) => {
+    const supplier = await storage.updateSupplier(req.params.id, req.body);
+    if (!supplier) return res.status(404).json({ message: "Ta'minotchi topilmadi" });
+    res.json(supplier);
+  });
+
+  // ===== PURCHASES (KIRIM) =====
+  app.get("/api/purchases", async (_req, res) => {
+    const data = await storage.getPurchases();
+    res.json(data);
+  });
+
+  app.get("/api/purchases/:id", async (req, res) => {
+    const purchase = await storage.getPurchase(req.params.id);
+    if (!purchase) return res.status(404).json({ message: "Kirim topilmadi" });
+    const items = await storage.getPurchaseItems(req.params.id);
+    const allProducts = await storage.getProducts();
+    const enrichedItems = items.map((item) => {
+      const product = allProducts.find((p) => p.id === item.productId);
+      return { ...item, productName: product?.name, productImage: product?.imageUrl };
+    });
+    res.json({ ...purchase, items: enrichedItems });
+  });
+
+  app.post("/api/purchases", async (req, res) => {
+    try {
+      const { supplierId, items, paidAmount, notes } = req.body;
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: "Mahsulotlar majburiy" });
+      }
+
+      for (const item of items) {
+        if (!item.productId || typeof item.productId !== "string") {
+          return res.status(400).json({ message: "Mahsulot ID noto'g'ri" });
+        }
+        if (!Number.isInteger(item.quantity) || item.quantity < 1) {
+          return res.status(400).json({ message: "Miqdor musbat butun son bo'lishi kerak" });
+        }
+        if (!item.costPrice || Number(item.costPrice) <= 0) {
+          return res.status(400).json({ message: "Tan narxi majburiy" });
+        }
+      }
+
+      const result = await db.transaction(async (tx) => {
+        let totalAmount = 0;
+        for (const item of items) {
+          totalAmount += item.quantity * Number(item.costPrice);
+        }
+
+        const [purchase] = await tx.insert(purchases).values({
+          supplierId: supplierId || null,
+          totalAmount: totalAmount.toFixed(2),
+          paidAmount: (paidAmount || 0).toFixed ? Number(paidAmount || 0).toFixed(2) : "0.00",
+          notes: notes || null,
+        }).returning();
+
+        for (const item of items) {
+          await tx.insert(purchaseItems).values({
+            purchaseId: purchase.id,
+            productId: item.productId,
+            quantity: item.quantity,
+            costPrice: Number(item.costPrice).toFixed(2),
+            total: (item.quantity * Number(item.costPrice)).toFixed(2),
+          });
+
+          const [product] = await tx.select().from(products).where(eq(products.id, item.productId));
+          if (product) {
+            await tx.update(products).set({
+              stock: product.stock + item.quantity,
+              costPrice: Number(item.costPrice).toFixed(2),
+            }).where(eq(products.id, item.productId));
+          }
+        }
+
+        return purchase;
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
   });
 
   // ===== SETTINGS =====

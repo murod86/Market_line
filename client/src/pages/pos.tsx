@@ -22,6 +22,7 @@ import {
   Banknote,
   Percent,
   X,
+  Package,
 } from "lucide-react";
 
 interface CartItem {
@@ -184,6 +185,20 @@ export default function POS() {
                   onClick={() => addToCart(product)}
                   data-testid={`card-product-${product.id}`}
                 >
+                  {product.imageUrl && (
+                    <div className="w-full h-24 overflow-hidden rounded-t-lg">
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  {!product.imageUrl && (
+                    <div className="w-full h-24 bg-muted flex items-center justify-center rounded-t-lg">
+                      <Package className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                  )}
                   <CardContent className="p-3">
                     <div className="flex items-start justify-between gap-1 mb-2">
                       <h3 className="font-medium text-sm leading-tight">{product.name}</h3>

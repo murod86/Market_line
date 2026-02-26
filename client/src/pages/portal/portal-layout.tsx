@@ -15,6 +15,7 @@ import PortalOrders from "./orders";
 import PortalDebt from "./debt";
 import {
   ShoppingCart,
+  Store,
   Package,
   CreditCard,
   LogOut,
@@ -148,11 +149,11 @@ export default function PortalLayout({ onLogout }: PortalLayoutProps) {
       <header className="border-b bg-card sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <ShoppingCart className="h-4 w-4" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-md">
+              <Store className="h-4 w-4" />
             </div>
             <div>
-              <h1 className="text-sm font-semibold" data-testid="text-portal-header">Smart POS</h1>
+              <h1 className="text-sm font-bold tracking-wide" data-testid="text-portal-header">MARKET_LINE</h1>
               <p className="text-xs text-muted-foreground">Mijoz portali</p>
             </div>
           </div>

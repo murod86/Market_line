@@ -1,7 +1,7 @@
-# Smart POS - Business Management System
+# MARKET_LINE - Business Management System
 
 ## Overview
-A comprehensive SaaS business management system built with React + Express + PostgreSQL. Includes POS (Point of Sale), warehouse management, customer management, role-based access, employee management, delivery tracking, and a customer portal.
+A comprehensive SaaS business management system built with React + Express + PostgreSQL. Includes POS (Point of Sale), warehouse management, customer management, role-based access, employee management, delivery tracking, supplier management, inventory procurement, and a customer portal. App name: MARKET_LINE.
 
 ## Architecture
 - **Frontend**: React + TypeScript + Tailwind CSS + shadcn/ui components
@@ -13,14 +13,16 @@ A comprehensive SaaS business management system built with React + Express + Pos
 
 ## Admin Modules (root path /)
 1. **Dashboard** - Overview stats (sales, stock, customers, debt)
-2. **POS** - Point of Sale with cart, discounts, cash/debt payment
+2. **POS** - Point of Sale with cart, discounts, cash/debt payment, product images
 3. **Warehouse** - Stock overview with catalog view
-4. **Products** - Product CRUD with categories, pricing, stock levels
+4. **Products** - Product CRUD with categories, pricing, stock levels, image upload
 5. **Customers** - Customer management with debt tracking
-6. **Deliveries** - Delivery status tracking
-7. **Roles** - Role creation with granular permissions
-8. **Employees** - Employee management with role assignment
-9. **Settings** - Company info, Telegram bot config
+6. **Deliveries** - Delivery status tracking with order details
+7. **Suppliers** - Supplier management (name, phone, company, address)
+8. **Purchases (Kirim)** - Inventory procurement from suppliers, auto-updates stock
+9. **Roles** - Role creation with granular permissions
+10. **Employees** - Employee management with role assignment
+11. **Settings** - Company info, Telegram bot config
 
 ## Customer Portal (/portal)
 - **Login/Register** - Phone + password authentication
@@ -53,7 +55,7 @@ A comprehensive SaaS business management system built with React + Express + Pos
 - All other `/api/*` routes - Admin CRUD operations
 
 ## Database Tables
-- roles, employees, categories, products, customers, sales, sale_items, deliveries, settings, session (for express-session)
+- roles, employees, categories, products, customers, sales, sale_items, deliveries, settings, suppliers, purchases, purchase_items, session (for express-session)
 
 ## Test Credentials (Seed Data)
 - Customer: +998901111111 / 1111
