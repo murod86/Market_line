@@ -51,10 +51,10 @@ function AdminLayout() {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
-          <header className="flex items-center gap-3 px-4 py-3 border-b shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600">
-            <SidebarTrigger data-testid="button-sidebar-toggle" className="text-white [&]:bg-transparent" />
-            <div className="h-5 w-px bg-white/30" />
-            <h1 className="text-sm font-semibold text-white tracking-wide">MARKET_LINE</h1>
+          <header className="flex items-center gap-3 px-4 py-3 shrink-0 glass-header">
+            <SidebarTrigger data-testid="button-sidebar-toggle" className="text-white/90 [&]:bg-transparent" />
+            <div className="h-5 w-px bg-white/20" />
+            <h1 className="text-sm font-bold text-white/90 tracking-wide drop-shadow-sm">MARKET_LINE</h1>
           </header>
           <main className="flex-1 overflow-hidden">
             <AdminRouter />
