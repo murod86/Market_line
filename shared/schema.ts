@@ -1,18 +1,148 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
+export const roles = pgTable("roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  permissions: jsonb("permissions").notNull().default(sql`'[]'::jsonb`),
+});
+
+export const insertRoleSchema = createInsertSchema(roles).omit({ id: true });
+export type InsertRole = z.infer<typeof insertRoleSchema>;
+export type Role = typeof roles.$inferSelect;
+
+export const employees = pgTable("employees", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fullName: text("full_name").notNull(),
+  phone: text("phone").notNull(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  roleId: varchar("role_id").references(() => roles.id),
+  active: boolean("active").notNull().default(true),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export const insertEmployeeSchema = createInsertSchema(employees).omit({ id: true });
+export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
+export type Employee = typeof employees.$inferSelect;
+
+export const categories = pgTable("categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export const insertCategorySchema = createInsertSchema(categories).omit({ id: true });
+export type InsertCategory = z.infer<typeof insertCategorySchema>;
+export type Category = typeof categories.$inferSelect;
+
+export const products = pgTable("products", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  sku: text("sku").notNull().unique(),
+  price: decimal("price", { precision: 12, scale: 2 }).notNull(),
+  costPrice: decimal("cost_price", { precision: 12, scale: 2 }).notNull(),
+  stock: integer("stock").notNull().default(0),
+  minStock: integer("min_stock").notNull().default(5),
+  categoryId: varchar("category_id").references(() => categories.id),
+  imageUrl: text("image_url"),
+  unit: text("unit").notNull().default("dona"),
+  active: boolean("active").notNull().default(true),
+});
+
+export const insertProductSchema = createInsertSchema(products).omit({ id: true });
+export type InsertProduct = z.infer<typeof insertProductSchema>;
+export type Product = typeof products.$inferSelect;
+
+export const customers = pgTable("customers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fullName: text("full_name").notNull(),
+  phone: text("phone").notNull(),
+  address: text("address"),
+  telegramId: text("telegram_id"),
+  debt: decimal("debt", { precision: 12, scale: 2 }).notNull().default("0"),
+  active: boolean("active").notNull().default(true),
+});
+
+export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true });
+export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
+export type Customer = typeof customers.$inferSelect;
+
+export const sales = pgTable("sales", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").references(() => customers.id),
+  employeeId: varchar("employee_id").references(() => employees.id),
+  totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull(),
+  discount: decimal("discount", { precision: 12, scale: 2 }).notNull().default("0"),
+  paidAmount: decimal("paid_amount", { precision: 12, scale: 2 }).notNull(),
+  paymentType: text("payment_type").notNull().default("cash"),
+  status: text("status").notNull().default("completed"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertSaleSchema = createInsertSchema(sales).omit({ id: true, createdAt: true });
+export type InsertSale = z.infer<typeof insertSaleSchema>;
+export type Sale = typeof sales.$inferSelect;
+
+export const saleItems = pgTable("sale_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  saleId: varchar("sale_id").references(() => sales.id).notNull(),
+  productId: varchar("product_id").references(() => products.id).notNull(),
+  quantity: integer("quantity").notNull(),
+  price: decimal("price", { precision: 12, scale: 2 }).notNull(),
+  total: decimal("total", { precision: 12, scale: 2 }).notNull(),
+});
+
+export const insertSaleItemSchema = createInsertSchema(saleItems).omit({ id: true });
+export type InsertSaleItem = z.infer<typeof insertSaleItemSchema>;
+export type SaleItem = typeof saleItems.$inferSelect;
+
+export const deliveries = pgTable("deliveries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  saleId: varchar("sale_id").references(() => sales.id).notNull(),
+  customerId: varchar("customer_id").references(() => customers.id).notNull(),
+  address: text("address").notNull(),
+  status: text("status").notNull().default("pending"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertDeliverySchema = createInsertSchema(deliveries).omit({ id: true, createdAt: true });
+export type InsertDelivery = z.infer<typeof insertDeliverySchema>;
+export type Delivery = typeof deliveries.$inferSelect;
+
+export const settings = pgTable("settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  value: text("value").notNull(),
+});
+
+export const insertSettingSchema = createInsertSchema(settings).omit({ id: true });
+export type InsertSetting = z.infer<typeof insertSettingSchema>;
+export type Setting = typeof settings.$inferSelect;
+
+export const ALL_PERMISSIONS = [
+  "pos.sell",
+  "pos.discount",
+  "pos.debt_sale",
+  "customers.view",
+  "customers.create",
+  "customers.edit",
+  "products.view",
+  "products.create",
+  "products.edit",
+  "products.stock",
+  "warehouse.view",
+  "roles.view",
+  "roles.manage",
+  "employees.view",
+  "employees.manage",
+  "deliveries.view",
+  "deliveries.manage",
+  "settings.manage",
+  "reports.view",
+] as const;
+
+export type Permission = typeof ALL_PERMISSIONS[number];
