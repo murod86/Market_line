@@ -153,6 +153,9 @@ export async function registerRoutes(
   app.post("/api/customers", async (req, res) => {
     try {
       const parsed = insertCustomerSchema.parse(req.body);
+      if (parsed.password) {
+        parsed.password = hashPassword(parsed.password);
+      }
       const customer = await storage.createCustomer(parsed);
       const { password: _, ...safe } = customer;
       res.json(safe);
@@ -162,7 +165,11 @@ export async function registerRoutes(
   });
 
   app.patch("/api/customers/:id", async (req, res) => {
-    const customer = await storage.updateCustomer(req.params.id, req.body);
+    const updateData = { ...req.body };
+    if (updateData.password) {
+      updateData.password = hashPassword(updateData.password);
+    }
+    const customer = await storage.updateCustomer(req.params.id, updateData);
     if (!customer) return res.status(404).json({ message: "Customer not found" });
     const { password: _, ...safe } = customer;
     res.json(safe);

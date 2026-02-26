@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Customer } from "@shared/schema";
-import { Plus, Search, Users, Edit, Phone, MapPin } from "lucide-react";
+import { Plus, Search, Users, Edit, Phone, MapPin, Lock } from "lucide-react";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -21,7 +21,7 @@ export default function Customers() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
   const [form, setForm] = useState({
-    fullName: "", phone: "", address: "", telegramId: "",
+    fullName: "", phone: "", address: "", telegramId: "", password: "",
   });
   const { toast } = useToast();
 
@@ -49,7 +49,7 @@ export default function Customers() {
   });
 
   const resetForm = () => {
-    setForm({ fullName: "", phone: "", address: "", telegramId: "" });
+    setForm({ fullName: "", phone: "", address: "", telegramId: "", password: "" });
   };
 
   const openEdit = (customer: Customer) => {
@@ -59,6 +59,7 @@ export default function Customers() {
       phone: customer.phone,
       address: customer.address || "",
       telegramId: customer.telegramId || "",
+      password: "",
     });
     setDialogOpen(true);
   };
@@ -68,14 +69,22 @@ export default function Customers() {
       toast({ title: "Ism va telefon majburiy", variant: "destructive" });
       return;
     }
-    mutation.mutate({
+    if (!editing && !form.password) {
+      toast({ title: "Parol majburiy", variant: "destructive" });
+      return;
+    }
+    const data: any = {
       fullName: form.fullName,
       phone: form.phone,
       address: form.address || null,
       telegramId: form.telegramId || null,
       active: true,
       debt: editing ? undefined : "0",
-    });
+    };
+    if (form.password) {
+      data.password = form.password;
+    }
+    mutation.mutate(data);
   };
 
   const filtered = customers?.filter(
@@ -194,6 +203,22 @@ export default function Customers() {
             <div>
               <label className="text-sm font-medium mb-1 block">Telefon *</label>
               <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+998901234567" data-testid="input-customer-phone" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">
+                Parol {editing ? "(o'zgartirish uchun kiriting)" : "*"}
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  placeholder={editing ? "Yangi parol" : "Parol kiriting"}
+                  className="pl-10"
+                  data-testid="input-customer-password"
+                />
+              </div>
             </div>
             <div>
               <label className="text-sm font-medium mb-1 block">Manzil</label>
