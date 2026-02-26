@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Setting } from "@shared/schema";
-import { Settings as SettingsIcon, Save, Building2, MessageSquare } from "lucide-react";
+import { Settings as SettingsIcon, Save, Building2, MessageSquare, Webhook, Loader2 } from "lucide-react";
 
 export default function Settings() {
   const [companyName, setCompanyName] = useState("");
@@ -104,19 +104,63 @@ export default function Settings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Yetkazib berish xabarnomalarini Telegram orqali yuborish uchun sozlang
+              Telegram bot orqali OTP tasdiqlash va xabarnomalar uchun sozlang
             </p>
             <div>
               <label className="text-sm font-medium mb-1 block">Bot Token</label>
               <Input value={telegramToken} onChange={(e) => setTelegramToken(e.target.value)} placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" data-testid="input-telegram-token" />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Chat ID</label>
+              <label className="text-sm font-medium mb-1 block">Chat ID (xabarnomalar uchun)</label>
               <Input value={telegramChatId} onChange={(e) => setTelegramChatId(e.target.value)} placeholder="-1001234567890" data-testid="input-telegram-chat-id" />
             </div>
+            <Separator />
+            <WebhookSetup />
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function WebhookSetup() {
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const setupWebhook = async () => {
+    setLoading(true);
+    try {
+      const webhookUrl = window.location.origin;
+      const res = await apiRequest("POST", "/api/telegram/setup-webhook", { webhookUrl });
+      const data = await res.json() as any;
+      if (data.ok) {
+        toast({ title: "Webhook o'rnatildi", description: "Telegram bot webhook muvaffaqiyatli sozlandi" });
+      } else {
+        toast({ title: "Xatolik", description: data.description || "Webhook o'rnatilmadi", variant: "destructive" });
+      }
+    } catch (error: any) {
+      toast({ title: "Xatolik", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium">Telegram Webhook</p>
+      <p className="text-xs text-muted-foreground">
+        Mijozlar Telegram bot orqali telefon raqamini bog'lashi uchun webhook o'rnating. Bot tokenni saqlangandan keyin bosing.
+      </p>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={setupWebhook}
+        disabled={loading}
+        data-testid="button-setup-webhook"
+      >
+        {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Webhook className="h-4 w-4 mr-2" />}
+        Webhook o'rnatish
+      </Button>
     </div>
   );
 }

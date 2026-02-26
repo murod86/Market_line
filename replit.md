@@ -1,7 +1,7 @@
 # MARKET_LINE - Business Management System
 
 ## Overview
-A comprehensive SaaS business management system built with React + Express + PostgreSQL. Includes POS (Point of Sale), warehouse management, customer management, role-based access, employee management, delivery tracking, supplier management, inventory procurement, and a customer portal. App name: MARKET_LINE.
+A comprehensive SaaS business management system built with React + Express + PostgreSQL. Includes POS (Point of Sale), warehouse management, customer management, role-based access, employee management, delivery tracking, supplier management, inventory procurement, and a customer portal with Telegram OTP authentication. App name: MARKET_LINE.
 
 ## Architecture
 - **Frontend**: React + TypeScript + Tailwind CSS + shadcn/ui components
@@ -10,6 +10,7 @@ A comprehensive SaaS business management system built with React + Express + Pos
 - **Sessions**: express-session + connect-pg-simple (stored in PostgreSQL)
 - **Routing**: wouter (frontend)
 - **State Management**: TanStack React Query
+- **Telegram OTP**: Bot API for OTP verification, webhook for phone linking
 
 ## Admin Modules (root path /)
 1. **Dashboard** - Overview stats (sales, stock, customers, debt)
@@ -22,19 +23,29 @@ A comprehensive SaaS business management system built with React + Express + Pos
 8. **Purchases (Kirim)** - Inventory procurement from suppliers, auto-updates stock
 9. **Roles** - Role creation with granular permissions
 10. **Employees** - Employee management with role assignment
-11. **Settings** - Company info, Telegram bot config
+11. **Settings** - Company info, Telegram bot config, webhook setup
 
 ## Customer Portal (/portal)
-- **Login/Register** - Phone + password authentication
+- **Login** - Phone + password authentication
+- **Registration** - Telegram OTP verification flow (phone → OTP → details → register)
+- **Password Reset** - Telegram OTP-based password recovery
 - **Catalog** - Browse products, filter by category, search
 - **Cart & Orders** - Add to cart, place orders (debt-based)
 - **Debt Tracking** - View current debt, payment history
 - Customer passwords are SHA-256 hashed
 - Sessions stored in PostgreSQL via connect-pg-simple
 
+## Telegram OTP System
+- Customers link phone to Telegram via bot (/start → share phone)
+- OTP codes sent via Telegram Bot API (4-digit, 5-min expiry)
+- In-memory OTP store (Map) for short-lived codes
+- Bot webhook endpoint: POST /api/telegram/webhook
+- Webhook setup endpoint: POST /api/telegram/setup-webhook
+- OTP endpoints: send-otp, send-register-otp, verify-otp, register-otp, reset-password
+
 ## Key Files
 - `shared/schema.ts` - All database schemas and types
-- `server/routes.ts` - API endpoints (admin + portal)
+- `server/routes.ts` - API endpoints (admin + portal + telegram webhook + OTP)
 - `server/storage.ts` - Database operations (DatabaseStorage class)
 - `server/index.ts` - Express app with session middleware
 - `server/db.ts` - Database connection
@@ -47,11 +58,18 @@ A comprehensive SaaS business management system built with React + Express + Pos
 ## API Routes
 - `/api/portal/login` - Customer login (POST)
 - `/api/portal/register` - Customer registration (POST)
+- `/api/portal/send-otp` - Send OTP for password reset (POST)
+- `/api/portal/send-register-otp` - Send OTP for registration (POST)
+- `/api/portal/verify-otp` - Verify OTP code (POST)
+- `/api/portal/register-otp` - Register with verified OTP (POST)
+- `/api/portal/reset-password` - Reset password with OTP (POST)
 - `/api/portal/me` - Current customer info (GET)
 - `/api/portal/logout` - Customer logout (POST)
 - `/api/portal/catalog` - Product catalog (GET)
 - `/api/portal/categories` - Categories (GET)
 - `/api/portal/orders` - Customer orders (GET/POST)
+- `/api/telegram/webhook` - Telegram bot webhook (POST)
+- `/api/telegram/setup-webhook` - Setup Telegram webhook (POST)
 - All other `/api/*` routes - Admin CRUD operations
 
 ## Database Tables

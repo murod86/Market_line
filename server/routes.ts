@@ -39,6 +39,33 @@ function stripPassword(employee: any) {
   return rest;
 }
 
+const otpStore = new Map<string, { code: string; expiry: number; verified?: boolean }>();
+
+function generateOTP(): string {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+async function getTelegramBotToken(): Promise<string | null> {
+  const setting = await storage.getSetting("telegram_bot_token");
+  return setting?.value && setting.value.trim() !== "" ? setting.value.trim() : null;
+}
+
+async function sendTelegramMessage(chatId: string, text: string): Promise<boolean> {
+  const token = await getTelegramBotToken();
+  if (!token) return false;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
+    });
+    const data = await res.json() as any;
+    return data.ok === true;
+  } catch {
+    return false;
+  }
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -498,6 +525,288 @@ export async function registerRoutes(
     req.session.destroy(() => {
       res.json({ success: true });
     });
+  });
+
+  app.post("/api/portal/send-otp", async (req, res) => {
+    try {
+      const { phone } = req.body;
+      if (!phone) {
+        return res.status(400).json({ message: "Telefon raqam majburiy" });
+      }
+      const customer = await storage.getCustomerByPhone(phone);
+      if (!customer) {
+        return res.status(404).json({ message: "Bu telefon raqam ro'yxatdan o'tmagan" });
+      }
+      if (!customer.telegramId) {
+        return res.status(400).json({ message: "Telegram bog'lanmagan. Avval Telegram botga /start yuboring" });
+      }
+      if (!customer.active) {
+        return res.status(403).json({ message: "Hisob nofaol" });
+      }
+      const code = generateOTP();
+      otpStore.set(phone, { code, expiry: Date.now() + 5 * 60 * 1000 });
+      const sent = await sendTelegramMessage(
+        customer.telegramId,
+        `🔐 <b>MARKET_LINE</b>\n\nSizning tasdiqlash kodingiz: <b>${code}</b>\n\nKod 5 daqiqa amal qiladi.`
+      );
+      if (!sent) {
+        return res.status(500).json({ message: "Telegram xabar yuborib bo'lmadi. Bot tokenni tekshiring" });
+      }
+      res.json({ success: true, message: "OTP kod Telegramga yuborildi" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/portal/verify-otp", async (req, res) => {
+    try {
+      const { phone, code } = req.body;
+      if (!phone || !code) {
+        return res.status(400).json({ message: "Telefon va kod majburiy" });
+      }
+      const stored = otpStore.get(phone);
+      if (!stored) {
+        return res.status(400).json({ message: "OTP kod topilmadi. Qayta yuboring" });
+      }
+      if (Date.now() > stored.expiry) {
+        otpStore.delete(phone);
+        return res.status(400).json({ message: "OTP kod muddati tugagan. Qayta yuboring" });
+      }
+      if (stored.code !== code) {
+        return res.status(400).json({ message: "OTP kod noto'g'ri" });
+      }
+      otpStore.set(phone, { ...stored, verified: true });
+      res.json({ success: true, message: "OTP tasdiqlandi" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/portal/register-otp", async (req, res) => {
+    try {
+      const { phone, code, fullName, password, address } = req.body;
+      if (!phone || !code || !fullName || !password) {
+        return res.status(400).json({ message: "Barcha majburiy maydonlarni to'ldiring" });
+      }
+      const stored = otpStore.get(phone);
+      if (!stored || stored.code !== code || !stored.verified) {
+        return res.status(400).json({ message: "OTP tasdiqlanmagan" });
+      }
+      if (Date.now() > stored.expiry) {
+        otpStore.delete(phone);
+        return res.status(400).json({ message: "OTP kod muddati tugagan" });
+      }
+      const existing = await storage.getCustomerByPhone(phone);
+      if (existing) {
+        if (existing.password) {
+          return res.status(400).json({ message: "Bu telefon raqam allaqachon ro'yxatdan o'tgan" });
+        }
+        const updated = await storage.updateCustomer(existing.id, {
+          fullName,
+          password: hashPassword(password),
+          address: address || null,
+        });
+        otpStore.delete(phone);
+        req.session.customerId = updated!.id;
+        req.session.customerName = updated!.fullName;
+        const { password: _, ...safe } = updated!;
+        return res.json(safe);
+      }
+      const customer = await storage.createCustomer({
+        fullName,
+        phone,
+        password: hashPassword(password),
+        address: address || null,
+        telegramId: null,
+        active: true,
+        debt: "0",
+      });
+      otpStore.delete(phone);
+      req.session.customerId = customer.id;
+      req.session.customerName = customer.fullName;
+      const { password: _, ...safe } = customer;
+      res.json(safe);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/portal/reset-password", async (req, res) => {
+    try {
+      const { phone, code, newPassword } = req.body;
+      if (!phone || !code || !newPassword) {
+        return res.status(400).json({ message: "Barcha maydonlarni to'ldiring" });
+      }
+      const stored = otpStore.get(phone);
+      if (!stored || stored.code !== code || !stored.verified) {
+        return res.status(400).json({ message: "OTP tasdiqlanmagan" });
+      }
+      if (Date.now() > stored.expiry) {
+        otpStore.delete(phone);
+        return res.status(400).json({ message: "OTP kod muddati tugagan" });
+      }
+      const customer = await storage.getCustomerByPhone(phone);
+      if (!customer) {
+        return res.status(404).json({ message: "Mijoz topilmadi" });
+      }
+      await storage.updateCustomer(customer.id, {
+        password: hashPassword(newPassword),
+      });
+      otpStore.delete(phone);
+      req.session.customerId = customer.id;
+      req.session.customerName = customer.fullName;
+      res.json({ success: true, message: "Parol yangilandi" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/portal/send-register-otp", async (req, res) => {
+    try {
+      const { phone } = req.body;
+      if (!phone) {
+        return res.status(400).json({ message: "Telefon raqam majburiy" });
+      }
+      const existing = await storage.getCustomerByPhone(phone);
+      if (existing && existing.password) {
+        return res.status(400).json({ message: "Bu telefon raqam allaqachon ro'yxatdan o'tgan. Tizimga kiring" });
+      }
+      if (!existing || !existing.telegramId) {
+        return res.status(400).json({ message: "Telegram bog'lanmagan. Avval Telegram botga /start yuborib, telefon raqamingizni ulang" });
+      }
+      const code = generateOTP();
+      otpStore.set(phone, { code, expiry: Date.now() + 5 * 60 * 1000 });
+      const sent = await sendTelegramMessage(
+        existing.telegramId,
+        `🔐 <b>MARKET_LINE</b>\n\nRo'yxatdan o'tish kodi: <b>${code}</b>\n\nKod 5 daqiqa amal qiladi.`
+      );
+      if (!sent) {
+        return res.status(500).json({ message: "Telegram xabar yuborib bo'lmadi. Bot tokenni tekshiring" });
+      }
+      res.json({ success: true, message: "OTP kod Telegramga yuborildi" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/telegram/webhook", async (req, res) => {
+    try {
+      const { message } = req.body;
+      if (!message) return res.json({ ok: true });
+
+      const chatId = message.chat?.id?.toString();
+      const text = message.text?.trim();
+      const contact = message.contact;
+
+      if (!chatId) return res.json({ ok: true });
+
+      if (text === "/start") {
+        await sendTelegramMessage(chatId,
+          `👋 <b>MARKET_LINE</b> botiga xush kelibsiz!\n\n` +
+          `📱 Telefon raqamingizni ulash uchun pastdagi "📞 Telefon raqamni yuborish" tugmasini bosing yoki telefon raqamingizni yozing.\n\n` +
+          `Masalan: <code>+998901234567</code>`
+        );
+        const token = await getTelegramBotToken();
+        if (token) {
+          await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text: "📞 Telefon raqamingizni yuboring:",
+              reply_markup: {
+                keyboard: [[{ text: "📞 Telefon raqamni yuborish", request_contact: true }]],
+                resize_keyboard: true,
+                one_time_keyboard: true,
+              },
+            }),
+          });
+        }
+        return res.json({ ok: true });
+      }
+
+      if (contact && contact.phone_number) {
+        let phone = contact.phone_number;
+        if (!phone.startsWith("+")) phone = "+" + phone;
+        let customer = await storage.getCustomerByPhone(phone);
+        if (!customer) {
+          customer = await storage.createCustomer({
+            fullName: `${contact.first_name || ""} ${contact.last_name || ""}`.trim() || "Telegram foydalanuvchi",
+            phone,
+            password: null,
+            address: null,
+            telegramId: chatId,
+            active: true,
+            debt: "0",
+          });
+          await sendTelegramMessage(chatId,
+            `✅ Telefon raqamingiz muvaffaqiyatli bog'landi!\n\n📱 ${phone}\n\nEndi MARKET_LINE portalida OTP orqali ro'yxatdan o'tishingiz mumkin.`
+          );
+        } else {
+          await storage.updateCustomer(customer.id, { telegramId: chatId });
+          await sendTelegramMessage(chatId,
+            `✅ Telegram hisobingiz bog'landi!\n\n📱 ${phone}\n\nEndi parolni tiklash va OTP tasdiqlash xizmatlari faol.`
+          );
+        }
+        return res.json({ ok: true });
+      }
+
+      if (text && /^\+?\d{10,15}$/.test(text.replace(/\s/g, ""))) {
+        let phone = text.replace(/\s/g, "");
+        if (!phone.startsWith("+")) phone = "+" + phone;
+        let customer = await storage.getCustomerByPhone(phone);
+        if (!customer) {
+          customer = await storage.createCustomer({
+            fullName: `${message.from?.first_name || ""} ${message.from?.last_name || ""}`.trim() || "Telegram foydalanuvchi",
+            phone,
+            password: null,
+            address: null,
+            telegramId: chatId,
+            active: true,
+            debt: "0",
+          });
+          await sendTelegramMessage(chatId,
+            `✅ Telefon raqamingiz muvaffaqiyatli bog'landi!\n\n📱 ${phone}\n\nEndi MARKET_LINE portalida OTP orqali ro'yxatdan o'tishingiz mumkin.`
+          );
+        } else {
+          await storage.updateCustomer(customer.id, { telegramId: chatId });
+          await sendTelegramMessage(chatId,
+            `✅ Telegram hisobingiz bog'landi!\n\n📱 ${phone}\n\nEndi parolni tiklash va OTP tasdiqlash xizmatlari faol.`
+          );
+        }
+        return res.json({ ok: true });
+      }
+
+      await sendTelegramMessage(chatId,
+        `❓ Tushunmadim. Iltimos telefon raqamingizni yuboring yoki /start bosing.`
+      );
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error("Telegram webhook error:", error);
+      res.json({ ok: true });
+    }
+  });
+
+  app.post("/api/telegram/setup-webhook", async (req, res) => {
+    try {
+      const token = await getTelegramBotToken();
+      if (!token) {
+        return res.status(400).json({ message: "Telegram bot token sozlanmagan" });
+      }
+      const { webhookUrl } = req.body;
+      if (!webhookUrl) {
+        return res.status(400).json({ message: "Webhook URL majburiy" });
+      }
+      const response = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: `${webhookUrl}/api/telegram/webhook` }),
+      });
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
   });
 
   app.get("/api/portal/catalog", async (req, res) => {
