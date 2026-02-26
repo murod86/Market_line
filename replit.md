@@ -1,16 +1,17 @@
 # Smart POS - Business Management System
 
 ## Overview
-A comprehensive SaaS business management system built with React + Express + PostgreSQL. Includes POS (Point of Sale), warehouse management, customer management, role-based access, employee management, and delivery tracking.
+A comprehensive SaaS business management system built with React + Express + PostgreSQL. Includes POS (Point of Sale), warehouse management, customer management, role-based access, employee management, delivery tracking, and a customer portal.
 
 ## Architecture
 - **Frontend**: React + TypeScript + Tailwind CSS + shadcn/ui components
-- **Backend**: Express.js REST API
+- **Backend**: Express.js REST API with session-based auth
 - **Database**: PostgreSQL with Drizzle ORM
+- **Sessions**: express-session + connect-pg-simple (stored in PostgreSQL)
 - **Routing**: wouter (frontend)
 - **State Management**: TanStack React Query
 
-## Modules
+## Admin Modules (root path /)
 1. **Dashboard** - Overview stats (sales, stock, customers, debt)
 2. **POS** - Point of Sale with cart, discounts, cash/debt payment
 3. **Warehouse** - Stock overview with catalog view
@@ -21,18 +22,42 @@ A comprehensive SaaS business management system built with React + Express + Pos
 8. **Employees** - Employee management with role assignment
 9. **Settings** - Company info, Telegram bot config
 
+## Customer Portal (/portal)
+- **Login/Register** - Phone + password authentication
+- **Catalog** - Browse products, filter by category, search
+- **Cart & Orders** - Add to cart, place orders (debt-based)
+- **Debt Tracking** - View current debt, payment history
+- Customer passwords are SHA-256 hashed
+- Sessions stored in PostgreSQL via connect-pg-simple
+
 ## Key Files
 - `shared/schema.ts` - All database schemas and types
-- `server/routes.ts` - API endpoints
+- `server/routes.ts` - API endpoints (admin + portal)
 - `server/storage.ts` - Database operations (DatabaseStorage class)
+- `server/index.ts` - Express app with session middleware
 - `server/db.ts` - Database connection
-- `server/seed.ts` - Seed data
-- `client/src/App.tsx` - Main app with routing and sidebar
-- `client/src/components/app-sidebar.tsx` - Navigation sidebar
-- `client/src/pages/` - All page components
+- `server/seed.ts` - Seed data (5 customers with passwords)
+- `client/src/App.tsx` - Main app with admin/portal routing
+- `client/src/components/app-sidebar.tsx` - Admin navigation sidebar
+- `client/src/pages/` - Admin page components
+- `client/src/pages/portal/` - Customer portal components
+
+## API Routes
+- `/api/portal/login` - Customer login (POST)
+- `/api/portal/register` - Customer registration (POST)
+- `/api/portal/me` - Current customer info (GET)
+- `/api/portal/logout` - Customer logout (POST)
+- `/api/portal/catalog` - Product catalog (GET)
+- `/api/portal/categories` - Categories (GET)
+- `/api/portal/orders` - Customer orders (GET/POST)
+- All other `/api/*` routes - Admin CRUD operations
 
 ## Database Tables
-- roles, employees, categories, products, customers, sales, sale_items, deliveries, settings
+- roles, employees, categories, products, customers, sales, sale_items, deliveries, settings, session (for express-session)
+
+## Test Credentials (Seed Data)
+- Customer: +998901111111 / 1111
+- Customer: +998902222222 / 2222
 
 ## Language
 UI is in Uzbek language (O'zbek tili)

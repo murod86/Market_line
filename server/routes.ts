@@ -2,8 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { products, customers, sales, saleItems } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { products, customers, sales, saleItems, deliveries } from "@shared/schema";
+import { eq, desc } from "drizzle-orm";
 import {
   insertRoleSchema, insertEmployeeSchema, insertCategorySchema,
   insertProductSchema, insertCustomerSchema, insertDeliverySchema,
@@ -140,20 +140,22 @@ export async function registerRoutes(
   // ===== CUSTOMERS =====
   app.get("/api/customers", async (_req, res) => {
     const data = await storage.getCustomers();
-    res.json(data);
+    res.json(data.map(({ password: _, ...c }) => c));
   });
 
   app.get("/api/customers/:id", async (req, res) => {
     const customer = await storage.getCustomer(req.params.id);
     if (!customer) return res.status(404).json({ message: "Customer not found" });
-    res.json(customer);
+    const { password: _, ...safe } = customer;
+    res.json(safe);
   });
 
   app.post("/api/customers", async (req, res) => {
     try {
       const parsed = insertCustomerSchema.parse(req.body);
       const customer = await storage.createCustomer(parsed);
-      res.json(customer);
+      const { password: _, ...safe } = customer;
+      res.json(safe);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
@@ -162,7 +164,8 @@ export async function registerRoutes(
   app.patch("/api/customers/:id", async (req, res) => {
     const customer = await storage.updateCustomer(req.params.id, req.body);
     if (!customer) return res.status(404).json({ message: "Customer not found" });
-    res.json(customer);
+    const { password: _, ...safe } = customer;
+    res.json(safe);
   });
 
   // ===== SALES (POS) - Transactional =====
@@ -275,6 +278,192 @@ export async function registerRoutes(
     }
     const setting = await storage.upsertSetting(key, value);
     res.json(setting);
+  });
+
+  // ===== CUSTOMER PORTAL AUTH =====
+  app.post("/api/portal/login", async (req, res) => {
+    try {
+      const { phone, password } = req.body;
+      if (!phone || !password) {
+        return res.status(400).json({ message: "Telefon va parol majburiy" });
+      }
+      const customer = await storage.getCustomerByPhone(phone);
+      if (!customer || !customer.password) {
+        return res.status(401).json({ message: "Telefon raqam yoki parol noto'g'ri" });
+      }
+      if (customer.password !== hashPassword(password)) {
+        return res.status(401).json({ message: "Telefon raqam yoki parol noto'g'ri" });
+      }
+      if (!customer.active) {
+        return res.status(403).json({ message: "Hisob nofaol" });
+      }
+      req.session.customerId = customer.id;
+      req.session.customerName = customer.fullName;
+      const { password: _, ...safe } = customer;
+      res.json(safe);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/portal/register", async (req, res) => {
+    try {
+      const { fullName, phone, password, address } = req.body;
+      if (!fullName || !phone || !password) {
+        return res.status(400).json({ message: "Ism, telefon va parol majburiy" });
+      }
+      const existing = await storage.getCustomerByPhone(phone);
+      if (existing) {
+        return res.status(400).json({ message: "Bu telefon raqam allaqachon ro'yxatdan o'tgan" });
+      }
+      const customer = await storage.createCustomer({
+        fullName,
+        phone,
+        password: hashPassword(password),
+        address: address || null,
+        telegramId: null,
+        active: true,
+        debt: "0",
+      });
+      req.session.customerId = customer.id;
+      req.session.customerName = customer.fullName;
+      const { password: _, ...safe } = customer;
+      res.json(safe);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/portal/me", async (req, res) => {
+    if (!req.session.customerId) {
+      return res.status(401).json({ message: "Tizimga kirilmagan" });
+    }
+    const customer = await storage.getCustomer(req.session.customerId);
+    if (!customer) {
+      return res.status(401).json({ message: "Mijoz topilmadi" });
+    }
+    const { password: _, ...safe } = customer;
+    res.json(safe);
+  });
+
+  app.post("/api/portal/logout", (req, res) => {
+    req.session.destroy(() => {
+      res.json({ success: true });
+    });
+  });
+
+  app.get("/api/portal/catalog", async (req, res) => {
+    const allProducts = await storage.getProducts();
+    const catalog = allProducts
+      .filter(p => p.active && p.stock > 0)
+      .map(({ costPrice, minStock, ...p }) => p);
+    res.json(catalog);
+  });
+
+  app.get("/api/portal/categories", async (_req, res) => {
+    const data = await storage.getCategories();
+    res.json(data);
+  });
+
+  app.get("/api/portal/orders", async (req, res) => {
+    if (!req.session.customerId) {
+      return res.status(401).json({ message: "Tizimga kirilmagan" });
+    }
+    const customerSales = await storage.getCustomerSales(req.session.customerId);
+    res.json(customerSales);
+  });
+
+  app.get("/api/portal/orders/:id", async (req, res) => {
+    if (!req.session.customerId) {
+      return res.status(401).json({ message: "Tizimga kirilmagan" });
+    }
+    const sale = await storage.getSale(req.params.id);
+    if (!sale || sale.customerId !== req.session.customerId) {
+      return res.status(404).json({ message: "Buyurtma topilmadi" });
+    }
+    const items = await storage.getSaleItems(req.params.id);
+    res.json({ ...sale, items });
+  });
+
+  app.post("/api/portal/orders", async (req, res) => {
+    if (!req.session.customerId) {
+      return res.status(401).json({ message: "Tizimga kirilmagan" });
+    }
+    try {
+      const { items, address, notes } = req.body;
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: "Mahsulotlar majburiy" });
+      }
+
+      for (const item of items) {
+        if (!item.productId || typeof item.productId !== "string") {
+          return res.status(400).json({ message: "Mahsulot ID noto'g'ri" });
+        }
+        if (!Number.isInteger(item.quantity) || item.quantity < 1) {
+          return res.status(400).json({ message: "Miqdor musbat butun son bo'lishi kerak" });
+        }
+      }
+
+      const result = await db.transaction(async (tx) => {
+        let totalAmount = 0;
+        for (const item of items) {
+          const [product] = await tx.select().from(products).where(eq(products.id, item.productId));
+          if (!product || product.stock < item.quantity) {
+            throw new Error(`${product?.name || "Mahsulot"} stokda yetarli emas`);
+          }
+          totalAmount += item.quantity * Number(product.price);
+        }
+
+        const [sale] = await tx.insert(sales).values({
+          customerId: req.session.customerId!,
+          employeeId: null,
+          totalAmount: totalAmount.toFixed(2),
+          discount: "0",
+          paidAmount: "0",
+          paymentType: "debt",
+          status: "pending",
+        }).returning();
+
+        for (const item of items) {
+          const [product] = await tx.select().from(products).where(eq(products.id, item.productId));
+          await tx.insert(saleItems).values({
+            saleId: sale.id,
+            productId: item.productId,
+            quantity: item.quantity,
+            price: product!.price,
+            total: (item.quantity * Number(product!.price)).toFixed(2),
+          });
+
+          await tx.update(products).set({
+            stock: product!.stock - item.quantity,
+          }).where(eq(products.id, item.productId));
+        }
+
+        const [customer] = await tx.select().from(customers).where(eq(customers.id, req.session.customerId!));
+        if (customer) {
+          const newDebt = Number(customer.debt) + totalAmount;
+          await tx.update(customers).set({
+            debt: newDebt.toFixed(2),
+          }).where(eq(customers.id, req.session.customerId!));
+        }
+
+        if (address) {
+          await tx.insert(deliveries).values({
+            saleId: sale.id,
+            customerId: req.session.customerId!,
+            address,
+            status: "pending",
+            notes: notes || null,
+          });
+        }
+
+        return sale;
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
   });
 
   // ===== DASHBOARD STATS =====

@@ -98,11 +98,11 @@ export async function seedDatabase() {
   }
 
   const customerData = [
-    { fullName: "Aziz Toshmatov", phone: "+998901111111", address: "Toshkent, Chilonzor 7", debt: "250000" },
-    { fullName: "Gulnora Karimova", phone: "+998902222222", address: "Toshkent, Yunusobod 4", debt: "0" },
-    { fullName: "Bobur Xasanov", phone: "+998903333333", address: "Toshkent, Sergeli 8", debt: "180000" },
-    { fullName: "Malika Rahimova", phone: "+998904444444", address: "Toshkent, Mirzo Ulugbek", debt: "0" },
-    { fullName: "Rustam Saidov", phone: "+998905555555", address: "Toshkent, Yakkasaroy", debt: "520000" },
+    { fullName: "Aziz Toshmatov", phone: "+998901111111", address: "Toshkent, Chilonzor 7", debt: "250000", password: hashPassword("1111") },
+    { fullName: "Gulnora Karimova", phone: "+998902222222", address: "Toshkent, Yunusobod 4", debt: "0", password: hashPassword("2222") },
+    { fullName: "Bobur Xasanov", phone: "+998903333333", address: "Toshkent, Sergeli 8", debt: "180000", password: hashPassword("3333") },
+    { fullName: "Malika Rahimova", phone: "+998904444444", address: "Toshkent, Mirzo Ulugbek", debt: "0", password: hashPassword("4444") },
+    { fullName: "Rustam Saidov", phone: "+998905555555", address: "Toshkent, Yakkasaroy", debt: "520000", password: hashPassword("5555") },
   ];
 
   for (const c of customerData) {
