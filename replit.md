@@ -13,7 +13,7 @@ A comprehensive SaaS business management system built with React + Express + Pos
 
 ## Admin Modules (root path /)
 1. **Dashboard** - Overview stats (sales, stock, customers, debt)
-2. **POS** - Point of Sale with cart, discounts, cash/debt payment, product images
+2. **POS** - Point of Sale with cart, discounts, cash/debt payment, product images, 58mm receipt printing
 3. **Warehouse** - Stock overview with catalog view
 4. **Products** - Product CRUD with categories, pricing, stock levels, image upload
 5. **Customers** - Customer management with debt tracking

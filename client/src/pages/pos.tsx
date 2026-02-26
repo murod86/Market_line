@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Product, Customer } from "@shared/schema";
+import type { Product, Customer, Setting } from "@shared/schema";
 import {
   Search,
   Plus,
@@ -23,6 +23,7 @@ import {
   Percent,
   X,
   Package,
+  Printer,
 } from "lucide-react";
 
 interface CartItem {
@@ -30,8 +31,24 @@ interface CartItem {
   quantity: number;
 }
 
+interface ReceiptData {
+  items: CartItem[];
+  subtotal: number;
+  discount: number;
+  total: number;
+  paidAmount: number;
+  change: number;
+  paymentType: string;
+  customerName: string | null;
+  date: Date;
+}
+
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
+}
+
+function formatCurrencyShort(amount: number) {
+  return new Intl.NumberFormat("uz-UZ").format(amount);
 }
 
 export default function POS() {
@@ -42,6 +59,9 @@ export default function POS() {
   const [discount, setDiscount] = useState<number>(0);
   const [paidAmount, setPaidAmount] = useState<string>("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const receiptRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
@@ -52,12 +72,35 @@ export default function POS() {
     queryKey: ["/api/customers"],
   });
 
+  const { data: settings } = useQuery<Setting[]>({
+    queryKey: ["/api/settings"],
+  });
+
+  const companyName = settings?.find((s) => s.key === "company_name")?.value || "MARKET_LINE";
+
   const saleMutation = useMutation({
     mutationFn: async (data: any) => {
       const res = await apiRequest("POST", "/api/sales", data);
       return res.json();
     },
     onSuccess: () => {
+      const customer = customers?.find((c) => c.id === selectedCustomer);
+      const sub = cart.reduce((sum, item) => sum + item.quantity * Number(item.product.price), 0);
+      const tot = sub - discount;
+      const pd = paidAmount ? Number(paidAmount) : tot;
+
+      setReceiptData({
+        items: [...cart],
+        subtotal: sub,
+        discount,
+        total: tot,
+        paidAmount: paymentType === "debt" ? Number(paidAmount || 0) : tot,
+        change: paymentType === "cash" ? pd - tot : 0,
+        paymentType,
+        customerName: customer?.fullName || null,
+        date: new Date(),
+      });
+
       toast({ title: "Savdo muvaffaqiyatli yakunlandi!" });
       setCart([]);
       setDiscount(0);
@@ -65,6 +108,8 @@ export default function POS() {
       setSelectedCustomer("");
       setPaymentType("cash");
       setCheckoutOpen(false);
+      setReceiptOpen(true);
+
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
@@ -151,6 +196,88 @@ export default function POS() {
       paidAmount: paymentType === "debt" ? Number(paidAmount || 0) : total,
       paymentType,
     });
+  };
+
+  const handlePrintReceipt = () => {
+    if (!receiptRef.current) return;
+    const printContent = receiptRef.current.innerHTML;
+    const printWindow = window.open("", "_blank", "width=300,height=600");
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Chek</title>
+        <style>
+          @page {
+            size: 58mm auto;
+            margin: 0;
+          }
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          body {
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.3;
+            width: 48mm;
+            padding: 2mm;
+            color: #000;
+          }
+          .receipt-center { text-align: center; }
+          .receipt-bold { font-weight: bold; }
+          .receipt-line {
+            border-top: 1px dashed #000;
+            margin: 3px 0;
+          }
+          .receipt-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 4px;
+          }
+          .receipt-row-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+          .receipt-row-price {
+            text-align: right;
+            white-space: nowrap;
+          }
+          .receipt-item-detail {
+            font-size: 10px;
+            color: #333;
+            padding-left: 4px;
+          }
+          .receipt-total {
+            font-size: 13px;
+            font-weight: bold;
+          }
+          .receipt-footer {
+            text-align: center;
+            font-size: 10px;
+            margin-top: 6px;
+            color: #333;
+          }
+        </style>
+      </head>
+      <body>
+        ${printContent}
+        <script>
+          window.onload = function() {
+            window.print();
+            window.onafterprint = function() { window.close(); };
+            setTimeout(function() { window.close(); }, 5000);
+          };
+        <\/script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   return (
@@ -439,6 +566,131 @@ export default function POS() {
               data-testid="button-confirm-sale"
             >
               {saleMutation.isPending ? "Yuklanmoqda..." : "Sotishni tasdiqlash"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={receiptOpen} onOpenChange={setReceiptOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="h-4 w-4" />
+              Chek
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="border rounded-lg p-4 bg-white text-black font-mono text-xs max-h-[60vh] overflow-y-auto" data-testid="receipt-preview">
+            <div ref={receiptRef}>
+              {receiptData && (
+                <>
+                  <div className="receipt-center" style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: "14px", fontWeight: "bold", marginBottom: "2px" }}>{companyName}</div>
+                    <div style={{ fontSize: "10px", color: "#555" }}>
+                      {receiptData.date.toLocaleDateString("uz-UZ")} {receiptData.date.toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                    {receiptData.customerName && (
+                      <div style={{ fontSize: "10px", marginTop: "2px" }}>Mijoz: {receiptData.customerName}</div>
+                    )}
+                  </div>
+
+                  <div className="receipt-line" style={{ borderTop: "1px dashed #000", margin: "6px 0" }} />
+
+                  <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "10px", marginBottom: "4px" }}>
+                    <span>Mahsulot</span>
+                    <span>Summa</span>
+                  </div>
+
+                  <div className="receipt-line" style={{ borderTop: "1px dashed #000", margin: "4px 0" }} />
+
+                  {receiptData.items.map((item, idx) => (
+                    <div key={idx} style={{ marginBottom: "4px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: "4px" }}>
+                        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {item.product.name}
+                        </span>
+                        <span style={{ textAlign: "right", whiteSpace: "nowrap", fontWeight: "bold" }}>
+                          {formatCurrencyShort(item.quantity * Number(item.product.price))}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: "10px", color: "#555", paddingLeft: "4px" }}>
+                        {item.quantity} x {formatCurrencyShort(Number(item.product.price))}
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="receipt-line" style={{ borderTop: "1px dashed #000", margin: "6px 0" }} />
+
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span>Jami:</span>
+                    <span>{formatCurrencyShort(receiptData.subtotal)} UZS</span>
+                  </div>
+
+                  {receiptData.discount > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span>Chegirma:</span>
+                      <span>-{formatCurrencyShort(receiptData.discount)} UZS</span>
+                    </div>
+                  )}
+
+                  <div className="receipt-line" style={{ borderTop: "1px dashed #000", margin: "4px 0" }} />
+
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: "bold" }}>
+                    <span>JAMI:</span>
+                    <span>{formatCurrencyShort(receiptData.total)} UZS</span>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px" }}>
+                    <span>To'lov:</span>
+                    <span>{receiptData.paymentType === "cash" ? "Naqd" : "Qarzga"}</span>
+                  </div>
+
+                  {receiptData.paymentType === "cash" && (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span>Berildi:</span>
+                        <span>{formatCurrencyShort(receiptData.paidAmount)} UZS</span>
+                      </div>
+                      {receiptData.change > 0 && (
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <span>Qaytim:</span>
+                          <span>{formatCurrencyShort(receiptData.change)} UZS</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {receiptData.paymentType === "debt" && (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span>To'landi:</span>
+                        <span>{formatCurrencyShort(receiptData.paidAmount)} UZS</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold" }}>
+                        <span>Qarz:</span>
+                        <span>{formatCurrencyShort(receiptData.total - receiptData.paidAmount)} UZS</span>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="receipt-line" style={{ borderTop: "1px dashed #000", margin: "6px 0" }} />
+
+                  <div style={{ textAlign: "center", fontSize: "10px", color: "#555" }}>
+                    <div>Xaridingiz uchun rahmat!</div>
+                    <div style={{ marginTop: "2px" }}>{companyName}</div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setReceiptOpen(false)} data-testid="button-close-receipt">
+              Yopish
+            </Button>
+            <Button onClick={handlePrintReceipt} data-testid="button-print-receipt">
+              <Printer className="h-4 w-4 mr-2" />
+              Chop etish
             </Button>
           </DialogFooter>
         </DialogContent>
