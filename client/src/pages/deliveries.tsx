@@ -5,12 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Delivery, Customer } from "@shared/schema";
-import { Truck, MapPin, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Truck, MapPin, Clock, CheckCircle, XCircle, Package, Eye } from "lucide-react";
 import { format } from "date-fns";
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
+}
 
 const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   pending: { label: "Kutilmoqda", variant: "secondary" },
@@ -21,6 +26,11 @@ const statusMap: Record<string, { label: string; variant: "default" | "secondary
 
 export default function Deliveries() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
+  const [orderItems, setOrderItems] = useState<any[]>([]);
+  const [orderSale, setOrderSale] = useState<any>(null);
+  const [loadingItems, setLoadingItems] = useState(false);
   const { toast } = useToast();
 
   const { data: deliveries, isLoading } = useQuery<Delivery[]>({ queryKey: ["/api/deliveries"] });
@@ -36,6 +46,23 @@ export default function Deliveries() {
       queryClient.invalidateQueries({ queryKey: ["/api/deliveries"] });
     },
   });
+
+  const openDetail = async (delivery: Delivery) => {
+    setSelectedDelivery(delivery);
+    setDetailOpen(true);
+    setLoadingItems(true);
+    try {
+      const res = await fetch(`/api/deliveries/${delivery.id}/items`);
+      const data = await res.json();
+      setOrderItems(data.items || []);
+      setOrderSale(data.sale || null);
+    } catch {
+      setOrderItems([]);
+      setOrderSale(null);
+    } finally {
+      setLoadingItems(false);
+    }
+  };
 
   const filtered = deliveries?.filter(
     (d) => statusFilter === "all" || d.status === statusFilter
@@ -119,6 +146,7 @@ export default function Deliveries() {
                 <TableRow>
                   <TableHead>Mijoz</TableHead>
                   <TableHead>Manzil</TableHead>
+                  <TableHead>Summa</TableHead>
                   <TableHead>Holat</TableHead>
                   <TableHead>Sana</TableHead>
                   <TableHead>Izoh</TableHead>
@@ -137,6 +165,18 @@ export default function Deliveries() {
                           <MapPin className="h-3 w-3 shrink-0" />
                           <span className="truncate max-w-[200px]">{delivery.address}</span>
                         </div>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1 text-primary p-0 h-auto"
+                          onClick={() => openDetail(delivery)}
+                          data-testid={`button-view-items-${delivery.id}`}
+                        >
+                          <Eye className="h-3 w-3" />
+                          Ko'rish
+                        </Button>
                       </TableCell>
                       <TableCell>
                         <Badge variant={status.variant}>{status.label}</Badge>
@@ -178,7 +218,7 @@ export default function Deliveries() {
                 })}
                 {filtered?.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       <Truck className="h-10 w-10 mx-auto mb-2 opacity-20" />
                       <p>Yetkazib berish topilmadi</p>
                     </TableCell>
@@ -189,6 +229,62 @@ export default function Deliveries() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Buyurtma tarkibi
+            </DialogTitle>
+          </DialogHeader>
+          {loadingItems ? (
+            <div className="space-y-3">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {selectedDelivery && (
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <p>Mijoz: <span className="font-medium text-foreground">{customers?.find(c => c.id === selectedDelivery.customerId)?.fullName}</span></p>
+                  <p>Manzil: <span className="font-medium text-foreground">{selectedDelivery.address}</span></p>
+                  {selectedDelivery.notes && <p>Izoh: <span className="text-foreground">{selectedDelivery.notes}</span></p>}
+                </div>
+              )}
+              <div className="space-y-2">
+                {orderItems.map((item: any, i: number) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-md border bg-muted/30" data-testid={`item-detail-${i}`}>
+                    {item.productImage ? (
+                      <img src={item.productImage} alt={item.productName} className="h-12 w-12 rounded-md object-cover shrink-0" />
+                    ) : (
+                      <div className="h-12 w-12 rounded-md bg-muted flex items-center justify-center shrink-0">
+                        <Package className="h-5 w-5 text-muted-foreground/30" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{item.productName || "Mahsulot"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatCurrency(Number(item.price))} x {item.quantity}
+                      </p>
+                    </div>
+                    <p className="font-medium text-sm shrink-0">
+                      {formatCurrency(Number(item.total))}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              {orderSale && (
+                <div className="flex justify-between items-center pt-2 border-t">
+                  <span className="font-bold">Jami:</span>
+                  <span className="font-bold text-lg" data-testid="text-order-total">{formatCurrency(Number(orderSale.totalAmount))}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Product, Category } from "@shared/schema";
-import { Plus, Search, Package, Edit } from "lucide-react";
+import { Plus, Search, Package, Edit, Upload, X, Image as ImageIcon } from "lucide-react";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -21,11 +21,35 @@ export default function Products() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState({
     name: "", description: "", sku: "", price: "", costPrice: "",
     stock: "", minStock: "5", categoryId: "", unit: "dona", imageUrl: "",
   });
   const { toast } = useToast();
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Rasm hajmi 5MB dan oshmasligi kerak", variant: "destructive" });
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Yuklash xatosi");
+      const data = await res.json();
+      setForm((prev) => ({ ...prev, imageUrl: data.url }));
+      toast({ title: "Rasm yuklandi" });
+    } catch {
+      toast({ title: "Rasm yuklashda xatolik", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const { data: products, isLoading } = useQuery<Product[]>({ queryKey: ["/api/products"] });
   const { data: categories } = useQuery<Category[]>({ queryKey: ["/api/categories"] });
@@ -130,6 +154,7 @@ export default function Products() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Rasm</TableHead>
                   <TableHead>Nomi</TableHead>
                   <TableHead>SKU</TableHead>
                   <TableHead>Kategoriya</TableHead>
@@ -146,6 +171,15 @@ export default function Products() {
                   const isLow = product.stock <= product.minStock;
                   return (
                     <TableRow key={product.id} data-testid={`row-product-${product.id}`}>
+                      <TableCell>
+                        {product.imageUrl ? (
+                          <img src={product.imageUrl} alt={product.name} className="h-10 w-10 rounded-md object-cover" />
+                        ) : (
+                          <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
+                            <Package className="h-4 w-4 text-muted-foreground/30" />
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell className="text-muted-foreground">{product.sku}</TableCell>
                       <TableCell>
@@ -175,7 +209,7 @@ export default function Products() {
                 })}
                 {filtered?.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       Mahsulot topilmadi
                     </TableCell>
                   </TableRow>
@@ -252,6 +286,44 @@ export default function Products() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Mahsulot rasmi</label>
+              {form.imageUrl ? (
+                <div className="relative w-full h-40 rounded-md overflow-hidden border bg-muted">
+                  <img src={form.imageUrl} alt="Mahsulot" className="w-full h-full object-contain" />
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="destructive"
+                    className="absolute top-2 right-2 h-7 w-7"
+                    onClick={() => setForm({ ...form, imageUrl: "" })}
+                    data-testid="button-remove-image"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-full h-32 rounded-md border-2 border-dashed border-muted-foreground/25 bg-muted/50 cursor-pointer hover:border-primary/50 transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageUpload}
+                    disabled={uploading}
+                    data-testid="input-product-image"
+                  />
+                  {uploading ? (
+                    <p className="text-sm text-muted-foreground">Yuklanmoqda...</p>
+                  ) : (
+                    <>
+                      <Upload className="h-8 w-8 text-muted-foreground/50 mb-2" />
+                      <p className="text-sm text-muted-foreground">Rasm yuklash uchun bosing</p>
+                      <p className="text-xs text-muted-foreground/60 mt-1">JPG, PNG, WebP (max 5MB)</p>
+                    </>
+                  )}
+                </label>
+              )}
             </div>
           </div>
           <DialogFooter>

@@ -9,6 +9,25 @@ import {
   insertProductSchema, insertCustomerSchema, insertDeliverySchema,
 } from "@shared/schema";
 import { createHash } from "crypto";
+import multer from "multer";
+import path from "path";
+
+const uploadStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, "uploads/"),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
+  },
+});
+const upload = multer({
+  storage: uploadStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, allowed.includes(ext));
+  },
+});
 
 function hashPassword(password: string): string {
   return createHash("sha256").update(password).digest("hex");
@@ -23,6 +42,15 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  app.use("/uploads", (await import("express")).default.static("uploads"));
+
+  app.post("/api/upload", upload.single("image"), (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: "Rasm yuklanmadi" });
+    }
+    res.json({ url: `/uploads/${req.file.filename}` });
+  });
 
   // ===== ROLES =====
   app.get("/api/roles", async (_req, res) => {
@@ -254,6 +282,19 @@ export async function registerRoutes(
   app.get("/api/deliveries", async (_req, res) => {
     const data = await storage.getDeliveries();
     res.json(data);
+  });
+
+  app.get("/api/deliveries/:id/items", async (req, res) => {
+    const delivery = await storage.getDelivery(req.params.id);
+    if (!delivery) return res.status(404).json({ message: "Yetkazib berish topilmadi" });
+    const sale = await storage.getSale(delivery.saleId);
+    const items = await storage.getSaleItems(delivery.saleId);
+    const allProducts = await storage.getProducts();
+    const enrichedItems = items.map((item) => {
+      const product = allProducts.find((p) => p.id === item.productId);
+      return { ...item, productName: product?.name, productImage: product?.imageUrl };
+    });
+    res.json({ sale, items: enrichedItems });
   });
 
   app.post("/api/deliveries", async (req, res) => {
