@@ -1118,6 +1118,97 @@ export async function registerRoutes(
     }
   });
 
+  const superOtpStore = new Map<string, { code: string; expiry: number; purpose: string }>();
+
+  app.post("/api/super/send-otp", async (req, res) => {
+    try {
+      const { purpose } = req.body;
+      const botToken = process.env.SUPER_ADMIN_TELEGRAM_BOT_TOKEN;
+      const chatId = process.env.SUPER_ADMIN_TELEGRAM_CHAT_ID;
+      if (!botToken || !chatId) {
+        return res.status(500).json({ message: "Telegram bot sozlanmagan" });
+      }
+      const code = generateOTP();
+      superOtpStore.set("super_admin", { code, expiry: Date.now() + 5 * 60 * 1000, purpose: purpose || "login" });
+
+      const purposeText = purpose === "reset" ? "Parolni tiklash" : "Tizimga kirish";
+      const sent = await sendTelegramMessage(
+        chatId,
+        `🔐 <b>MARKET_LINE Super Admin</b>\n\n${purposeText} uchun OTP kod:\n\n<code>${code}</code>\n\n⏱ 5 daqiqa ichida amal qiladi.`,
+        botToken
+      );
+      if (!sent) {
+        return res.status(500).json({ message: "Telegram xabar yuborilmadi" });
+      }
+      res.json({ success: true, message: "OTP kod Telegramga yuborildi" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/super/verify-otp", async (req, res) => {
+    try {
+      const { code, purpose } = req.body;
+      const stored = superOtpStore.get("super_admin");
+      if (!stored || stored.expiry < Date.now()) {
+        superOtpStore.delete("super_admin");
+        return res.status(400).json({ message: "OTP kod muddati tugagan yoki topilmadi" });
+      }
+      if (stored.code !== String(code)) {
+        return res.status(400).json({ message: "OTP kod noto'g'ri" });
+      }
+      superOtpStore.delete("super_admin");
+
+      if (purpose === "reset") {
+        return res.json({ success: true, resetAllowed: true });
+      }
+      req.session.superAdmin = true;
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  const superResetVerified = new Set<string>();
+
+  app.post("/api/super/verify-reset-otp", async (req, res) => {
+    try {
+      const { code } = req.body;
+      const stored = superOtpStore.get("super_admin");
+      if (!stored || stored.expiry < Date.now() || stored.purpose !== "reset") {
+        superOtpStore.delete("super_admin");
+        return res.status(400).json({ message: "OTP kod muddati tugagan yoki topilmadi" });
+      }
+      if (stored.code !== String(code)) {
+        return res.status(400).json({ message: "OTP kod noto'g'ri" });
+      }
+      superOtpStore.delete("super_admin");
+      const resetToken = Date.now().toString(36) + Math.random().toString(36).slice(2);
+      superResetVerified.add(resetToken);
+      setTimeout(() => superResetVerified.delete(resetToken), 10 * 60 * 1000);
+      res.json({ success: true, resetToken });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/super/reset-password", async (req, res) => {
+    try {
+      const { resetToken, newPassword } = req.body;
+      if (!newPassword || String(newPassword).length < 4) {
+        return res.status(400).json({ message: "Parol kamida 4 ta belgidan iborat bo'lishi kerak" });
+      }
+      if (!resetToken || !superResetVerified.has(resetToken)) {
+        return res.status(401).json({ message: "Ruxsat berilmadi. Avval OTP tasdiqlang." });
+      }
+      superResetVerified.delete(resetToken);
+      process.env.SUPER_ADMIN_PASSWORD = String(newPassword);
+      res.json({ success: true, message: "Parol muvaffaqiyatli o'zgartirildi" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/super/me", (req, res) => {
     if (!req.session.superAdmin) {
       return res.status(401).json({ message: "Tizimga kirilmagan" });
