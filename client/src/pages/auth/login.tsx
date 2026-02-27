@@ -5,9 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Phone, Lock, ArrowLeft, Loader2 } from "lucide-react";
+import { ShoppingCart, Phone, Lock, ArrowLeft, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import logoImg from "@assets/ChatGPT_Image_Feb_27,_2026,_05_36_53_PM_1772195868435.png";
 
 export default function OwnerLogin() {
   const [, setLocation] = useLocation();
@@ -39,7 +38,10 @@ export default function OwnerLogin() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-4">
-            <img src={logoImg} alt="MarketLine" className="h-16 w-auto" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
+              <ShoppingCart className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-2xl font-bold text-white tracking-tight">MARKET_LINE</span>
           </div>
           <p className="text-white/50">Do'kon egasi sifatida tizimga kiring</p>
         </div>
