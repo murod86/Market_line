@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Product, Customer, Setting } from "@shared/schema";
+import type { Product, Customer, Setting, Category } from "@shared/schema";
 import {
   Search,
   Plus,
@@ -54,6 +54,7 @@ function formatCurrencyShort(amount: number) {
 export default function POS() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedCustomer, setSelectedCustomer] = useState<string>("");
   const [paymentType, setPaymentType] = useState<string>("cash");
   const [discount, setDiscount] = useState<number>(0);
@@ -70,6 +71,10 @@ export default function POS() {
 
   const { data: customers } = useQuery<Customer[]>({
     queryKey: ["/api/customers"],
+  });
+
+  const { data: categories } = useQuery<Category[]>({
+    queryKey: ["/api/categories"],
   });
 
   const { data: settings } = useQuery<Setting[]>({
@@ -124,6 +129,7 @@ export default function POS() {
     (p) =>
       p.active &&
       p.stock > 0 &&
+      (selectedCategory === "all" || p.categoryId === selectedCategory) &&
       (p.name.toLowerCase().includes(search.toLowerCase()) ||
         p.sku.toLowerCase().includes(search.toLowerCase()))
   );
@@ -283,7 +289,7 @@ export default function POS() {
   return (
     <div className="flex h-full">
       <div className="flex-1 flex flex-col p-4 overflow-hidden">
-        <div className="mb-4">
+        <div className="mb-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -294,6 +300,30 @@ export default function POS() {
               data-testid="input-pos-search"
             />
           </div>
+        </div>
+
+        <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-thin">
+          <Button
+            variant={selectedCategory === "all" ? "default" : "outline"}
+            size="sm"
+            className="shrink-0 rounded-full"
+            onClick={() => setSelectedCategory("all")}
+            data-testid="button-category-all"
+          >
+            Hammasi
+          </Button>
+          {categories?.map((cat) => (
+            <Button
+              key={cat.id}
+              variant={selectedCategory === cat.id ? "default" : "outline"}
+              size="sm"
+              className="shrink-0 rounded-full"
+              onClick={() => setSelectedCategory(cat.id)}
+              data-testid={`button-category-${cat.id}`}
+            >
+              {cat.name}
+            </Button>
+          ))}
         </div>
 
         <ScrollArea className="flex-1">
