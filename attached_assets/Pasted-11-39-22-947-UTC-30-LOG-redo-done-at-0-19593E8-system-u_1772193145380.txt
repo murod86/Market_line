@@ -1,0 +1,48 @@
+11:39:22.947 UTC [30] LOG:  redo done at 0/19593E8 system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s
+2026-02-27 11:39:22.954 UTC [28] LOG:  checkpoint starting: end-of-recovery immediate wait
+2026-02-27 11:39:22.553 UTC [7] LOG:  starting PostgreSQL 17.7 (Debian 17.7-3.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-02-27 11:39:22.972 UTC [28] LOG:  checkpoint complete: wrote 3 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.006 s, sync=0.003 s, total=0.021 s; sync files=2, longest=0.002 s, average=0.002 s; distance=0 kB, estimate=0 kB; lsn=0/1959420, redo lsn=0/1959420
+2026-02-27 11:39:22.553 UTC [7] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-02-27 11:39:22.553 UTC [7] LOG:  listening on IPv6 address "::", port 5432
+2026-02-27 11:39:22.560 UTC [7] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-02-27 11:39:22.943 UTC [30] LOG:  database system was not properly shut down; automatic recovery in progress
+2026-02-27 11:39:22.568 UTC [30] LOG:  database system was interrupted; last known up at 2026-02-27 11:25:34 UTC
+2026-02-27 11:39:22.947 UTC [30] LOG:  redo starts at 0/19593E8
+2026-02-27 11:39:22.947 UTC [30] LOG:  invalid record length at 0/1959420: expected at least 24, got 0
+Certificate will not expire
+2026-02-27 11:39:22.978 UTC [7] LOG:  database system is ready to accept connections
+Stopping Container
+2026-02-27 11:39:38.382 UTC [34] LOG:  invalid length of startup packet
+2026-02-27 11:39:38.691 UTC [35] LOG:  invalid length of startup packet
+2026-02-27 11:39:39.005 UTC [36] LOG:  invalid length of startup packet
+2026-02-27 11:39:39.529 UTC [37] LOG:  invalid length of startup packet
+2026-02-27 11:39:39.847 UTC [38] LOG:  invalid length of startup packet
+2026-02-27 11:39:40.156 UTC [39] LOG:  invalid length of startup packet
+2026-02-27 11:40:15.079 UTC [53] ERROR:  relation "pg_stat_statements" does not exist at character 378
+2026-02-27 11:40:15.079 UTC [53] STATEMENT:  /* railway:dataui */ SET statement_timeout = '30s'; /* railway:dataui */ SELECT row_to_json(data)::text as json FROM (SELECT (SELECT json_agg(t) FROM (SELECT REPLACE(REPLACE(query, E'\n', ' '), E'\r', ' ') as query, calls, ROUND(total_exec_time::numeric, 2) as total_time, ROUND(mean_exec_time::numeric, 2) as mean_time, ROUND(max_exec_time::numeric, 2) as max_time, rows FROM pg_stat_statements s JOIN pg_database d ON s.dbid = d.oid WHERE d.datname = current_database() AND left(query, 21) != '/* railway:dataui */' ORDER BY total_exec_time DESC LIMIT 20) t) as queries, (SELECT stats_reset::text FROM pg_stat_statements_info LIMIT 1) as stats_reset) data
+Stopping Container
+2026-02-27 11:44:55.404 UTC [30] LOG:  redo done at 0/1959498 system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s
+2026-02-27 11:44:55.411 UTC [28] LOG:  checkpoint starting: end-of-recovery immediate wait
+2026-02-27 11:44:55.006 UTC [7] LOG:  starting PostgreSQL 17.7 (Debian 17.7-3.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-02-27 11:44:55.006 UTC [7] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-02-27 11:44:55.006 UTC [7] LOG:  listening on IPv6 address "::", port 5432
+2026-02-27 11:44:55.013 UTC [7] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+PostgreSQL Database directory appears to contain a database; Skipping initialization
+2026-02-27 11:44:55.021 UTC [30] LOG:  database system was interrupted; last known up at 2026-02-27 11:39:22 UTC
+2026-02-27 11:44:55.399 UTC [30] LOG:  database system was not properly shut down; automatic recovery in progress
+2026-02-27 11:44:55.404 UTC [30] LOG:  redo starts at 0/1959498
+2026-02-27 11:44:55.404 UTC [30] LOG:  invalid record length at 0/19594D0: expected at least 24, got 0
+Certificate will not expire
+2026-02-27 11:44:55.429 UTC [28] LOG:  checkpoint complete: wrote 3 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.005 s, sync=0.003 s, total=0.021 s; sync files=2, longest=0.002 s, average=0.002 s; distance=0 kB, estimate=0 kB; lsn=0/19594D0, redo lsn=0/19594D0
+2026-02-27 11:44:55.434 UTC [7] LOG:  database system is ready to accept connections
+Mounting volume on: /var/lib/containers/railwayapp/bind-mounts/78161097-6685-466c-b1bd-8b015127f259/vol_dps40spiod70v38b
+Starting Container
+Stopping Container
+2026-02-27 11:45:33.954 UTC [34] LOG:  invalid length of startup packet
+2026-02-27 11:45:34.259 UTC [35] LOG:  invalid length of startup packet
+2026-02-27 11:45:34.564 UTC [36] LOG:  invalid length of startup packet
+2026-02-27 11:45:35.998 UTC [37] LOG:  invalid length of startup packet
+2026-02-27 11:45:36.314 UTC [38] LOG:  invalid length of startup packet
+2026-02-27 11:45:36.629 UTC [39] LOG:  invalid length of startup packet
+2026-02-27 11:48:33.080 UTC [40] LOG:  invalid length of startup packet
+2026-02-27 11:48:33.387 UTC [41] LOG:  invalid length of startup packet
