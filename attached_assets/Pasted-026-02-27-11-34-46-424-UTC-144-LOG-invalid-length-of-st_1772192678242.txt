@@ -1,0 +1,29 @@
+026-02-27 11:34:46.424 UTC [144] LOG:  invalid length of startup packet
+2026-02-27 11:34:47.756 UTC [145] LOG:  invalid length of startup packet
+2026-02-27 11:34:48.160 UTC [146] LOG:  invalid length of startup packet
+2026-02-27 11:34:49.035 UTC [147] LOG:  invalid length of startup packet
+2026-02-27 11:34:50.628 UTC [149] LOG:  invalid length of startup packet
+Stopping Container
+Mounting volume on: /var/lib/containers/railwayapp/bind-mounts/02055510-8b85-4275-aca0-7019e91994d7/vol_dps40spiod70v38b
+Starting Container
+PostgreSQL Database directory appears to contain a database; Skipping initialization
+2026-02-27 11:39:22.947 UTC [30] LOG:  redo done at 0/19593E8 system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s
+2026-02-27 11:39:22.954 UTC [28] LOG:  checkpoint starting: end-of-recovery immediate wait
+2026-02-27 11:39:22.553 UTC [7] LOG:  starting PostgreSQL 17.7 (Debian 17.7-3.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-02-27 11:39:22.972 UTC [28] LOG:  checkpoint complete: wrote 3 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.006 s, sync=0.003 s, total=0.021 s; sync files=2, longest=0.002 s, average=0.002 s; distance=0 kB, estimate=0 kB; lsn=0/1959420, redo lsn=0/1959420
+2026-02-27 11:39:22.553 UTC [7] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-02-27 11:39:22.553 UTC [7] LOG:  listening on IPv6 address "::", port 5432
+2026-02-27 11:39:22.560 UTC [7] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-02-27 11:39:22.943 UTC [30] LOG:  database system was not properly shut down; automatic recovery in progress
+2026-02-27 11:39:22.568 UTC [30] LOG:  database system was interrupted; last known up at 2026-02-27 11:25:34 UTC
+2026-02-27 11:39:22.947 UTC [30] LOG:  redo starts at 0/19593E8
+2026-02-27 11:39:22.947 UTC [30] LOG:  invalid record length at 0/1959420: expected at least 24, got 0
+Certificate will not expire
+2026-02-27 11:39:22.978 UTC [7] LOG:  database system is ready to accept connections
+Stopping Container
+2026-02-27 11:39:38.382 UTC [34] LOG:  invalid length of startup packet
+2026-02-27 11:39:38.691 UTC [35] LOG:  invalid length of startup packet
+2026-02-27 11:39:39.005 UTC [36] LOG:  invalid length of startup packet
+2026-02-27 11:39:39.529 UTC [37] LOG:  invalid length of startup packet
+2026-02-27 11:39:39.847 UTC [38] LOG:  invalid length of startup packet
+2026-02-27 11:39:40.156 UTC [39] LOG:  invalid length of startup packet
