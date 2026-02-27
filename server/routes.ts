@@ -1,5 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import { z } from "zod";
 import { storage } from "./storage";
 import { db } from "./db";
 import { products, customers, sales, saleItems, deliveries, purchases, purchaseItems } from "@shared/schema";
@@ -1073,6 +1074,142 @@ export async function registerRoutes(
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
+  });
+
+  // ===== SUPER ADMIN =====
+  function requireSuperAdmin(req: Request, res: Response, next: NextFunction) {
+    if (!req.session.superAdmin) {
+      return res.status(401).json({ message: "Super admin huquqi kerak" });
+    }
+    next();
+  }
+
+  const superLoginAttempts = new Map<string, { count: number; lastAttempt: number }>();
+
+  app.post("/api/super/login", async (req, res) => {
+    try {
+      const ip = req.ip || "unknown";
+      const now = Date.now();
+      const attempt = superLoginAttempts.get(ip);
+      if (attempt && attempt.count >= 5 && now - attempt.lastAttempt < 15 * 60 * 1000) {
+        return res.status(429).json({ message: "Juda ko'p urinish. 15 daqiqadan keyin qayta urinib ko'ring." });
+      }
+
+      const { password } = req.body;
+      const superPassword = process.env.SUPER_ADMIN_PASSWORD;
+      if (!superPassword) {
+        return res.status(500).json({ message: "Super admin parol sozlanmagan" });
+      }
+      const crypto = await import("crypto");
+      const passStr = String(password || "");
+      const passHash = crypto.createHash("sha256").update(passStr).digest();
+      const expectedHash = crypto.createHash("sha256").update(superPassword).digest();
+      const isMatch = passStr.length > 0 && crypto.timingSafeEqual(passHash, expectedHash);
+      if (!isMatch) {
+        const prev = superLoginAttempts.get(ip) || { count: 0, lastAttempt: now };
+        superLoginAttempts.set(ip, { count: prev.count + 1, lastAttempt: now });
+        return res.status(401).json({ message: "Parol noto'g'ri" });
+      }
+      superLoginAttempts.delete(ip);
+      req.session.superAdmin = true;
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/super/me", (req, res) => {
+    if (!req.session.superAdmin) {
+      return res.status(401).json({ message: "Tizimga kirilmagan" });
+    }
+    res.json({ superAdmin: true });
+  });
+
+  app.post("/api/super/logout", (req, res) => {
+    req.session.destroy(() => {
+      res.json({ success: true });
+    });
+  });
+
+  app.get("/api/super/tenants", requireSuperAdmin, async (_req, res) => {
+    const data = await storage.getAllTenants();
+    res.json(data.map(({ password: _, ...t }) => t));
+  });
+
+  app.patch("/api/super/tenants/:id", requireSuperAdmin, async (req, res) => {
+    const { plan, active } = req.body;
+    const updateData: any = {};
+    if (plan !== undefined) updateData.plan = plan;
+    if (active !== undefined) updateData.active = active;
+    const tenant = await storage.updateTenant(req.params.id, updateData);
+    if (!tenant) return res.status(404).json({ message: "Do'kon topilmadi" });
+    const { password: _, ...safe } = tenant;
+    res.json(safe);
+  });
+
+  app.get("/api/super/plans", requireSuperAdmin, async (_req, res) => {
+    const data = await storage.getPlans();
+    res.json(data);
+  });
+
+  const planBodySchema = z.object({
+    name: z.string().min(1),
+    slug: z.string().min(1),
+    price: z.string().or(z.number()).transform(String),
+    maxProducts: z.number().int().min(0).default(100),
+    maxEmployees: z.number().int().min(0).default(3),
+    features: z.array(z.string()).default([]),
+    active: z.boolean().default(true),
+    sortOrder: z.number().int().default(0),
+  });
+
+  app.post("/api/super/plans", requireSuperAdmin, async (req, res) => {
+    try {
+      const parsed = planBodySchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || "Noto'g'ri ma'lumot" });
+      const plan = await storage.createPlan(parsed.data as any);
+      res.json(plan);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/super/plans/:id", requireSuperAdmin, async (req, res) => {
+    try {
+      const parsed = planBodySchema.partial().safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || "Noto'g'ri ma'lumot" });
+      const plan = await storage.updatePlan(req.params.id, parsed.data as any);
+      if (!plan) return res.status(404).json({ message: "Reja topilmadi" });
+      res.json(plan);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/super/plans/:id", requireSuperAdmin, async (req, res) => {
+    await storage.deletePlan(req.params.id);
+    res.json({ success: true });
+  });
+
+  app.get("/api/super/stats", requireSuperAdmin, async (_req, res) => {
+    const allTenants = await storage.getAllTenants();
+    const allPlans = await storage.getPlans();
+    const activeTenants = allTenants.filter(t => t.active).length;
+    const planCounts: Record<string, number> = {};
+    for (const t of allTenants) {
+      planCounts[t.plan] = (planCounts[t.plan] || 0) + 1;
+    }
+    res.json({
+      totalTenants: allTenants.length,
+      activeTenants,
+      planCounts,
+      totalPlans: allPlans.length,
+    });
+  });
+
+  app.get("/api/plans/public", async (_req, res) => {
+    const data = await storage.getPlans();
+    res.json(data.filter(p => p.active));
   });
 
   return httpServer;

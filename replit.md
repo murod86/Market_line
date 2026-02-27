@@ -27,6 +27,7 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 - `/auth/register` - Owner registration (creates tenant + seeds initial data)
 - `/dashboard`, `/pos`, `/products`, etc. - Admin panel (requires tenant auth)
 - `/portal` - Customer portal (requires customer auth within a tenant)
+- `/saas-admin` - Super admin panel (password-protected, manages all tenants & plans)
 
 ## Admin Modules (/dashboard, /pos, etc.)
 1. **Dashboard** - Overview stats (sales, stock, customers, debt)
@@ -57,6 +58,13 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 - `client/src/pages/auth/login.tsx` - Owner login
 - `client/src/pages/auth/register.tsx` - Owner registration
 
+## Super Admin Panel (/saas-admin)
+- Password-protected via `SUPER_ADMIN_PASSWORD` env var (default: admin2025)
+- Session field `superAdmin: boolean` with `requireSuperAdmin` middleware
+- Features: tenant listing, plan/active toggling, plan CRUD, stats overview
+- API: `/api/super/login`, `/api/super/me`, `/api/super/logout`, `/api/super/tenants`, `/api/super/plans`, `/api/super/stats`
+- Plans table stores pricing info (name, slug, price, maxProducts, maxEmployees, features, sortOrder)
+
 ## API Routes
 - `/api/auth/register` - Owner registration (POST)
 - `/api/auth/login` - Owner login (POST)
@@ -64,10 +72,12 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 - `/api/auth/logout` - Owner logout (POST)
 - `/api/portal/*` - Customer portal endpoints (require tenantId)
 - `/api/telegram/*` - Telegram webhook and setup
+- `/api/super/*` - Super admin endpoints (require superAdmin session)
+- `/api/plans/public` - Public plans list (GET, no auth)
 - All `/api/*` admin routes use `requireTenant` middleware
 
 ## Database Tables
-- tenants, roles, employees, categories, products, customers, sales, sale_items, deliveries, settings, suppliers, purchases, purchase_items, session
+- plans, tenants, roles, employees, categories, products, customers, sales, sale_items, deliveries, settings, suppliers, purchases, purchase_items, session
 
 ## Language
 UI is in Uzbek language (O'zbek tili)

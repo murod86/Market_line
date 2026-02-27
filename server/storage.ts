@@ -1,9 +1,10 @@
 import { eq, desc, and, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
-  tenants, roles, employees, categories, products, customers,
+  plans, tenants, roles, employees, categories, products, customers,
   sales, saleItems, deliveries, settings,
   suppliers, purchases, purchaseItems,
+  type InsertPlan, type Plan,
   type InsertTenant, type Tenant,
   type InsertRole, type Role,
   type InsertEmployee, type Employee,
@@ -20,6 +21,13 @@ import {
 } from "@shared/schema";
 
 export interface IStorage {
+  getPlans(): Promise<Plan[]>;
+  getPlan(id: string): Promise<Plan | undefined>;
+  createPlan(plan: InsertPlan): Promise<Plan>;
+  updatePlan(id: string, data: Partial<InsertPlan>): Promise<Plan | undefined>;
+  deletePlan(id: string): Promise<void>;
+
+  getAllTenants(): Promise<Tenant[]>;
   createTenant(tenant: InsertTenant): Promise<Tenant>;
   getTenant(id: string): Promise<Tenant | undefined>;
   getTenantByPhone(phone: string): Promise<Tenant | undefined>;
@@ -84,6 +92,33 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  async getPlans(): Promise<Plan[]> {
+    return await db.select().from(plans).orderBy(plans.sortOrder);
+  }
+
+  async getPlan(id: string): Promise<Plan | undefined> {
+    const [plan] = await db.select().from(plans).where(eq(plans.id, id));
+    return plan;
+  }
+
+  async createPlan(plan: InsertPlan): Promise<Plan> {
+    const [created] = await db.insert(plans).values(plan).returning();
+    return created;
+  }
+
+  async updatePlan(id: string, data: Partial<InsertPlan>): Promise<Plan | undefined> {
+    const [updated] = await db.update(plans).set(data).where(eq(plans.id, id)).returning();
+    return updated;
+  }
+
+  async deletePlan(id: string): Promise<void> {
+    await db.delete(plans).where(eq(plans.id, id));
+  }
+
+  async getAllTenants(): Promise<Tenant[]> {
+    return await db.select().from(tenants).orderBy(desc(tenants.createdAt));
+  }
+
   async createTenant(tenant: InsertTenant): Promise<Tenant> {
     const [created] = await db.insert(tenants).values(tenant).returning();
     return created;

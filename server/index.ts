@@ -21,6 +21,7 @@ declare module "express-session" {
     ownerId?: string;
     customerId?: string;
     customerName?: string;
+    superAdmin?: boolean;
   }
 }
 

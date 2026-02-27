@@ -24,6 +24,7 @@ import Suppliers from "@/pages/suppliers";
 import Purchases from "@/pages/purchases";
 import PortalLogin from "@/pages/portal/login";
 import PortalLayout from "@/pages/portal/portal-layout";
+import SuperAdminPage from "@/pages/super/index";
 
 function AdminRouter() {
   return (
@@ -127,12 +128,15 @@ function PortalApp() {
 
 function App() {
   const [location] = useLocation();
+  const isSuperAdmin = location.startsWith("/saas-admin");
   const isPortal = location.startsWith("/portal");
   const isAuth = location.startsWith("/auth");
   const isLanding = location === "/";
 
   let content;
-  if (isLanding) {
+  if (isSuperAdmin) {
+    content = <SuperAdminPage />;
+  } else if (isLanding) {
     content = <LandingPage />;
   } else if (isAuth) {
     content = (

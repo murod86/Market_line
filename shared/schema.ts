@@ -3,6 +3,22 @@ import { pgTable, text, varchar, integer, decimal, boolean, timestamp, jsonb } f
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const plans = pgTable("plans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  slug: text("slug").notNull().unique(),
+  price: decimal("price", { precision: 12, scale: 2 }).notNull().default("0"),
+  maxProducts: integer("max_products").notNull().default(100),
+  maxEmployees: integer("max_employees").notNull().default(3),
+  features: jsonb("features").notNull().default(sql`'[]'::jsonb`),
+  active: boolean("active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+export const insertPlanSchema = createInsertSchema(plans).omit({ id: true });
+export type InsertPlan = z.infer<typeof insertPlanSchema>;
+export type Plan = typeof plans.$inferSelect;
+
 export const tenants = pgTable("tenants", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
