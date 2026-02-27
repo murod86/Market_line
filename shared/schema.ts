@@ -3,9 +3,25 @@ import { pgTable, text, varchar, integer, decimal, boolean, timestamp, jsonb } f
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const tenants = pgTable("tenants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  ownerName: text("owner_name").notNull(),
+  phone: text("phone").notNull().unique(),
+  password: text("password").notNull(),
+  plan: text("plan").notNull().default("free"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertTenantSchema = createInsertSchema(tenants).omit({ id: true, createdAt: true });
+export type InsertTenant = z.infer<typeof insertTenantSchema>;
+export type Tenant = typeof tenants.$inferSelect;
+
 export const roles = pgTable("roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull().unique(),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  name: text("name").notNull(),
   permissions: jsonb("permissions").notNull().default(sql`'[]'::jsonb`),
 });
 
@@ -15,9 +31,10 @@ export type Role = typeof roles.$inferSelect;
 
 export const employees = pgTable("employees", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
   fullName: text("full_name").notNull(),
   phone: text("phone").notNull(),
-  username: text("username").notNull().unique(),
+  username: text("username").notNull(),
   password: text("password").notNull(),
   roleId: varchar("role_id").references(() => roles.id),
   active: boolean("active").notNull().default(true),
@@ -29,6 +46,7 @@ export type Employee = typeof employees.$inferSelect;
 
 export const categories = pgTable("categories", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
   name: text("name").notNull(),
   description: text("description"),
 });
@@ -39,9 +57,10 @@ export type Category = typeof categories.$inferSelect;
 
 export const products = pgTable("products", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
   name: text("name").notNull(),
   description: text("description"),
-  sku: text("sku").notNull().unique(),
+  sku: text("sku").notNull(),
   price: decimal("price", { precision: 12, scale: 2 }).notNull(),
   costPrice: decimal("cost_price", { precision: 12, scale: 2 }).notNull(),
   stock: integer("stock").notNull().default(0),
@@ -58,8 +77,9 @@ export type Product = typeof products.$inferSelect;
 
 export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
   fullName: text("full_name").notNull(),
-  phone: text("phone").notNull().unique(),
+  phone: text("phone").notNull(),
   password: text("password"),
   address: text("address"),
   telegramId: text("telegram_id"),
@@ -73,6 +93,7 @@ export type Customer = typeof customers.$inferSelect;
 
 export const sales = pgTable("sales", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
   customerId: varchar("customer_id").references(() => customers.id),
   employeeId: varchar("employee_id").references(() => employees.id),
   totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull(),
@@ -102,6 +123,7 @@ export type SaleItem = typeof saleItems.$inferSelect;
 
 export const deliveries = pgTable("deliveries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
   saleId: varchar("sale_id").references(() => sales.id).notNull(),
   customerId: varchar("customer_id").references(() => customers.id).notNull(),
   address: text("address").notNull(),
@@ -116,6 +138,7 @@ export type Delivery = typeof deliveries.$inferSelect;
 
 export const suppliers = pgTable("suppliers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
   name: text("name").notNull(),
   phone: text("phone"),
   company: text("company"),
@@ -129,6 +152,7 @@ export type Supplier = typeof suppliers.$inferSelect;
 
 export const purchases = pgTable("purchases", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
   supplierId: varchar("supplier_id").references(() => suppliers.id),
   totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull(),
   paidAmount: decimal("paid_amount", { precision: 12, scale: 2 }).notNull().default("0"),
@@ -155,7 +179,8 @@ export type PurchaseItem = typeof purchaseItems.$inferSelect;
 
 export const settings = pgTable("settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  key: text("key").notNull().unique(),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  key: text("key").notNull(),
   value: text("value").notNull(),
 });
 

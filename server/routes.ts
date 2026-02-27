@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
@@ -12,6 +12,7 @@ import {
 import { createHash } from "crypto";
 import multer from "multer";
 import path from "path";
+import { seedTenantData } from "./seed";
 
 const uploadStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, "uploads/"),
@@ -45,13 +46,12 @@ function generateOTP(): string {
   return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
-async function getTelegramBotToken(): Promise<string | null> {
-  const setting = await storage.getSetting("telegram_bot_token");
+async function getTelegramBotToken(tenantId: string): Promise<string | null> {
+  const setting = await storage.getSetting("telegram_bot_token", tenantId);
   return setting?.value && setting.value.trim() !== "" ? setting.value.trim() : null;
 }
 
-async function sendTelegramMessage(chatId: string, text: string): Promise<boolean> {
-  const token = await getTelegramBotToken();
+async function sendTelegramMessage(chatId: string, text: string, token: string): Promise<boolean> {
   if (!token) return false;
   try {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -64,6 +64,17 @@ async function sendTelegramMessage(chatId: string, text: string): Promise<boolea
   } catch {
     return false;
   }
+}
+
+function requireTenant(req: Request, res: Response, next: NextFunction) {
+  if (!req.session.tenantId) {
+    return res.status(401).json({ message: "Tizimga kirilmagan" });
+  }
+  next();
+}
+
+function verifyTenant(resource: { tenantId?: string | null } | undefined, tenantId: string): boolean {
+  return !!resource && resource.tenantId === tenantId;
 }
 
 export async function registerRoutes(
@@ -80,15 +91,93 @@ export async function registerRoutes(
     res.json({ url: `/uploads/${req.file.filename}` });
   });
 
+  // ===== TENANT AUTH =====
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { name, ownerName, phone, password } = req.body;
+      if (!name || !ownerName || !phone || !password) {
+        return res.status(400).json({ message: "Barcha maydonlar majburiy" });
+      }
+      const existing = await storage.getTenantByPhone(phone);
+      if (existing) {
+        return res.status(400).json({ message: "Bu telefon raqam allaqachon ro'yxatdan o'tgan" });
+      }
+      const tenant = await storage.createTenant({
+        name,
+        ownerName,
+        phone,
+        password: hashPassword(password),
+        plan: "free",
+        active: true,
+      });
+      await storage.upsertSetting("company_name", name, tenant.id);
+      await storage.upsertSetting("currency", "UZS", tenant.id);
+      await storage.upsertSetting("telegram_bot_token", "", tenant.id);
+      await storage.upsertSetting("telegram_chat_id", "", tenant.id);
+      await seedTenantData(tenant.id);
+      req.session.tenantId = tenant.id;
+      req.session.tenantName = tenant.name;
+      req.session.ownerId = tenant.id;
+      const { password: _, ...safe } = tenant;
+      res.json(safe);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { phone, password } = req.body;
+      if (!phone || !password) {
+        return res.status(400).json({ message: "Telefon va parol majburiy" });
+      }
+      const tenant = await storage.getTenantByPhone(phone);
+      if (!tenant) {
+        return res.status(401).json({ message: "Telefon raqam yoki parol noto'g'ri" });
+      }
+      if (tenant.password !== hashPassword(password)) {
+        return res.status(401).json({ message: "Telefon raqam yoki parol noto'g'ri" });
+      }
+      if (!tenant.active) {
+        return res.status(403).json({ message: "Hisob nofaol" });
+      }
+      req.session.tenantId = tenant.id;
+      req.session.tenantName = tenant.name;
+      req.session.ownerId = tenant.id;
+      const { password: _, ...safe } = tenant;
+      res.json(safe);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    if (!req.session.tenantId || !req.session.ownerId) {
+      return res.status(401).json({ message: "Tizimga kirilmagan" });
+    }
+    const tenant = await storage.getTenant(req.session.tenantId);
+    if (!tenant) {
+      return res.status(401).json({ message: "Do'kon topilmadi" });
+    }
+    const { password: _, ...safe } = tenant;
+    res.json(safe);
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy(() => {
+      res.json({ success: true });
+    });
+  });
+
   // ===== ROLES =====
-  app.get("/api/roles", async (_req, res) => {
-    const data = await storage.getRoles();
+  app.get("/api/roles", requireTenant, async (req, res) => {
+    const data = await storage.getRoles(req.session.tenantId!);
     res.json(data);
   });
 
-  app.post("/api/roles", async (req, res) => {
+  app.post("/api/roles", requireTenant, async (req, res) => {
     try {
-      const parsed = insertRoleSchema.parse(req.body);
+      const parsed = insertRoleSchema.parse({ ...req.body, tenantId: req.session.tenantId });
       const role = await storage.createRole(parsed);
       res.json(role);
     } catch (error: any) {
@@ -96,26 +185,29 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/roles/:id", async (req, res) => {
+  app.patch("/api/roles/:id", requireTenant, async (req, res) => {
+    const existing = await storage.getRole(req.params.id);
+    if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Role not found" });
     const role = await storage.updateRole(req.params.id, req.body);
-    if (!role) return res.status(404).json({ message: "Role not found" });
     res.json(role);
   });
 
-  app.delete("/api/roles/:id", async (req, res) => {
+  app.delete("/api/roles/:id", requireTenant, async (req, res) => {
+    const existing = await storage.getRole(req.params.id);
+    if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Role not found" });
     await storage.deleteRole(req.params.id);
     res.json({ success: true });
   });
 
   // ===== EMPLOYEES =====
-  app.get("/api/employees", async (_req, res) => {
-    const data = await storage.getEmployees();
+  app.get("/api/employees", requireTenant, async (req, res) => {
+    const data = await storage.getEmployees(req.session.tenantId!);
     res.json(data.map(stripPassword));
   });
 
-  app.post("/api/employees", async (req, res) => {
+  app.post("/api/employees", requireTenant, async (req, res) => {
     try {
-      const data = { ...req.body, password: hashPassword(req.body.password) };
+      const data = { ...req.body, password: hashPassword(req.body.password), tenantId: req.session.tenantId };
       const parsed = insertEmployeeSchema.parse(data);
       const employee = await storage.createEmployee(parsed);
       res.json(stripPassword(employee));
@@ -124,8 +216,10 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/employees/:id", async (req, res) => {
+  app.patch("/api/employees/:id", requireTenant, async (req, res) => {
     try {
+      const existing = await storage.getEmployee(req.params.id);
+      if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Employee not found" });
       const updateData = { ...req.body };
       if (updateData.password) {
         updateData.password = hashPassword(updateData.password);
@@ -139,14 +233,14 @@ export async function registerRoutes(
   });
 
   // ===== CATEGORIES =====
-  app.get("/api/categories", async (_req, res) => {
-    const data = await storage.getCategories();
+  app.get("/api/categories", requireTenant, async (req, res) => {
+    const data = await storage.getCategories(req.session.tenantId!);
     res.json(data);
   });
 
-  app.post("/api/categories", async (req, res) => {
+  app.post("/api/categories", requireTenant, async (req, res) => {
     try {
-      const parsed = insertCategorySchema.parse(req.body);
+      const parsed = insertCategorySchema.parse({ ...req.body, tenantId: req.session.tenantId });
       const category = await storage.createCategory(parsed);
       res.json(category);
     } catch (error: any) {
@@ -154,32 +248,35 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/categories/:id", async (req, res) => {
+  app.patch("/api/categories/:id", requireTenant, async (req, res) => {
+    const existing = await storage.getCategories(req.session.tenantId!);
+    if (!existing.find(c => c.id === req.params.id)) return res.status(404).json({ message: "Category not found" });
     const category = await storage.updateCategory(req.params.id, req.body);
-    if (!category) return res.status(404).json({ message: "Category not found" });
     res.json(category);
   });
 
-  app.delete("/api/categories/:id", async (req, res) => {
+  app.delete("/api/categories/:id", requireTenant, async (req, res) => {
+    const existing = await storage.getCategories(req.session.tenantId!);
+    if (!existing.find(c => c.id === req.params.id)) return res.status(404).json({ message: "Category not found" });
     await storage.deleteCategory(req.params.id);
     res.json({ success: true });
   });
 
   // ===== PRODUCTS =====
-  app.get("/api/products", async (_req, res) => {
-    const data = await storage.getProducts();
+  app.get("/api/products", requireTenant, async (req, res) => {
+    const data = await storage.getProducts(req.session.tenantId!);
     res.json(data);
   });
 
-  app.get("/api/products/:id", async (req, res) => {
+  app.get("/api/products/:id", requireTenant, async (req, res) => {
     const product = await storage.getProduct(req.params.id);
-    if (!product) return res.status(404).json({ message: "Product not found" });
+    if (!verifyTenant(product, req.session.tenantId!)) return res.status(404).json({ message: "Product not found" });
     res.json(product);
   });
 
-  app.post("/api/products", async (req, res) => {
+  app.post("/api/products", requireTenant, async (req, res) => {
     try {
-      const parsed = insertProductSchema.parse(req.body);
+      const parsed = insertProductSchema.parse({ ...req.body, tenantId: req.session.tenantId });
       const product = await storage.createProduct(parsed);
       res.json(product);
     } catch (error: any) {
@@ -187,28 +284,29 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/products/:id", async (req, res) => {
+  app.patch("/api/products/:id", requireTenant, async (req, res) => {
+    const existing = await storage.getProduct(req.params.id);
+    if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Product not found" });
     const product = await storage.updateProduct(req.params.id, req.body);
-    if (!product) return res.status(404).json({ message: "Product not found" });
     res.json(product);
   });
 
   // ===== CUSTOMERS =====
-  app.get("/api/customers", async (_req, res) => {
-    const data = await storage.getCustomers();
+  app.get("/api/customers", requireTenant, async (req, res) => {
+    const data = await storage.getCustomers(req.session.tenantId!);
     res.json(data.map(({ password: _, ...c }) => c));
   });
 
-  app.get("/api/customers/:id", async (req, res) => {
+  app.get("/api/customers/:id", requireTenant, async (req, res) => {
     const customer = await storage.getCustomer(req.params.id);
-    if (!customer) return res.status(404).json({ message: "Customer not found" });
+    if (!verifyTenant(customer, req.session.tenantId!)) return res.status(404).json({ message: "Customer not found" });
     const { password: _, ...safe } = customer;
     res.json(safe);
   });
 
-  app.post("/api/customers", async (req, res) => {
+  app.post("/api/customers", requireTenant, async (req, res) => {
     try {
-      const parsed = insertCustomerSchema.parse(req.body);
+      const parsed = insertCustomerSchema.parse({ ...req.body, tenantId: req.session.tenantId });
       if (parsed.password) {
         parsed.password = hashPassword(parsed.password);
       }
@@ -220,7 +318,9 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/customers/:id", async (req, res) => {
+  app.patch("/api/customers/:id", requireTenant, async (req, res) => {
+    const existing = await storage.getCustomer(req.params.id);
+    if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Customer not found" });
     const updateData = { ...req.body };
     if (updateData.password) {
       updateData.password = hashPassword(updateData.password);
@@ -231,22 +331,23 @@ export async function registerRoutes(
     res.json(safe);
   });
 
-  // ===== SALES (POS) - Transactional =====
-  app.get("/api/sales", async (_req, res) => {
-    const data = await storage.getSales();
+  // ===== SALES (POS) =====
+  app.get("/api/sales", requireTenant, async (req, res) => {
+    const data = await storage.getSales(req.session.tenantId!);
     res.json(data);
   });
 
-  app.get("/api/sales/:id", async (req, res) => {
+  app.get("/api/sales/:id", requireTenant, async (req, res) => {
     const sale = await storage.getSale(req.params.id);
-    if (!sale) return res.status(404).json({ message: "Sale not found" });
+    if (!verifyTenant(sale, req.session.tenantId!)) return res.status(404).json({ message: "Sale not found" });
     const items = await storage.getSaleItems(req.params.id);
     res.json({ ...sale, items });
   });
 
-  app.post("/api/sales", async (req, res) => {
+  app.post("/api/sales", requireTenant, async (req, res) => {
     try {
       const { items, customerId, discount, paidAmount, paymentType, employeeId } = req.body;
+      const tenantId = req.session.tenantId!;
 
       if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ message: "Items are required" });
@@ -260,6 +361,7 @@ export async function registerRoutes(
         const finalTotal = totalAmount - (discount || 0);
 
         const [sale] = await tx.insert(sales).values({
+          tenantId,
           customerId: customerId || null,
           employeeId: employeeId || null,
           totalAmount: finalTotal.toFixed(2),
@@ -307,17 +409,17 @@ export async function registerRoutes(
   });
 
   // ===== DELIVERIES =====
-  app.get("/api/deliveries", async (_req, res) => {
-    const data = await storage.getDeliveries();
+  app.get("/api/deliveries", requireTenant, async (req, res) => {
+    const data = await storage.getDeliveries(req.session.tenantId!);
     res.json(data);
   });
 
-  app.get("/api/deliveries/:id/items", async (req, res) => {
+  app.get("/api/deliveries/:id/items", requireTenant, async (req, res) => {
     const delivery = await storage.getDelivery(req.params.id);
-    if (!delivery) return res.status(404).json({ message: "Yetkazib berish topilmadi" });
+    if (!verifyTenant(delivery, req.session.tenantId!)) return res.status(404).json({ message: "Yetkazib berish topilmadi" });
     const sale = await storage.getSale(delivery.saleId);
     const items = await storage.getSaleItems(delivery.saleId);
-    const allProducts = await storage.getProducts();
+    const allProducts = await storage.getProducts(req.session.tenantId!);
     const enrichedItems = items.map((item) => {
       const product = allProducts.find((p) => p.id === item.productId);
       return { ...item, productName: product?.name, productImage: product?.imageUrl };
@@ -325,9 +427,9 @@ export async function registerRoutes(
     res.json({ sale, items: enrichedItems });
   });
 
-  app.post("/api/deliveries", async (req, res) => {
+  app.post("/api/deliveries", requireTenant, async (req, res) => {
     try {
-      const parsed = insertDeliverySchema.parse(req.body);
+      const parsed = insertDeliverySchema.parse({ ...req.body, tenantId: req.session.tenantId });
       const delivery = await storage.createDelivery(parsed);
       res.json(delivery);
     } catch (error: any) {
@@ -335,21 +437,22 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/deliveries/:id", async (req, res) => {
+  app.patch("/api/deliveries/:id", requireTenant, async (req, res) => {
+    const existing = await storage.getDelivery(req.params.id);
+    if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Delivery not found" });
     const delivery = await storage.updateDelivery(req.params.id, req.body);
-    if (!delivery) return res.status(404).json({ message: "Delivery not found" });
     res.json(delivery);
   });
 
   // ===== SUPPLIERS =====
-  app.get("/api/suppliers", async (_req, res) => {
-    const data = await storage.getSuppliers();
+  app.get("/api/suppliers", requireTenant, async (req, res) => {
+    const data = await storage.getSuppliers(req.session.tenantId!);
     res.json(data);
   });
 
-  app.post("/api/suppliers", async (req, res) => {
+  app.post("/api/suppliers", requireTenant, async (req, res) => {
     try {
-      const parsed = insertSupplierSchema.parse(req.body);
+      const parsed = insertSupplierSchema.parse({ ...req.body, tenantId: req.session.tenantId });
       const supplier = await storage.createSupplier(parsed);
       res.json(supplier);
     } catch (error: any) {
@@ -357,23 +460,24 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/suppliers/:id", async (req, res) => {
+  app.patch("/api/suppliers/:id", requireTenant, async (req, res) => {
+    const existing = await storage.getSupplier(req.params.id);
+    if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Ta'minotchi topilmadi" });
     const supplier = await storage.updateSupplier(req.params.id, req.body);
-    if (!supplier) return res.status(404).json({ message: "Ta'minotchi topilmadi" });
     res.json(supplier);
   });
 
   // ===== PURCHASES (KIRIM) =====
-  app.get("/api/purchases", async (_req, res) => {
-    const data = await storage.getPurchases();
+  app.get("/api/purchases", requireTenant, async (req, res) => {
+    const data = await storage.getPurchases(req.session.tenantId!);
     res.json(data);
   });
 
-  app.get("/api/purchases/:id", async (req, res) => {
+  app.get("/api/purchases/:id", requireTenant, async (req, res) => {
     const purchase = await storage.getPurchase(req.params.id);
-    if (!purchase) return res.status(404).json({ message: "Kirim topilmadi" });
+    if (!verifyTenant(purchase, req.session.tenantId!)) return res.status(404).json({ message: "Kirim topilmadi" });
     const items = await storage.getPurchaseItems(req.params.id);
-    const allProducts = await storage.getProducts();
+    const allProducts = await storage.getProducts(req.session.tenantId!);
     const enrichedItems = items.map((item) => {
       const product = allProducts.find((p) => p.id === item.productId);
       return { ...item, productName: product?.name, productImage: product?.imageUrl };
@@ -381,9 +485,10 @@ export async function registerRoutes(
     res.json({ ...purchase, items: enrichedItems });
   });
 
-  app.post("/api/purchases", async (req, res) => {
+  app.post("/api/purchases", requireTenant, async (req, res) => {
     try {
       const { supplierId, items, paidAmount, notes } = req.body;
+      const tenantId = req.session.tenantId!;
       if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ message: "Mahsulotlar majburiy" });
       }
@@ -407,6 +512,7 @@ export async function registerRoutes(
         }
 
         const [purchase] = await tx.insert(purchases).values({
+          tenantId,
           supplierId: supplierId || null,
           totalAmount: totalAmount.toFixed(2),
           paidAmount: (paidAmount || 0).toFixed ? Number(paidAmount || 0).toFixed(2) : "0.00",
@@ -441,28 +547,31 @@ export async function registerRoutes(
   });
 
   // ===== SETTINGS =====
-  app.get("/api/settings", async (_req, res) => {
-    const data = await storage.getSettings();
+  app.get("/api/settings", requireTenant, async (req, res) => {
+    const data = await storage.getSettings(req.session.tenantId!);
     res.json(data);
   });
 
-  app.post("/api/settings", async (req, res) => {
+  app.post("/api/settings", requireTenant, async (req, res) => {
     const { key, value } = req.body;
     if (!key || value === undefined) {
       return res.status(400).json({ message: "Key and value are required" });
     }
-    const setting = await storage.upsertSetting(key, value);
+    const setting = await storage.upsertSetting(key, value, req.session.tenantId!);
     res.json(setting);
   });
 
   // ===== CUSTOMER PORTAL AUTH =====
   app.post("/api/portal/login", async (req, res) => {
     try {
-      const { phone, password } = req.body;
+      const { phone, password, tenantId } = req.body;
       if (!phone || !password) {
         return res.status(400).json({ message: "Telefon va parol majburiy" });
       }
-      const customer = await storage.getCustomerByPhone(phone);
+      if (!tenantId) {
+        return res.status(400).json({ message: "Do'kon tanlanmagan" });
+      }
+      const customer = await storage.getCustomerByPhone(phone, tenantId);
       if (!customer || !customer.password) {
         return res.status(401).json({ message: "Telefon raqam yoki parol noto'g'ri" });
       }
@@ -474,6 +583,7 @@ export async function registerRoutes(
       }
       req.session.customerId = customer.id;
       req.session.customerName = customer.fullName;
+      req.session.tenantId = tenantId;
       const { password: _, ...safe } = customer;
       res.json(safe);
     } catch (error: any) {
@@ -483,11 +593,14 @@ export async function registerRoutes(
 
   app.post("/api/portal/register", async (req, res) => {
     try {
-      const { fullName, phone, password, address } = req.body;
+      const { fullName, phone, password, address, tenantId } = req.body;
       if (!fullName || !phone || !password) {
         return res.status(400).json({ message: "Ism, telefon va parol majburiy" });
       }
-      const existing = await storage.getCustomerByPhone(phone);
+      if (!tenantId) {
+        return res.status(400).json({ message: "Do'kon tanlanmagan" });
+      }
+      const existing = await storage.getCustomerByPhone(phone, tenantId);
       if (existing) {
         return res.status(400).json({ message: "Bu telefon raqam allaqachon ro'yxatdan o'tgan" });
       }
@@ -497,11 +610,13 @@ export async function registerRoutes(
         password: hashPassword(password),
         address: address || null,
         telegramId: null,
+        tenantId,
         active: true,
         debt: "0",
       });
       req.session.customerId = customer.id;
       req.session.customerName = customer.fullName;
+      req.session.tenantId = tenantId;
       const { password: _, ...safe } = customer;
       res.json(safe);
     } catch (error: any) {
@@ -529,11 +644,11 @@ export async function registerRoutes(
 
   app.post("/api/portal/send-otp", async (req, res) => {
     try {
-      const { phone } = req.body;
-      if (!phone) {
-        return res.status(400).json({ message: "Telefon raqam majburiy" });
+      const { phone, tenantId } = req.body;
+      if (!phone || !tenantId) {
+        return res.status(400).json({ message: "Telefon raqam va do'kon majburiy" });
       }
-      const customer = await storage.getCustomerByPhone(phone);
+      const customer = await storage.getCustomerByPhone(phone, tenantId);
       if (!customer) {
         return res.status(404).json({ message: "Bu telefon raqam ro'yxatdan o'tmagan" });
       }
@@ -543,14 +658,19 @@ export async function registerRoutes(
       if (!customer.active) {
         return res.status(403).json({ message: "Hisob nofaol" });
       }
+      const token = await getTelegramBotToken(tenantId);
+      if (!token) {
+        return res.status(500).json({ message: "Telegram bot sozlanmagan" });
+      }
       const code = generateOTP();
-      otpStore.set(phone, { code, expiry: Date.now() + 5 * 60 * 1000 });
+      otpStore.set(phone + tenantId, { code, expiry: Date.now() + 5 * 60 * 1000 });
       const sent = await sendTelegramMessage(
         customer.telegramId,
-        `🔐 <b>MARKET_LINE</b>\n\nSizning tasdiqlash kodingiz: <b>${code}</b>\n\nKod 5 daqiqa amal qiladi.`
+        `🔐 <b>MARKET_LINE</b>\n\nSizning tasdiqlash kodingiz: <b>${code}</b>\n\nKod 5 daqiqa amal qiladi.`,
+        token
       );
       if (!sent) {
-        return res.status(500).json({ message: "Telegram xabar yuborib bo'lmadi. Bot tokenni tekshiring" });
+        return res.status(500).json({ message: "Telegram xabar yuborib bo'lmadi" });
       }
       res.json({ success: true, message: "OTP kod Telegramga yuborildi" });
     } catch (error: any) {
@@ -560,22 +680,23 @@ export async function registerRoutes(
 
   app.post("/api/portal/verify-otp", async (req, res) => {
     try {
-      const { phone, code } = req.body;
-      if (!phone || !code) {
-        return res.status(400).json({ message: "Telefon va kod majburiy" });
+      const { phone, code, tenantId } = req.body;
+      if (!phone || !code || !tenantId) {
+        return res.status(400).json({ message: "Telefon, kod va do'kon majburiy" });
       }
-      const stored = otpStore.get(phone);
+      const key = phone + tenantId;
+      const stored = otpStore.get(key);
       if (!stored) {
         return res.status(400).json({ message: "OTP kod topilmadi. Qayta yuboring" });
       }
       if (Date.now() > stored.expiry) {
-        otpStore.delete(phone);
+        otpStore.delete(key);
         return res.status(400).json({ message: "OTP kod muddati tugagan. Qayta yuboring" });
       }
       if (stored.code !== code) {
         return res.status(400).json({ message: "OTP kod noto'g'ri" });
       }
-      otpStore.set(phone, { ...stored, verified: true });
+      otpStore.set(key, { ...stored, verified: true });
       res.json({ success: true, message: "OTP tasdiqlandi" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -584,19 +705,20 @@ export async function registerRoutes(
 
   app.post("/api/portal/register-otp", async (req, res) => {
     try {
-      const { phone, code, fullName, password, address } = req.body;
-      if (!phone || !code || !fullName || !password) {
+      const { phone, code, fullName, password, address, tenantId } = req.body;
+      if (!phone || !code || !fullName || !password || !tenantId) {
         return res.status(400).json({ message: "Barcha majburiy maydonlarni to'ldiring" });
       }
-      const stored = otpStore.get(phone);
+      const key = phone + tenantId;
+      const stored = otpStore.get(key);
       if (!stored || stored.code !== code || !stored.verified) {
         return res.status(400).json({ message: "OTP tasdiqlanmagan" });
       }
       if (Date.now() > stored.expiry) {
-        otpStore.delete(phone);
+        otpStore.delete(key);
         return res.status(400).json({ message: "OTP kod muddati tugagan" });
       }
-      const existing = await storage.getCustomerByPhone(phone);
+      const existing = await storage.getCustomerByPhone(phone, tenantId);
       if (existing) {
         if (existing.password) {
           return res.status(400).json({ message: "Bu telefon raqam allaqachon ro'yxatdan o'tgan" });
@@ -606,24 +728,24 @@ export async function registerRoutes(
           password: hashPassword(password),
           address: address || null,
         });
-        otpStore.delete(phone);
+        otpStore.delete(key);
         req.session.customerId = updated!.id;
         req.session.customerName = updated!.fullName;
+        req.session.tenantId = tenantId;
         const { password: _, ...safe } = updated!;
         return res.json(safe);
       }
       const customer = await storage.createCustomer({
-        fullName,
-        phone,
+        fullName, phone,
         password: hashPassword(password),
         address: address || null,
-        telegramId: null,
-        active: true,
-        debt: "0",
+        telegramId: null, tenantId,
+        active: true, debt: "0",
       });
-      otpStore.delete(phone);
+      otpStore.delete(key);
       req.session.customerId = customer.id;
       req.session.customerName = customer.fullName;
+      req.session.tenantId = tenantId;
       const { password: _, ...safe } = customer;
       res.json(safe);
     } catch (error: any) {
@@ -633,28 +755,28 @@ export async function registerRoutes(
 
   app.post("/api/portal/reset-password", async (req, res) => {
     try {
-      const { phone, code, newPassword } = req.body;
-      if (!phone || !code || !newPassword) {
+      const { phone, code, newPassword, tenantId } = req.body;
+      if (!phone || !code || !newPassword || !tenantId) {
         return res.status(400).json({ message: "Barcha maydonlarni to'ldiring" });
       }
-      const stored = otpStore.get(phone);
+      const key = phone + tenantId;
+      const stored = otpStore.get(key);
       if (!stored || stored.code !== code || !stored.verified) {
         return res.status(400).json({ message: "OTP tasdiqlanmagan" });
       }
       if (Date.now() > stored.expiry) {
-        otpStore.delete(phone);
+        otpStore.delete(key);
         return res.status(400).json({ message: "OTP kod muddati tugagan" });
       }
-      const customer = await storage.getCustomerByPhone(phone);
+      const customer = await storage.getCustomerByPhone(phone, tenantId);
       if (!customer) {
         return res.status(404).json({ message: "Mijoz topilmadi" });
       }
-      await storage.updateCustomer(customer.id, {
-        password: hashPassword(newPassword),
-      });
-      otpStore.delete(phone);
+      await storage.updateCustomer(customer.id, { password: hashPassword(newPassword) });
+      otpStore.delete(key);
       req.session.customerId = customer.id;
       req.session.customerName = customer.fullName;
+      req.session.tenantId = tenantId;
       res.json({ success: true, message: "Parol yangilandi" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -663,22 +785,28 @@ export async function registerRoutes(
 
   app.post("/api/portal/send-register-otp", async (req, res) => {
     try {
-      const { phone } = req.body;
-      if (!phone) {
-        return res.status(400).json({ message: "Telefon raqam majburiy" });
+      const { phone, tenantId } = req.body;
+      if (!phone || !tenantId) {
+        return res.status(400).json({ message: "Telefon raqam va do'kon majburiy" });
       }
-      const existing = await storage.getCustomerByPhone(phone);
+      const existing = await storage.getCustomerByPhone(phone, tenantId);
       if (existing && existing.password) {
         return res.status(400).json({ message: "Bu telefon raqam allaqachon ro'yxatdan o'tgan. Tizimga kiring" });
       }
       if (!existing || !existing.telegramId) {
         return res.status(400).json({ message: "Telegram bog'lanmagan. Avval Telegram botga /start yuborib, telefon raqamingizni ulang" });
       }
+      const token = await getTelegramBotToken(tenantId);
+      if (!token) {
+        return res.status(500).json({ message: "Telegram bot sozlanmagan" });
+      }
       const code = generateOTP();
-      otpStore.set(phone, { code, expiry: Date.now() + 5 * 60 * 1000 });
+      const key = phone + tenantId;
+      otpStore.set(key, { code, expiry: Date.now() + 5 * 60 * 1000 });
       const sent = await sendTelegramMessage(
         existing.telegramId,
-        `🔐 <b>MARKET_LINE</b>\n\nRo'yxatdan o'tish kodi: <b>${code}</b>\n\nKod 5 daqiqa amal qiladi.`
+        `🔐 <b>MARKET_LINE</b>\n\nRo'yxatdan o'tish kodi: <b>${code}</b>\n\nKod 5 daqiqa amal qiladi.`,
+        token
       );
       if (!sent) {
         return res.status(500).json({ message: "Telegram xabar yuborib bo'lmadi. Bot tokenni tekshiring" });
@@ -689,8 +817,9 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/telegram/webhook", async (req, res) => {
+  app.post("/api/telegram/webhook/:tenantId", async (req, res) => {
     try {
+      const { tenantId } = req.params;
       const { message } = req.body;
       if (!message) return res.json({ ok: true });
 
@@ -700,52 +829,51 @@ export async function registerRoutes(
 
       if (!chatId) return res.json({ ok: true });
 
+      const token = await getTelegramBotToken(tenantId);
+      if (!token) return res.json({ ok: true });
+
       if (text === "/start") {
         await sendTelegramMessage(chatId,
           `👋 <b>MARKET_LINE</b> botiga xush kelibsiz!\n\n` +
-          `📱 Telefon raqamingizni ulash uchun pastdagi "📞 Telefon raqamni yuborish" tugmasini bosing yoki telefon raqamingizni yozing.\n\n` +
-          `Masalan: <code>+998901234567</code>`
+          `📱 Telefon raqamingizni ulash uchun pastdagi tugmani bosing yoki telefon raqamingizni yozing.\n\n` +
+          `Masalan: <code>+998901234567</code>`,
+          token
         );
-        const token = await getTelegramBotToken();
-        if (token) {
-          await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              chat_id: chatId,
-              text: "📞 Telefon raqamingizni yuboring:",
-              reply_markup: {
-                keyboard: [[{ text: "📞 Telefon raqamni yuborish", request_contact: true }]],
-                resize_keyboard: true,
-                one_time_keyboard: true,
-              },
-            }),
-          });
-        }
+        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: "📞 Telefon raqamingizni yuboring:",
+            reply_markup: {
+              keyboard: [[{ text: "📞 Telefon raqamni yuborish", request_contact: true }]],
+              resize_keyboard: true,
+              one_time_keyboard: true,
+            },
+          }),
+        });
         return res.json({ ok: true });
       }
 
       if (contact && contact.phone_number) {
         let phone = contact.phone_number;
         if (!phone.startsWith("+")) phone = "+" + phone;
-        let customer = await storage.getCustomerByPhone(phone);
+        let customer = await storage.getCustomerByPhone(phone, tenantId);
         if (!customer) {
           customer = await storage.createCustomer({
             fullName: `${contact.first_name || ""} ${contact.last_name || ""}`.trim() || "Telegram foydalanuvchi",
-            phone,
-            password: null,
-            address: null,
-            telegramId: chatId,
-            active: true,
-            debt: "0",
+            phone, password: null, address: null, telegramId: chatId,
+            tenantId, active: true, debt: "0",
           });
           await sendTelegramMessage(chatId,
-            `✅ Telefon raqamingiz muvaffaqiyatli bog'landi!\n\n📱 ${phone}\n\nEndi MARKET_LINE portalida OTP orqali ro'yxatdan o'tishingiz mumkin.`
+            `✅ Telefon raqamingiz bog'landi!\n\n📱 ${phone}\n\nEndi portalda OTP orqali ro'yxatdan o'tishingiz mumkin.`,
+            token
           );
         } else {
           await storage.updateCustomer(customer.id, { telegramId: chatId });
           await sendTelegramMessage(chatId,
-            `✅ Telegram hisobingiz bog'landi!\n\n📱 ${phone}\n\nEndi parolni tiklash va OTP tasdiqlash xizmatlari faol.`
+            `✅ Telegram hisobingiz bog'landi!\n\n📱 ${phone}\n\nEndi OTP xizmatlari faol.`,
+            token
           );
         }
         return res.json({ ok: true });
@@ -754,31 +882,30 @@ export async function registerRoutes(
       if (text && /^\+?\d{10,15}$/.test(text.replace(/\s/g, ""))) {
         let phone = text.replace(/\s/g, "");
         if (!phone.startsWith("+")) phone = "+" + phone;
-        let customer = await storage.getCustomerByPhone(phone);
+        let customer = await storage.getCustomerByPhone(phone, tenantId);
         if (!customer) {
           customer = await storage.createCustomer({
             fullName: `${message.from?.first_name || ""} ${message.from?.last_name || ""}`.trim() || "Telegram foydalanuvchi",
-            phone,
-            password: null,
-            address: null,
-            telegramId: chatId,
-            active: true,
-            debt: "0",
+            phone, password: null, address: null, telegramId: chatId,
+            tenantId, active: true, debt: "0",
           });
           await sendTelegramMessage(chatId,
-            `✅ Telefon raqamingiz muvaffaqiyatli bog'landi!\n\n📱 ${phone}\n\nEndi MARKET_LINE portalida OTP orqali ro'yxatdan o'tishingiz mumkin.`
+            `✅ Telefon raqamingiz bog'landi!\n\n📱 ${phone}\n\nEndi portalda OTP orqali ro'yxatdan o'tishingiz mumkin.`,
+            token
           );
         } else {
           await storage.updateCustomer(customer.id, { telegramId: chatId });
           await sendTelegramMessage(chatId,
-            `✅ Telegram hisobingiz bog'landi!\n\n📱 ${phone}\n\nEndi parolni tiklash va OTP tasdiqlash xizmatlari faol.`
+            `✅ Telegram hisobingiz bog'landi!\n\n📱 ${phone}\n\nEndi OTP xizmatlari faol.`,
+            token
           );
         }
         return res.json({ ok: true });
       }
 
       await sendTelegramMessage(chatId,
-        `❓ Tushunmadim. Iltimos telefon raqamingizni yuboring yoki /start bosing.`
+        `❓ Tushunmadim. Iltimos telefon raqamingizni yuboring yoki /start bosing.`,
+        token
       );
       res.json({ ok: true });
     } catch (error: any) {
@@ -787,9 +914,10 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/telegram/setup-webhook", async (req, res) => {
+  app.post("/api/telegram/setup-webhook", requireTenant, async (req, res) => {
     try {
-      const token = await getTelegramBotToken();
+      const tenantId = req.session.tenantId!;
+      const token = await getTelegramBotToken(tenantId);
       if (!token) {
         return res.status(400).json({ message: "Telegram bot token sozlanmagan" });
       }
@@ -800,7 +928,7 @@ export async function registerRoutes(
       const response = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: `${webhookUrl}/api/telegram/webhook` }),
+        body: JSON.stringify({ url: `${webhookUrl}/api/telegram/webhook/${tenantId}` }),
       });
       const data = await response.json();
       res.json(data);
@@ -810,15 +938,19 @@ export async function registerRoutes(
   });
 
   app.get("/api/portal/catalog", async (req, res) => {
-    const allProducts = await storage.getProducts();
+    const tenantId = req.session.tenantId;
+    if (!tenantId) return res.status(400).json({ message: "Do'kon tanlanmagan" });
+    const allProducts = await storage.getProducts(tenantId);
     const catalog = allProducts
       .filter(p => p.active && p.stock > 0)
       .map(({ costPrice, minStock, ...p }) => p);
     res.json(catalog);
   });
 
-  app.get("/api/portal/categories", async (_req, res) => {
-    const data = await storage.getCategories();
+  app.get("/api/portal/categories", async (req, res) => {
+    const tenantId = req.session.tenantId;
+    if (!tenantId) return res.status(400).json({ message: "Do'kon tanlanmagan" });
+    const data = await storage.getCategories(tenantId);
     res.json(data);
   });
 
@@ -843,22 +975,14 @@ export async function registerRoutes(
   });
 
   app.post("/api/portal/orders", async (req, res) => {
-    if (!req.session.customerId) {
+    if (!req.session.customerId || !req.session.tenantId) {
       return res.status(401).json({ message: "Tizimga kirilmagan" });
     }
     try {
       const { items, address, notes } = req.body;
+      const tenantId = req.session.tenantId;
       if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ message: "Mahsulotlar majburiy" });
-      }
-
-      for (const item of items) {
-        if (!item.productId || typeof item.productId !== "string") {
-          return res.status(400).json({ message: "Mahsulot ID noto'g'ri" });
-        }
-        if (!Number.isInteger(item.quantity) || item.quantity < 1) {
-          return res.status(400).json({ message: "Miqdor musbat butun son bo'lishi kerak" });
-        }
       }
 
       const result = await db.transaction(async (tx) => {
@@ -872,6 +996,7 @@ export async function registerRoutes(
         }
 
         const [sale] = await tx.insert(sales).values({
+          tenantId,
           customerId: req.session.customerId!,
           employeeId: null,
           totalAmount: totalAmount.toFixed(2),
@@ -890,7 +1015,6 @@ export async function registerRoutes(
             price: product!.price,
             total: (item.quantity * Number(product!.price)).toFixed(2),
           });
-
           await tx.update(products).set({
             stock: product!.stock - item.quantity,
           }).where(eq(products.id, item.productId));
@@ -899,13 +1023,12 @@ export async function registerRoutes(
         const [customer] = await tx.select().from(customers).where(eq(customers.id, req.session.customerId!));
         if (customer) {
           const newDebt = Number(customer.debt) + totalAmount;
-          await tx.update(customers).set({
-            debt: newDebt.toFixed(2),
-          }).where(eq(customers.id, req.session.customerId!));
+          await tx.update(customers).set({ debt: newDebt.toFixed(2) }).where(eq(customers.id, req.session.customerId!));
         }
 
         if (address) {
           await tx.insert(deliveries).values({
+            tenantId,
             saleId: sale.id,
             customerId: req.session.customerId!,
             address,
@@ -924,11 +1047,12 @@ export async function registerRoutes(
   });
 
   // ===== DASHBOARD STATS =====
-  app.get("/api/stats", async (_req, res) => {
+  app.get("/api/stats", requireTenant, async (req, res) => {
     try {
-      const allProducts = await storage.getProducts();
-      const allCustomers = await storage.getCustomers();
-      const allSales = await storage.getSales();
+      const tenantId = req.session.tenantId!;
+      const allProducts = await storage.getProducts(tenantId);
+      const allCustomers = await storage.getCustomers(tenantId);
+      const allSales = await storage.getSales(tenantId);
 
       const totalProducts = allProducts.length;
       const lowStockProducts = allProducts.filter(p => p.stock <= p.minStock).length;
@@ -943,14 +1067,8 @@ export async function registerRoutes(
       const todayRevenue = todaySales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
 
       res.json({
-        totalProducts,
-        lowStockProducts,
-        totalCustomers,
-        totalDebt,
-        totalSales,
-        totalRevenue,
-        todaySales: todaySales.length,
-        todayRevenue,
+        totalProducts, lowStockProducts, totalCustomers, totalDebt,
+        totalSales, totalRevenue, todaySales: todaySales.length, todayRevenue,
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });

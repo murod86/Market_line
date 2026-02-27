@@ -13,7 +13,9 @@ import {
   ShoppingBasket,
   Store,
   FolderOpen,
+  LogOut,
 } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Sidebar,
   SidebarContent,
@@ -28,7 +30,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const mainItems = [
-  { title: "Boshqaruv paneli", url: "/", icon: LayoutDashboard, color: "text-blue-400" },
+  { title: "Boshqaruv paneli", url: "/dashboard", icon: LayoutDashboard, color: "text-blue-400" },
   { title: "Sotuv (POS)", url: "/pos", icon: ShoppingCart, color: "text-emerald-400" },
   { title: "Ombor", url: "/warehouse", icon: Warehouse, color: "text-amber-400" },
   { title: "Kategoriyalar", url: "/categories", icon: FolderOpen, color: "text-purple-400" },
@@ -114,9 +116,18 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="p-4 glass-sidebar-footer">
-        <div className="text-[10px] text-white/30 text-center font-semibold tracking-wider uppercase">
-          MARKET_LINE v1.0
-        </div>
+        <button
+          onClick={async () => {
+            await apiRequest("POST", "/api/auth/logout");
+            queryClient.clear();
+            window.location.href = "/";
+          }}
+          className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors text-sm"
+          data-testid="button-logout"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>Chiqish</span>
+        </button>
       </SidebarFooter>
     </Sidebar>
   );

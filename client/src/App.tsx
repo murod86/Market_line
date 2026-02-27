@@ -7,6 +7,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import NotFound from "@/pages/not-found";
+import LandingPage from "@/pages/landing";
+import OwnerLogin from "@/pages/auth/login";
+import OwnerRegister from "@/pages/auth/register";
 import Dashboard from "@/pages/dashboard";
 import POS from "@/pages/pos";
 import Warehouse from "@/pages/warehouse";
@@ -25,7 +28,7 @@ import PortalLayout from "@/pages/portal/portal-layout";
 function AdminRouter() {
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
+      <Route path="/dashboard" component={Dashboard} />
       <Route path="/pos" component={POS} />
       <Route path="/warehouse" component={Warehouse} />
       <Route path="/categories" component={Categories} />
@@ -48,6 +51,28 @@ const sidebarStyle = {
 };
 
 function AdminLayout() {
+  const [, setLocation] = useLocation();
+  const { data: tenant, isLoading, isError } = useQuery({
+    queryKey: ["/api/auth/me"],
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (!isLoading && (isError || !tenant)) {
+      setLocation("/auth/login");
+    }
+  }, [isLoading, isError, tenant, setLocation]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-muted-foreground">Yuklanmoqda...</div>
+      </div>
+    );
+  }
+
+  if (isError || !tenant) return null;
+
   return (
     <SidebarProvider style={sidebarStyle as React.CSSProperties}>
       <div className="flex h-screen w-full">
@@ -56,7 +81,9 @@ function AdminLayout() {
           <header className="flex items-center gap-3 px-4 py-3 shrink-0 glass-header">
             <SidebarTrigger data-testid="button-sidebar-toggle" className="text-white/90 [&]:bg-transparent" />
             <div className="h-5 w-px bg-white/20" />
-            <h1 className="text-sm font-bold text-white/90 tracking-wide drop-shadow-sm">MARKET_LINE</h1>
+            <h1 className="text-sm font-bold text-white/90 tracking-wide drop-shadow-sm" data-testid="text-tenant-name">
+              {(tenant as any)?.name || "MARKET_LINE"}
+            </h1>
           </header>
           <main className="flex-1 overflow-hidden">
             <AdminRouter />
@@ -95,19 +122,35 @@ function PortalApp() {
     return <PortalLogin onLogin={() => setIsLoggedIn(true)} />;
   }
 
-  return (
-    <PortalLayout onLogout={() => setIsLoggedIn(false)} />
-  );
+  return <PortalLayout onLogout={() => setIsLoggedIn(false)} />;
 }
 
 function App() {
   const [location] = useLocation();
   const isPortal = location.startsWith("/portal");
+  const isAuth = location.startsWith("/auth");
+  const isLanding = location === "/";
+
+  let content;
+  if (isLanding) {
+    content = <LandingPage />;
+  } else if (isAuth) {
+    content = (
+      <Switch>
+        <Route path="/auth/login" component={OwnerLogin} />
+        <Route path="/auth/register" component={OwnerRegister} />
+      </Switch>
+    );
+  } else if (isPortal) {
+    content = <PortalApp />;
+  } else {
+    content = <AdminLayout />;
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        {isPortal ? <PortalApp /> : <AdminLayout />}
+        {content}
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

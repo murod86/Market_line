@@ -16,6 +16,9 @@ declare module "http" {
 
 declare module "express-session" {
   interface SessionData {
+    tenantId?: string;
+    tenantName?: string;
+    ownerId?: string;
     customerId?: string;
     customerName?: string;
   }

@@ -1,9 +1,10 @@
-import { eq, desc, like, sql } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
-  roles, employees, categories, products, customers,
+  tenants, roles, employees, categories, products, customers,
   sales, saleItems, deliveries, settings,
   suppliers, purchases, purchaseItems,
+  type InsertTenant, type Tenant,
   type InsertRole, type Role,
   type InsertEmployee, type Employee,
   type InsertCategory, type Category,
@@ -19,67 +20,92 @@ import {
 } from "@shared/schema";
 
 export interface IStorage {
-  getRoles(): Promise<Role[]>;
+  createTenant(tenant: InsertTenant): Promise<Tenant>;
+  getTenant(id: string): Promise<Tenant | undefined>;
+  getTenantByPhone(phone: string): Promise<Tenant | undefined>;
+  updateTenant(id: string, data: Partial<InsertTenant>): Promise<Tenant | undefined>;
+
+  getRoles(tenantId: string): Promise<Role[]>;
   getRole(id: string): Promise<Role | undefined>;
   createRole(role: InsertRole): Promise<Role>;
   updateRole(id: string, role: Partial<InsertRole>): Promise<Role | undefined>;
   deleteRole(id: string): Promise<void>;
 
-  getEmployees(): Promise<Employee[]>;
+  getEmployees(tenantId: string): Promise<Employee[]>;
   getEmployee(id: string): Promise<Employee | undefined>;
-  getEmployeeByUsername(username: string): Promise<Employee | undefined>;
+  getEmployeeByUsername(username: string, tenantId: string): Promise<Employee | undefined>;
   createEmployee(employee: InsertEmployee): Promise<Employee>;
   updateEmployee(id: string, employee: Partial<InsertEmployee>): Promise<Employee | undefined>;
 
-  getCategories(): Promise<Category[]>;
+  getCategories(tenantId: string): Promise<Category[]>;
   createCategory(category: InsertCategory): Promise<Category>;
   updateCategory(id: string, category: Partial<InsertCategory>): Promise<Category | undefined>;
   deleteCategory(id: string): Promise<void>;
 
-  getProducts(): Promise<Product[]>;
+  getProducts(tenantId: string): Promise<Product[]>;
   getProduct(id: string): Promise<Product | undefined>;
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: string, product: Partial<InsertProduct>): Promise<Product | undefined>;
 
-  getCustomers(): Promise<Customer[]>;
+  getCustomers(tenantId: string): Promise<Customer[]>;
   getCustomer(id: string): Promise<Customer | undefined>;
-  getCustomerByPhone(phone: string): Promise<Customer | undefined>;
+  getCustomerByPhone(phone: string, tenantId: string): Promise<Customer | undefined>;
   getCustomerByTelegramId(telegramId: string): Promise<Customer | undefined>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer | undefined>;
   getCustomerSales(customerId: string): Promise<Sale[]>;
 
-  getSales(): Promise<Sale[]>;
+  getSales(tenantId: string): Promise<Sale[]>;
   getSale(id: string): Promise<Sale | undefined>;
   createSale(sale: InsertSale): Promise<Sale>;
 
   getSaleItems(saleId: string): Promise<SaleItem[]>;
   createSaleItem(item: InsertSaleItem): Promise<SaleItem>;
 
-  getDeliveries(): Promise<Delivery[]>;
+  getDeliveries(tenantId: string): Promise<Delivery[]>;
   getDelivery(id: string): Promise<Delivery | undefined>;
   createDelivery(delivery: InsertDelivery): Promise<Delivery>;
   updateDelivery(id: string, delivery: Partial<InsertDelivery>): Promise<Delivery | undefined>;
 
-  getSuppliers(): Promise<Supplier[]>;
+  getSuppliers(tenantId: string): Promise<Supplier[]>;
   getSupplier(id: string): Promise<Supplier | undefined>;
   createSupplier(supplier: InsertSupplier): Promise<Supplier>;
   updateSupplier(id: string, supplier: Partial<InsertSupplier>): Promise<Supplier | undefined>;
 
-  getPurchases(): Promise<Purchase[]>;
+  getPurchases(tenantId: string): Promise<Purchase[]>;
   getPurchase(id: string): Promise<Purchase | undefined>;
   createPurchase(purchase: InsertPurchase): Promise<Purchase>;
   getPurchaseItems(purchaseId: string): Promise<PurchaseItem[]>;
   createPurchaseItem(item: InsertPurchaseItem): Promise<PurchaseItem>;
 
-  getSettings(): Promise<Setting[]>;
-  getSetting(key: string): Promise<Setting | undefined>;
-  upsertSetting(key: string, value: string): Promise<Setting>;
+  getSettings(tenantId: string): Promise<Setting[]>;
+  getSetting(key: string, tenantId: string): Promise<Setting | undefined>;
+  upsertSetting(key: string, value: string, tenantId: string): Promise<Setting>;
 }
 
 export class DatabaseStorage implements IStorage {
-  async getRoles(): Promise<Role[]> {
-    return await db.select().from(roles);
+  async createTenant(tenant: InsertTenant): Promise<Tenant> {
+    const [created] = await db.insert(tenants).values(tenant).returning();
+    return created;
+  }
+
+  async getTenant(id: string): Promise<Tenant | undefined> {
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, id));
+    return tenant;
+  }
+
+  async getTenantByPhone(phone: string): Promise<Tenant | undefined> {
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.phone, phone));
+    return tenant;
+  }
+
+  async updateTenant(id: string, data: Partial<InsertTenant>): Promise<Tenant | undefined> {
+    const [updated] = await db.update(tenants).set(data).where(eq(tenants.id, id)).returning();
+    return updated;
+  }
+
+  async getRoles(tenantId: string): Promise<Role[]> {
+    return await db.select().from(roles).where(eq(roles.tenantId, tenantId));
   }
 
   async getRole(id: string): Promise<Role | undefined> {
@@ -101,8 +127,8 @@ export class DatabaseStorage implements IStorage {
     await db.delete(roles).where(eq(roles.id, id));
   }
 
-  async getEmployees(): Promise<Employee[]> {
-    return await db.select().from(employees);
+  async getEmployees(tenantId: string): Promise<Employee[]> {
+    return await db.select().from(employees).where(eq(employees.tenantId, tenantId));
   }
 
   async getEmployee(id: string): Promise<Employee | undefined> {
@@ -110,8 +136,10 @@ export class DatabaseStorage implements IStorage {
     return employee;
   }
 
-  async getEmployeeByUsername(username: string): Promise<Employee | undefined> {
-    const [employee] = await db.select().from(employees).where(eq(employees.username, username));
+  async getEmployeeByUsername(username: string, tenantId: string): Promise<Employee | undefined> {
+    const [employee] = await db.select().from(employees).where(
+      and(eq(employees.username, username), eq(employees.tenantId, tenantId))
+    );
     return employee;
   }
 
@@ -125,8 +153,8 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async getCategories(): Promise<Category[]> {
-    return await db.select().from(categories);
+  async getCategories(tenantId: string): Promise<Category[]> {
+    return await db.select().from(categories).where(eq(categories.tenantId, tenantId));
   }
 
   async createCategory(category: InsertCategory): Promise<Category> {
@@ -143,8 +171,8 @@ export class DatabaseStorage implements IStorage {
     await db.delete(categories).where(eq(categories.id, id));
   }
 
-  async getProducts(): Promise<Product[]> {
-    return await db.select().from(products);
+  async getProducts(tenantId: string): Promise<Product[]> {
+    return await db.select().from(products).where(eq(products.tenantId, tenantId));
   }
 
   async getProduct(id: string): Promise<Product | undefined> {
@@ -162,8 +190,8 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async getCustomers(): Promise<Customer[]> {
-    return await db.select().from(customers);
+  async getCustomers(tenantId: string): Promise<Customer[]> {
+    return await db.select().from(customers).where(eq(customers.tenantId, tenantId));
   }
 
   async getCustomer(id: string): Promise<Customer | undefined> {
@@ -171,8 +199,10 @@ export class DatabaseStorage implements IStorage {
     return customer;
   }
 
-  async getCustomerByPhone(phone: string): Promise<Customer | undefined> {
-    const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
+  async getCustomerByPhone(phone: string, tenantId: string): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(
+      and(eq(customers.phone, phone), eq(customers.tenantId, tenantId))
+    );
     return customer;
   }
 
@@ -195,8 +225,8 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async getSales(): Promise<Sale[]> {
-    return await db.select().from(sales).orderBy(desc(sales.createdAt));
+  async getSales(tenantId: string): Promise<Sale[]> {
+    return await db.select().from(sales).where(eq(sales.tenantId, tenantId)).orderBy(desc(sales.createdAt));
   }
 
   async getSale(id: string): Promise<Sale | undefined> {
@@ -218,8 +248,8 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async getDeliveries(): Promise<Delivery[]> {
-    return await db.select().from(deliveries).orderBy(desc(deliveries.createdAt));
+  async getDeliveries(tenantId: string): Promise<Delivery[]> {
+    return await db.select().from(deliveries).where(eq(deliveries.tenantId, tenantId)).orderBy(desc(deliveries.createdAt));
   }
 
   async getDelivery(id: string): Promise<Delivery | undefined> {
@@ -237,27 +267,29 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async getSettings(): Promise<Setting[]> {
-    return await db.select().from(settings);
+  async getSettings(tenantId: string): Promise<Setting[]> {
+    return await db.select().from(settings).where(eq(settings.tenantId, tenantId));
   }
 
-  async getSetting(key: string): Promise<Setting | undefined> {
-    const [setting] = await db.select().from(settings).where(eq(settings.key, key));
+  async getSetting(key: string, tenantId: string): Promise<Setting | undefined> {
+    const [setting] = await db.select().from(settings).where(
+      and(eq(settings.key, key), eq(settings.tenantId, tenantId))
+    );
     return setting;
   }
 
-  async upsertSetting(key: string, value: string): Promise<Setting> {
-    const existing = await this.getSetting(key);
+  async upsertSetting(key: string, value: string, tenantId: string): Promise<Setting> {
+    const existing = await this.getSetting(key, tenantId);
     if (existing) {
-      const [updated] = await db.update(settings).set({ value }).where(eq(settings.key, key)).returning();
+      const [updated] = await db.update(settings).set({ value }).where(eq(settings.id, existing.id)).returning();
       return updated;
     }
-    const [created] = await db.insert(settings).values({ key, value }).returning();
+    const [created] = await db.insert(settings).values({ key, value, tenantId }).returning();
     return created;
   }
 
-  async getSuppliers(): Promise<Supplier[]> {
-    return await db.select().from(suppliers);
+  async getSuppliers(tenantId: string): Promise<Supplier[]> {
+    return await db.select().from(suppliers).where(eq(suppliers.tenantId, tenantId));
   }
 
   async getSupplier(id: string): Promise<Supplier | undefined> {
@@ -275,8 +307,8 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async getPurchases(): Promise<Purchase[]> {
-    return await db.select().from(purchases).orderBy(desc(purchases.createdAt));
+  async getPurchases(tenantId: string): Promise<Purchase[]> {
+    return await db.select().from(purchases).where(eq(purchases.tenantId, tenantId)).orderBy(desc(purchases.createdAt));
   }
 
   async getPurchase(id: string): Promise<Purchase | undefined> {
