@@ -12,6 +12,7 @@ import {
   Building2,
   ShoppingBasket,
   Store,
+  FolderOpen,
 } from "lucide-react";
 import {
   Sidebar,
@@ -30,6 +31,7 @@ const mainItems = [
   { title: "Boshqaruv paneli", url: "/", icon: LayoutDashboard, color: "text-blue-400" },
   { title: "Sotuv (POS)", url: "/pos", icon: ShoppingCart, color: "text-emerald-400" },
   { title: "Ombor", url: "/warehouse", icon: Warehouse, color: "text-amber-400" },
+  { title: "Kategoriyalar", url: "/categories", icon: FolderOpen, color: "text-purple-400" },
   { title: "Mahsulotlar", url: "/products", icon: Package, color: "text-violet-400" },
   { title: "Mijozlar", url: "/customers", icon: Users, color: "text-cyan-400" },
   { title: "Yetkazib berish", url: "/deliveries", icon: Truck, color: "text-orange-400" },

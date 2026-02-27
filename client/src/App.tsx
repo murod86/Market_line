@@ -16,6 +16,7 @@ import Deliveries from "@/pages/deliveries";
 import Roles from "@/pages/roles";
 import Employees from "@/pages/employees";
 import Settings from "@/pages/settings";
+import Categories from "@/pages/categories";
 import Suppliers from "@/pages/suppliers";
 import Purchases from "@/pages/purchases";
 import PortalLogin from "@/pages/portal/login";
@@ -27,6 +28,7 @@ function AdminRouter() {
       <Route path="/" component={Dashboard} />
       <Route path="/pos" component={POS} />
       <Route path="/warehouse" component={Warehouse} />
+      <Route path="/categories" component={Categories} />
       <Route path="/products" component={Products} />
       <Route path="/customers" component={Customers} />
       <Route path="/deliveries" component={Deliveries} />
