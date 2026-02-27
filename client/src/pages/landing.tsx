@@ -1,7 +1,8 @@
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShoppingCart, Package, Users, Truck, BarChart3, Shield, Smartphone, Zap, Star, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Package, Users, Truck, BarChart3, Shield, Smartphone, Zap, Star, ArrowRight, CheckCircle2, ShoppingCart } from "lucide-react";
+import logoImg from "@assets/ChatGPT_Image_Feb_27,_2026,_05_36_53_PM_1772195868435.png";
 
 const features = [
   { icon: ShoppingCart, title: "POS Kassa", desc: "58mm chek chiqarish, chegirma, qarzga sotish", color: "text-blue-500 bg-blue-500/10" },
@@ -46,10 +47,7 @@ export default function LandingPage() {
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-white/5 border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
-              <ShoppingCart className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-lg font-bold tracking-tight" data-testid="text-brand">MARKET_LINE</span>
+            <img src={logoImg} alt="MarketLine" className="h-10 w-auto" data-testid="text-brand" />
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -178,12 +176,9 @@ export default function LandingPage() {
       <footer className="py-10 px-4 border-t border-white/10">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
-              <ShoppingCart className="w-3 h-3 text-white" />
-            </div>
-            <span className="text-sm font-semibold text-white/70">MARKET_LINE</span>
+            <img src={logoImg} alt="MarketLine" className="h-8 w-auto" />
           </div>
-          <p className="text-white/40 text-sm">© 2025 MARKET_LINE. Barcha huquqlar himoyalangan.</p>
+          <p className="text-white/40 text-sm">© 2025 MarketLine. Barcha huquqlar himoyalangan.</p>
         </div>
       </footer>
     </div>

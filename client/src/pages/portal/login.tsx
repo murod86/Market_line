@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Store, Phone, Lock, User, MapPin, MessageCircle, ArrowLeft, KeyRound, Shield } from "lucide-react";
+import logoImg from "@assets/ChatGPT_Image_Feb_27,_2026,_05_36_53_PM_1772195868435.png";
 
 interface PortalLoginProps {
   onLogin: () => void;
@@ -189,10 +190,8 @@ export default function PortalLogin({ onLogin }: PortalLoginProps) {
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg mb-4">
-              <Store className="h-8 w-8" />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight">MARKET_LINE</h1>
+            <img src={logoImg} alt="MarketLine" className="h-16 w-auto mx-auto mb-4" />
+            <h1 className="text-2xl font-bold tracking-tight">MarketLine</h1>
             <p className="text-muted-foreground mt-1">
               {view === "register-otp" ? "Telegram OTP orqali ro'yxatdan o'tish" : "Parolni tiklash"}
             </p>
@@ -410,10 +409,8 @@ export default function PortalLogin({ onLogin }: PortalLoginProps) {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg mb-4">
-            <Store className="h-8 w-8" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight" data-testid="text-portal-title">MARKET_LINE</h1>
+          <img src={logoImg} alt="MarketLine" className="h-16 w-auto mx-auto mb-4" />
+          <h1 className="text-2xl font-bold tracking-tight" data-testid="text-portal-title">MarketLine</h1>
           <p className="text-muted-foreground mt-1">Mijoz portali</p>
         </div>
 

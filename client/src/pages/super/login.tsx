@@ -145,7 +145,7 @@ export default function SuperLogin({ onLogin }: { onLogin: () => void }) {
             <Shield className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white">Super Admin</h1>
-          <p className="text-white/50 text-sm mt-1">MARKET_LINE platformasini boshqarish</p>
+          <p className="text-white/50 text-sm mt-1">MarketLine platformasini boshqarish</p>
         </div>
 
         <Card className="bg-white/5 border-white/10 backdrop-blur-xl">

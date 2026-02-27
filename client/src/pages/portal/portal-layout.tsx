@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import logoImg from "@assets/ChatGPT_Image_Feb_27,_2026,_05_36_53_PM_1772195868435.png";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Customer, Product } from "@shared/schema";
 import PortalCatalog, { type CartItem } from "./catalog";
@@ -149,11 +150,9 @@ export default function PortalLayout({ onLogout }: PortalLayoutProps) {
       <header className="border-b bg-card sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-md">
-              <Store className="h-4 w-4" />
-            </div>
+            <img src={logoImg} alt="MarketLine" className="h-9 w-auto rounded-lg" />
             <div>
-              <h1 className="text-sm font-bold tracking-wide" data-testid="text-portal-header">MARKET_LINE</h1>
+              <h1 className="text-sm font-bold tracking-wide" data-testid="text-portal-header">MarketLine</h1>
               <p className="text-xs text-muted-foreground">Mijoz portali</p>
             </div>
           </div>

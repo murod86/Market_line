@@ -11,11 +11,11 @@ import {
   Warehouse,
   Building2,
   ShoppingBasket,
-  Store,
   FolderOpen,
   LogOut,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import logoImg from "@assets/ChatGPT_Image_Feb_27,_2026,_05_36_53_PM_1772195868435.png";
 import {
   Sidebar,
   SidebarContent,
@@ -54,11 +54,9 @@ export function AppSidebar() {
     <Sidebar className="border-r-0 glass-sidebar">
       <SidebarHeader className="p-4 glass-sidebar-header">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 backdrop-blur-md shadow-lg border border-white/20">
-            <Store className="h-6 w-6 text-white drop-shadow-sm" />
-          </div>
+          <img src={logoImg} alt="MarketLine" className="h-11 w-auto rounded-xl" data-testid="text-app-name" />
           <div>
-            <h2 className="text-base font-bold tracking-wide text-white drop-shadow-sm" data-testid="text-app-name">MARKET_LINE</h2>
+            <h2 className="text-base font-bold tracking-wide text-white drop-shadow-sm">MarketLine</h2>
             <p className="text-[11px] text-white/60 font-medium">Biznes boshqaruvi</p>
           </div>
         </div>
