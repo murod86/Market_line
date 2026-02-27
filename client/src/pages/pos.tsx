@@ -227,9 +227,9 @@ export default function POS() {
           }
           body {
             font-family: 'Courier New', monospace;
-            font-size: 11px;
-            line-height: 1.3;
-            width: 48mm;
+            font-size: 14px;
+            line-height: 1.4;
+            width: 54mm;
             padding: 2mm;
             color: #000;
           }
@@ -237,7 +237,7 @@ export default function POS() {
           .receipt-bold { font-weight: bold; }
           .receipt-line {
             border-top: 1px dashed #000;
-            margin: 3px 0;
+            margin: 5px 0;
           }
           .receipt-row {
             display: flex;
@@ -255,19 +255,19 @@ export default function POS() {
             white-space: nowrap;
           }
           .receipt-item-detail {
-            font-size: 10px;
-            color: #333;
+            font-size: 12px;
+            color: #000;
             padding-left: 4px;
           }
           .receipt-total {
-            font-size: 13px;
+            font-size: 16px;
             font-weight: bold;
           }
           .receipt-footer {
             text-align: center;
-            font-size: 10px;
-            margin-top: 6px;
-            color: #333;
+            font-size: 12px;
+            margin-top: 8px;
+            color: #000;
           }
         </style>
       </head>
@@ -610,81 +610,81 @@ export default function POS() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="border rounded-lg p-4 bg-white text-black font-mono text-xs max-h-[60vh] overflow-y-auto" data-testid="receipt-preview">
+          <div className="border rounded-lg p-5 bg-white text-black font-mono text-sm max-h-[60vh] overflow-y-auto" data-testid="receipt-preview">
             <div ref={receiptRef}>
               {receiptData && (
                 <>
-                  <div className="receipt-center" style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: "14px", fontWeight: "bold", marginBottom: "2px" }}>{companyName}</div>
-                    <div style={{ fontSize: "10px", color: "#555" }}>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: "18px", fontWeight: "bold", marginBottom: "4px", color: "#000" }}>{companyName}</div>
+                    <div style={{ fontSize: "13px", color: "#000" }}>
                       {receiptData.date.toLocaleDateString("uz-UZ")} {receiptData.date.toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })}
                     </div>
                     {receiptData.customerName && (
-                      <div style={{ fontSize: "10px", marginTop: "2px" }}>Mijoz: {receiptData.customerName}</div>
+                      <div style={{ fontSize: "13px", marginTop: "4px", color: "#000" }}>Mijoz: {receiptData.customerName}</div>
                     )}
                   </div>
 
-                  <div className="receipt-line" style={{ borderTop: "1px dashed #000", margin: "6px 0" }} />
+                  <div style={{ borderTop: "2px dashed #000", margin: "8px 0" }} />
 
-                  <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "10px", marginBottom: "4px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "13px", marginBottom: "6px", color: "#000" }}>
                     <span>Mahsulot</span>
                     <span>Summa</span>
                   </div>
 
-                  <div className="receipt-line" style={{ borderTop: "1px dashed #000", margin: "4px 0" }} />
+                  <div style={{ borderTop: "1px dashed #000", margin: "6px 0" }} />
 
                   {receiptData.items.map((item, idx) => (
-                    <div key={idx} style={{ marginBottom: "4px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: "4px" }}>
-                        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <div key={idx} style={{ marginBottom: "6px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: "8px" }}>
+                        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "14px", color: "#000" }}>
                           {item.product.name}
                         </span>
-                        <span style={{ textAlign: "right", whiteSpace: "nowrap", fontWeight: "bold" }}>
+                        <span style={{ textAlign: "right", whiteSpace: "nowrap", fontWeight: "bold", fontSize: "14px", color: "#000" }}>
                           {formatCurrencyShort(item.quantity * Number(item.product.price))}
                         </span>
                       </div>
-                      <div style={{ fontSize: "10px", color: "#555", paddingLeft: "4px" }}>
+                      <div style={{ fontSize: "12px", color: "#333", paddingLeft: "4px" }}>
                         {item.quantity} x {formatCurrencyShort(Number(item.product.price))}
                       </div>
                     </div>
                   ))}
 
-                  <div className="receipt-line" style={{ borderTop: "1px dashed #000", margin: "6px 0" }} />
+                  <div style={{ borderTop: "2px dashed #000", margin: "8px 0" }} />
 
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", color: "#000" }}>
                     <span>Jami:</span>
                     <span>{formatCurrencyShort(receiptData.subtotal)} UZS</span>
                   </div>
 
                   {receiptData.discount > 0 && (
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", color: "#000" }}>
                       <span>Chegirma:</span>
                       <span>-{formatCurrencyShort(receiptData.discount)} UZS</span>
                     </div>
                   )}
 
-                  <div className="receipt-line" style={{ borderTop: "1px dashed #000", margin: "4px 0" }} />
+                  <div style={{ borderTop: "1px dashed #000", margin: "6px 0" }} />
 
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: "bold" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "18px", fontWeight: "bold", color: "#000" }}>
                     <span>JAMI:</span>
                     <span>{formatCurrencyShort(receiptData.total)} UZS</span>
                   </div>
 
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: "6px", fontSize: "14px", color: "#000" }}>
                     <span>To'lov:</span>
-                    <span>{receiptData.paymentType === "cash" ? "Naqd" : "Qarzga"}</span>
+                    <span style={{ fontWeight: "bold" }}>{receiptData.paymentType === "cash" ? "Naqd" : "Qarzga"}</span>
                   </div>
 
                   {receiptData.paymentType === "cash" && (
                     <>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", color: "#000" }}>
                         <span>Berildi:</span>
                         <span>{formatCurrencyShort(receiptData.paidAmount)} UZS</span>
                       </div>
                       {receiptData.change > 0 && (
-                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", color: "#000" }}>
                           <span>Qaytim:</span>
-                          <span>{formatCurrencyShort(receiptData.change)} UZS</span>
+                          <span style={{ fontWeight: "bold" }}>{formatCurrencyShort(receiptData.change)} UZS</span>
                         </div>
                       )}
                     </>
@@ -692,22 +692,22 @@ export default function POS() {
 
                   {receiptData.paymentType === "debt" && (
                     <>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", color: "#000" }}>
                         <span>To'landi:</span>
                         <span>{formatCurrencyShort(receiptData.paidAmount)} UZS</span>
                       </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "15px", fontWeight: "bold", color: "#000" }}>
                         <span>Qarz:</span>
                         <span>{formatCurrencyShort(receiptData.total - receiptData.paidAmount)} UZS</span>
                       </div>
                     </>
                   )}
 
-                  <div className="receipt-line" style={{ borderTop: "1px dashed #000", margin: "6px 0" }} />
+                  <div style={{ borderTop: "2px dashed #000", margin: "8px 0" }} />
 
-                  <div style={{ textAlign: "center", fontSize: "10px", color: "#555" }}>
-                    <div>Xaridingiz uchun rahmat!</div>
-                    <div style={{ marginTop: "2px" }}>{companyName}</div>
+                  <div style={{ textAlign: "center", fontSize: "13px", color: "#000" }}>
+                    <div style={{ fontWeight: "bold" }}>Xaridingiz uchun rahmat!</div>
+                    <div style={{ marginTop: "4px" }}>{companyName}</div>
                   </div>
                 </>
               )}
