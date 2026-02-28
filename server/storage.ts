@@ -4,7 +4,7 @@ import {
   plans, tenants, roles, employees, categories, products, customers,
   sales, saleItems, deliveries, deliveryItems, settings,
   suppliers, purchases, purchaseItems,
-  dealers, dealerInventory, dealerTransactions, payments,
+  dealers, dealerInventory, dealerTransactions, payments, dealerCustomers,
   type InsertPlan, type Plan,
   type InsertTenant, type Tenant,
   type InsertRole, type Role,
@@ -24,6 +24,7 @@ import {
   type InsertDealerInventory, type DealerInventory,
   type InsertDealerTransaction, type DealerTransaction,
   type InsertPayment, type Payment,
+  type InsertDealerCustomer, type DealerCustomer,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -115,6 +116,11 @@ export interface IStorage {
 
   getPayments(tenantId: string, type?: string, entityId?: string): Promise<Payment[]>;
   createPayment(payment: InsertPayment): Promise<Payment>;
+
+  getDealerCustomers(dealerId: string): Promise<DealerCustomer[]>;
+  getDealerCustomer(id: string): Promise<DealerCustomer | undefined>;
+  createDealerCustomer(dc: InsertDealerCustomer): Promise<DealerCustomer>;
+  updateDealerCustomer(id: string, data: Partial<InsertDealerCustomer>): Promise<DealerCustomer | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -519,6 +525,24 @@ export class DatabaseStorage implements IStorage {
       await tx.delete(roles).where(eq(roles.tenantId, id));
       await tx.delete(tenants).where(eq(tenants.id, id));
     });
+  }
+  async getDealerCustomers(dealerId: string): Promise<DealerCustomer[]> {
+    return await db.select().from(dealerCustomers).where(eq(dealerCustomers.dealerId, dealerId)).orderBy(desc(dealerCustomers.createdAt));
+  }
+
+  async getDealerCustomer(id: string): Promise<DealerCustomer | undefined> {
+    const [dc] = await db.select().from(dealerCustomers).where(eq(dealerCustomers.id, id));
+    return dc;
+  }
+
+  async createDealerCustomer(dc: InsertDealerCustomer): Promise<DealerCustomer> {
+    const [created] = await db.insert(dealerCustomers).values(dc).returning();
+    return created;
+  }
+
+  async updateDealerCustomer(id: string, data: Partial<InsertDealerCustomer>): Promise<DealerCustomer | undefined> {
+    const [updated] = await db.update(dealerCustomers).set(data).where(eq(dealerCustomers.id, id)).returning();
+    return updated;
   }
 }
 

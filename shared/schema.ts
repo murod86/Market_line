@@ -232,6 +232,20 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true,
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type Payment = typeof payments.$inferSelect;
 
+export const dealerCustomers = pgTable("dealer_customers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  dealerId: varchar("dealer_id").references(() => dealers.id).notNull(),
+  name: text("name").notNull(),
+  phone: text("phone"),
+  debt: decimal("debt", { precision: 12, scale: 2 }).notNull().default("0"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertDealerCustomerSchema = createInsertSchema(dealerCustomers).omit({ id: true, createdAt: true });
+export type InsertDealerCustomer = z.infer<typeof insertDealerCustomerSchema>;
+export type DealerCustomer = typeof dealerCustomers.$inferSelect;
+
 export const suppliers = pgTable("suppliers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   tenantId: varchar("tenant_id").references(() => tenants.id),

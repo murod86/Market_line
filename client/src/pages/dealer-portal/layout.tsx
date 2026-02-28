@@ -10,9 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Package, ShoppingCart, History, CreditCard, LogOut, Truck,
-  Minus, Plus, Trash2, User, Phone, LayoutDashboard, TrendingUp, TrendingDown, Wallet, ArrowDownToLine, ArrowUpFromLine
+  Minus, Plus, Trash2, User, Phone, LayoutDashboard, TrendingUp, TrendingDown, Wallet, ArrowDownToLine, ArrowUpFromLine, Banknote, UserPlus
 } from "lucide-react";
 import { format } from "date-fns";
 import logoImg from "@assets/marketline_final_v1.png";
@@ -26,7 +27,7 @@ interface DealerLayoutProps {
 }
 
 export default function DealerLayout({ onLogout }: DealerLayoutProps) {
-  const [activeTab, setActiveTab] = useState<"dashboard" | "inventory" | "sell" | "delivery" | "history" | "debt">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "inventory" | "sell" | "customers" | "delivery" | "history" | "debt">("dashboard");
   const { toast } = useToast();
 
   const { data: dealer, isLoading } = useQuery<any>({
@@ -55,6 +56,7 @@ export default function DealerLayout({ onLogout }: DealerLayoutProps) {
     { id: "dashboard" as const, label: "Bosh sahifa", icon: LayoutDashboard },
     { id: "inventory" as const, label: "Ombor", icon: Package },
     { id: "sell" as const, label: "Sotish", icon: ShoppingCart },
+    { id: "customers" as const, label: "Mijozlarim", icon: User },
     { id: "delivery" as const, label: "Yetkazish", icon: Truck },
     { id: "history" as const, label: "Tarix", icon: History },
     { id: "debt" as const, label: "Qarz", icon: CreditCard },
@@ -111,6 +113,7 @@ export default function DealerLayout({ onLogout }: DealerLayoutProps) {
         {activeTab === "dashboard" && <DashboardTab dealer={dealer} />}
         {activeTab === "inventory" && <InventoryTab />}
         {activeTab === "sell" && <SellTab />}
+        {activeTab === "customers" && <CustomersTab />}
         {activeTab === "delivery" && <DeliveryTab />}
         {activeTab === "history" && <HistoryTab />}
         {activeTab === "debt" && <DebtTab dealer={dealer} />}
@@ -319,6 +322,7 @@ function SellTab() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [dealerCustomerId, setDealerCustomerId] = useState("");
   const [notes, setNotes] = useState("");
   const [paymentType, setPaymentType] = useState<"cash" | "debt" | "partial">("cash");
   const [paidAmount, setPaidAmount] = useState("");
@@ -326,6 +330,10 @@ function SellTab() {
 
   const { data: inventory } = useQuery<any[]>({
     queryKey: ["/api/dealer-portal/inventory"],
+  });
+
+  const { data: dealerCustomers } = useQuery<any[]>({
+    queryKey: ["/api/dealer-portal/customers"],
   });
 
   const sellMutation = useMutation({
@@ -338,10 +346,12 @@ function SellTab() {
       queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/transactions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/me"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/customers"] });
       setCart([]);
       setCheckoutOpen(false);
       setCustomerName("");
       setCustomerPhone("");
+      setDealerCustomerId("");
       setNotes("");
       setPaymentType("cash");
       setPaidAmount("");
@@ -405,6 +415,7 @@ function SellTab() {
       })),
       customerName: customerName || null,
       customerPhone: customerPhone || null,
+      dealerCustomerId: dealerCustomerId || null,
       notes: notes || null,
       paymentType,
       paidAmount: paymentType === "partial" ? Number(paidAmount) || 0 : 0,
@@ -523,30 +534,68 @@ function SellTab() {
             <DialogTitle>Sotishni tasdiqlash</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>
-                <User className="h-3.5 w-3.5 inline mr-1" />
-                Mijoz ismi (ixtiyoriy)
-              </Label>
-              <Input
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Mijoz ismi"
-                data-testid="input-sell-customer-name"
-              />
-            </div>
-            <div>
-              <Label>
-                <Phone className="h-3.5 w-3.5 inline mr-1" />
-                Telefon (ixtiyoriy)
-              </Label>
-              <Input
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="+998..."
-                data-testid="input-sell-customer-phone"
-              />
-            </div>
+            {dealerCustomers && dealerCustomers.length > 0 && (
+              <div>
+                <Label>
+                  <User className="h-3.5 w-3.5 inline mr-1" />
+                  Mijozni tanlang
+                </Label>
+                <Select
+                  value={dealerCustomerId || "none"}
+                  onValueChange={(v) => {
+                    if (v === "none") {
+                      setDealerCustomerId("");
+                      setCustomerName("");
+                      setCustomerPhone("");
+                    } else {
+                      setDealerCustomerId(v);
+                      const dc = dealerCustomers.find((c: any) => c.id === v);
+                      if (dc) { setCustomerName(dc.name); setCustomerPhone(dc.phone || ""); }
+                    }
+                  }}
+                >
+                  <SelectTrigger data-testid="select-sell-dealer-customer">
+                    <SelectValue placeholder="Mijoz tanlang..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Yangi mijoz (qo'lda kiritish)</SelectItem>
+                    {dealerCustomers.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} {c.phone ? `(${c.phone})` : ""} {Number(c.debt) > 0 ? `- Qarz: ${formatCurrency(Number(c.debt))}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {!dealerCustomerId && (
+              <>
+                <div>
+                  <Label>
+                    <User className="h-3.5 w-3.5 inline mr-1" />
+                    Mijoz ismi (ixtiyoriy)
+                  </Label>
+                  <Input
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Mijoz ismi"
+                    data-testid="input-sell-customer-name"
+                  />
+                </div>
+                <div>
+                  <Label>
+                    <Phone className="h-3.5 w-3.5 inline mr-1" />
+                    Telefon (ixtiyoriy)
+                  </Label>
+                  <Input
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    placeholder="+998..."
+                    data-testid="input-sell-customer-phone"
+                  />
+                </div>
+              </>
+            )}
 
             <div>
               <Label className="mb-2 block">To'lov turi</Label>
@@ -623,6 +672,226 @@ function SellTab() {
             <Button variant="outline" onClick={() => setCheckoutOpen(false)}>Bekor qilish</Button>
             <Button onClick={handleSell} disabled={sellMutation.isPending} data-testid="button-confirm-sell">
               {sellMutation.isPending ? "Yuklanmoqda..." : "Tasdiqlash"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function CustomersTab() {
+  const [addOpen, setAddOpen] = useState(false);
+  const [payOpen, setPayOpen] = useState<any>(null);
+  const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState("cash");
+  const [payNotes, setPayNotes] = useState("");
+  const { toast } = useToast();
+
+  const { data: customers, isLoading } = useQuery<any[]>({
+    queryKey: ["/api/dealer-portal/customers"],
+  });
+
+  const addMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/dealer-portal/customers", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Mijoz qo'shildi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/customers"] });
+      setAddOpen(false);
+      setNewName("");
+      setNewPhone("");
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const payMutation = useMutation({
+    mutationFn: async ({ id, amount, method, notes }: any) => {
+      const res = await apiRequest("POST", `/api/dealer-portal/customers/${id}/payment`, { amount, method, notes });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "To'lov qabul qilindi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/customers"] });
+      setPayOpen(null);
+      setPayAmount("");
+      setPayNotes("");
+      setPayMethod("cash");
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  if (isLoading) return <Skeleton className="h-64 w-full" />;
+
+  const totalDebt = customers?.reduce((s: number, c: any) => s + Number(c.debt), 0) || 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold" data-testid="text-dealer-customers-title">Mijozlarim</h2>
+        <div className="flex items-center gap-3">
+          {totalDebt > 0 && (
+            <Badge variant="destructive" className="text-sm" data-testid="text-dealer-customers-total-debt">
+              Jami qarz: {formatCurrency(totalDebt)}
+            </Badge>
+          )}
+          <Button size="sm" onClick={() => setAddOpen(true)} data-testid="button-add-dealer-customer">
+            <UserPlus className="h-4 w-4 mr-1" /> Yangi mijoz
+          </Button>
+        </div>
+      </div>
+
+      {customers && customers.length > 0 ? (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Ism</TableHead>
+                  <TableHead>Telefon</TableHead>
+                  <TableHead>Qarz</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {customers.map((c: any) => (
+                  <TableRow key={c.id} data-testid={`row-dealer-customer-${c.id}`}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary text-xs font-bold">
+                          {c.name.charAt(0)}
+                        </div>
+                        {c.name}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {c.phone ? (
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <Phone className="h-3 w-3" />
+                          {c.phone}
+                        </div>
+                      ) : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {Number(c.debt) > 0 ? (
+                        <Badge variant="destructive">{formatCurrency(Number(c.debt))}</Badge>
+                      ) : (
+                        <Badge variant="secondary">Qarz yo'q</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {Number(c.debt) > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-green-600"
+                          onClick={() => { setPayOpen(c); setPayAmount(""); setPayNotes(""); setPayMethod("cash"); }}
+                          data-testid={`button-pay-dealer-customer-${c.id}`}
+                        >
+                          <Banknote className="h-4 w-4 mr-1" />
+                          To'lov olish
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <User className="h-10 w-10 mx-auto mb-3 opacity-20" />
+            <p>Hali mijoz yo'q</p>
+            <p className="text-sm mt-1">Sotish paytida yoki bu yerda mijoz qo'shing</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Yangi mijoz</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div>
+              <Label>Ism *</Label>
+              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Mijoz ismi" data-testid="input-dealer-customer-name" />
+            </div>
+            <div>
+              <Label>Telefon</Label>
+              <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+998..." data-testid="input-dealer-customer-phone" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>Bekor qilish</Button>
+            <Button
+              onClick={() => { if (!newName.trim()) { return; } addMutation.mutate({ name: newName.trim(), phone: newPhone.trim() || null }); }}
+              disabled={addMutation.isPending}
+              data-testid="button-save-dealer-customer"
+            >
+              {addMutation.isPending ? "Saqlanmoqda..." : "Saqlash"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!payOpen} onOpenChange={(o) => { if (!o) setPayOpen(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>To'lov olish: {payOpen?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="p-3 rounded-lg bg-muted text-center">
+              <p className="text-sm text-muted-foreground">Joriy qarz</p>
+              <p className="text-2xl font-bold text-destructive">{formatCurrency(Number(payOpen?.debt || 0))}</p>
+            </div>
+            <div>
+              <Label>Summa *</Label>
+              <Input
+                type="number"
+                value={payAmount}
+                onChange={(e) => setPayAmount(e.target.value)}
+                placeholder="To'lov summasi"
+                data-testid="input-dealer-customer-pay-amount"
+              />
+            </div>
+            <div>
+              <Label>To'lov turi</Label>
+              <Select value={payMethod} onValueChange={setPayMethod}>
+                <SelectTrigger data-testid="select-dealer-customer-pay-method">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Naqd</SelectItem>
+                  <SelectItem value="card">Karta</SelectItem>
+                  <SelectItem value="transfer">O'tkazma</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Izoh</Label>
+              <Input value={payNotes} onChange={(e) => setPayNotes(e.target.value)} placeholder="Izoh..." data-testid="input-dealer-customer-pay-notes" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPayOpen(null)}>Bekor qilish</Button>
+            <Button
+              onClick={() => {
+                const amt = Number(payAmount);
+                if (!amt || amt <= 0) return;
+                payMutation.mutate({ id: payOpen.id, amount: amt, method: payMethod, notes: payNotes.trim() || null });
+              }}
+              disabled={payMutation.isPending}
+              className="bg-green-600 hover:bg-green-700"
+              data-testid="button-confirm-dealer-customer-pay"
+            >
+              {payMutation.isPending ? "Saqlanmoqda..." : "To'lovni tasdiqlash"}
             </Button>
           </DialogFooter>
         </DialogContent>

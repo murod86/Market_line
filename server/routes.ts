@@ -1116,11 +1116,12 @@ export async function registerRoutes(
         })).min(1, "Mahsulotlar tanlanmagan"),
         customerName: z.string().optional().nullable(),
         customerPhone: z.string().optional().nullable(),
+        dealerCustomerId: z.string().optional().nullable(),
         notes: z.string().optional().nullable(),
         paymentType: z.enum(["cash", "debt", "partial"]).default("cash"),
         paidAmount: z.number().min(0).default(0),
       });
-      const { items, customerName, customerPhone, notes, paymentType, paidAmount } = sellSchema.parse(req.body);
+      const { items, customerName, customerPhone, dealerCustomerId, notes, paymentType, paidAmount } = sellSchema.parse(req.body);
 
       let totalAmount = 0;
       for (const item of items) {
@@ -1155,9 +1156,13 @@ export async function registerRoutes(
       }
 
       const debtAmount = paymentType === "cash" ? 0 : paymentType === "debt" ? totalAmount : Math.max(0, totalAmount - paidAmount);
-      if (debtAmount > 0) {
-        const newDebt = Number(dealer.debt) + debtAmount;
-        await storage.updateDealer(dealerId, { debt: newDebt.toFixed(2) } as any);
+
+      if (debtAmount > 0 && dealerCustomerId) {
+        const dc = await storage.getDealerCustomer(dealerCustomerId);
+        if (dc && dc.dealerId === dealerId) {
+          const newCustomerDebt = Number(dc.debt) + debtAmount;
+          await storage.updateDealerCustomer(dc.id, { debt: newCustomerDebt.toFixed(2) } as any);
+        }
       }
 
       res.json({ success: true, totalAmount, debtAmount });
@@ -1222,6 +1227,79 @@ export async function registerRoutes(
         }
       }
       res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ===== DEALER PORTAL - CUSTOMER MANAGEMENT =====
+  app.get("/api/dealer-portal/customers", requireDealer, async (req, res) => {
+    try {
+      const dealerId = req.session.dealerId!;
+      const customers = await storage.getDealerCustomers(dealerId);
+      res.json(customers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/dealer-portal/customers", requireDealer, async (req, res) => {
+    try {
+      const dealerId = req.session.dealerId!;
+      const tenantId = req.session.tenantId!;
+      const { name, phone } = req.body;
+      if (!name) return res.status(400).json({ message: "Ism majburiy" });
+      const customer = await storage.createDealerCustomer({
+        dealerId,
+        tenantId,
+        name,
+        phone: phone || null,
+        debt: "0",
+      });
+      res.json(customer);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/dealer-portal/customers/:id", requireDealer, async (req, res) => {
+    try {
+      const dealerId = req.session.dealerId!;
+      const dc = await storage.getDealerCustomer(req.params.id);
+      if (!dc || dc.dealerId !== dealerId) return res.status(404).json({ message: "Mijoz topilmadi" });
+      const updated = await storage.updateDealerCustomer(dc.id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/dealer-portal/customers/:id/payment", requireDealer, async (req, res) => {
+    try {
+      const dealerId = req.session.dealerId!;
+      const tenantId = req.session.tenantId!;
+      const dc = await storage.getDealerCustomer(req.params.id);
+      if (!dc || dc.dealerId !== dealerId) return res.status(404).json({ message: "Mijoz topilmadi" });
+
+      const { amount, method, notes } = req.body;
+      const payAmount = Number(amount);
+      if (!payAmount || payAmount <= 0) return res.status(400).json({ message: "Summa noto'g'ri" });
+      if (payAmount > Number(dc.debt)) return res.status(400).json({ message: "Summa qarzdan ko'p bo'lishi mumkin emas" });
+
+      const newDebt = Number(dc.debt) - payAmount;
+      await storage.updateDealerCustomer(dc.id, { debt: newDebt.toFixed(2) } as any);
+
+      await storage.createPayment({
+        tenantId,
+        type: "dealer_customer",
+        dealerId,
+        customerId: null,
+        amount: payAmount.toFixed(2),
+        method: method || "cash",
+        notes: notes || `${dc.name} dan to'lov`,
+      });
+
+      res.json({ success: true, newDebt: newDebt.toFixed(2) });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
