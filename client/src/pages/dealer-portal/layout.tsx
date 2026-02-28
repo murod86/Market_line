@@ -26,7 +26,7 @@ interface DealerLayoutProps {
 }
 
 export default function DealerLayout({ onLogout }: DealerLayoutProps) {
-  const [activeTab, setActiveTab] = useState<"inventory" | "sell" | "history" | "debt">("inventory");
+  const [activeTab, setActiveTab] = useState<"inventory" | "sell" | "delivery" | "history" | "debt">("inventory");
   const { toast } = useToast();
 
   const { data: dealer, isLoading } = useQuery<any>({
@@ -54,6 +54,7 @@ export default function DealerLayout({ onLogout }: DealerLayoutProps) {
   const tabs = [
     { id: "inventory" as const, label: "Ombor", icon: Package },
     { id: "sell" as const, label: "Sotish", icon: ShoppingCart },
+    { id: "delivery" as const, label: "Yetkazish", icon: Truck },
     { id: "history" as const, label: "Tarix", icon: History },
     { id: "debt" as const, label: "Qarz", icon: CreditCard },
   ];
@@ -108,6 +109,7 @@ export default function DealerLayout({ onLogout }: DealerLayoutProps) {
       <main className="max-w-6xl mx-auto px-4 py-6">
         {activeTab === "inventory" && <InventoryTab />}
         {activeTab === "sell" && <SellTab />}
+        {activeTab === "delivery" && <DeliveryTab />}
         {activeTab === "history" && <HistoryTab />}
         {activeTab === "debt" && <DebtTab dealer={dealer} />}
       </main>
@@ -191,6 +193,8 @@ function SellTab() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [paymentType, setPaymentType] = useState<"cash" | "debt" | "partial">("cash");
+  const [paidAmount, setPaidAmount] = useState("");
   const { toast } = useToast();
 
   const { data: inventory } = useQuery<any[]>({
@@ -212,6 +216,8 @@ function SellTab() {
       setCustomerName("");
       setCustomerPhone("");
       setNotes("");
+      setPaymentType("cash");
+      setPaidAmount("");
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -273,6 +279,8 @@ function SellTab() {
       customerName: customerName || null,
       customerPhone: customerPhone || null,
       notes: notes || null,
+      paymentType,
+      paidAmount: paymentType === "partial" ? Number(paidAmount) || 0 : 0,
     });
   };
 
@@ -412,6 +420,48 @@ function SellTab() {
                 data-testid="input-sell-customer-phone"
               />
             </div>
+
+            <div>
+              <Label className="mb-2 block">To'lov turi</Label>
+              <div className="flex gap-2">
+                {([
+                  { value: "cash" as const, label: "Naqd", color: "bg-green-500/10 text-green-700 border-green-300" },
+                  { value: "debt" as const, label: "Qarzga", color: "bg-red-500/10 text-red-700 border-red-300" },
+                  { value: "partial" as const, label: "Qisman", color: "bg-yellow-500/10 text-yellow-700 border-yellow-300" },
+                ] as const).map((opt) => (
+                  <Button
+                    key={opt.value}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={`flex-1 ${paymentType === opt.value ? opt.color + " ring-1 ring-current" : ""}`}
+                    onClick={() => setPaymentType(opt.value)}
+                    data-testid={`button-payment-${opt.value}`}
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {paymentType === "partial" && (
+              <div>
+                <Label>To'langan summa (UZS)</Label>
+                <Input
+                  type="number"
+                  value={paidAmount}
+                  onChange={(e) => setPaidAmount(e.target.value)}
+                  placeholder="0"
+                  data-testid="input-paid-amount"
+                />
+                {Number(paidAmount) > 0 && Number(paidAmount) < total && (
+                  <p className="text-xs text-destructive mt-1">
+                    Qarz: {formatCurrency(total - Number(paidAmount))}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div>
               <Label>Izoh (ixtiyoriy)</Label>
               <Input
@@ -436,6 +486,9 @@ function SellTab() {
                   <span>Jami:</span>
                   <span className="text-primary">{formatCurrency(total)}</span>
                 </div>
+                {paymentType === "debt" && (
+                  <p className="text-xs text-destructive mt-1">To'liq qarzga: {formatCurrency(total)}</p>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -447,6 +500,142 @@ function SellTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function DeliveryTab() {
+  const { data: deliveries, isLoading } = useQuery<any[]>({
+    queryKey: ["/api/dealer-portal/deliveries"],
+  });
+  const { toast } = useToast();
+
+  const statusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const res = await apiRequest("PATCH", `/api/dealer-portal/deliveries/${id}`, { status });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Yetkazish holati yangilandi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/deliveries"] });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  if (isLoading) return <Skeleton className="h-64 w-full" />;
+
+  const statusMap: Record<string, { label: string; color: string }> = {
+    pending: { label: "Kutilmoqda", color: "bg-yellow-500/10 text-yellow-600" },
+    in_transit: { label: "Yo'lda", color: "bg-blue-500/10 text-blue-600" },
+    delivered: { label: "Yetkazildi", color: "bg-green-500/10 text-green-600" },
+    cancelled: { label: "Bekor qilingan", color: "bg-red-500/10 text-red-600" },
+  };
+
+  const active = deliveries?.filter(d => d.status !== "delivered" && d.status !== "cancelled") || [];
+  const completed = deliveries?.filter(d => d.status === "delivered" || d.status === "cancelled") || [];
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-bold" data-testid="text-delivery-title">Yetkazib berish</h2>
+
+      {active.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-muted-foreground">Faol yetkazishlar ({active.length})</p>
+          {active.map((d: any) => {
+            const st = statusMap[d.status] || statusMap.pending;
+            return (
+              <Card key={d.id} data-testid={`card-delivery-${d.id}`}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-medium flex items-center gap-1.5">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        {d.customerName}
+                      </p>
+                      {d.customerPhone && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <Phone className="h-3 w-3" /> {d.customerPhone}
+                        </p>
+                      )}
+                      <p className="text-sm text-muted-foreground mt-0.5">{d.address}</p>
+                    </div>
+                    <Badge className={`${st.color} border-0`}>{st.label}</Badge>
+                  </div>
+
+                  {d.items && d.items.length > 0 && (
+                    <div className="border rounded-lg p-2 space-y-1">
+                      {d.items.map((item: any, idx: number) => (
+                        <div key={idx} className="flex justify-between text-sm">
+                          <span>{item.productName} × {item.quantity} {item.productUnit}</span>
+                          <span className="font-medium">{formatCurrency(Number(item.total))}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    {d.status === "pending" && (
+                      <Button
+                        size="sm"
+                        onClick={() => statusMutation.mutate({ id: d.id, status: "in_transit" })}
+                        disabled={statusMutation.isPending}
+                        data-testid={`button-start-delivery-${d.id}`}
+                      >
+                        <Truck className="h-3.5 w-3.5 mr-1" />
+                        Yo'lga chiqish
+                      </Button>
+                    )}
+                    {d.status === "in_transit" && (
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => statusMutation.mutate({ id: d.id, status: "delivered" })}
+                        disabled={statusMutation.isPending}
+                        data-testid={`button-complete-delivery-${d.id}`}
+                      >
+                        <Package className="h-3.5 w-3.5 mr-1" />
+                        Topshirdim
+                      </Button>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">{format(new Date(d.createdAt), "dd.MM.yyyy HH:mm")}</p>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {active.length === 0 && (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <Truck className="h-10 w-10 mx-auto mb-3 opacity-20" />
+            <p>Hozircha yetkazish topshiriqlari yo'q</p>
+            <p className="text-sm mt-1">Admin buyurtma tayinlaganda bu yerda ko'rinadi</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {completed.length > 0 && (
+        <div className="space-y-3 mt-6">
+          <p className="text-sm font-medium text-muted-foreground">Bajarilgan ({completed.length})</p>
+          {completed.slice(0, 10).map((d: any) => {
+            const st = statusMap[d.status] || statusMap.delivered;
+            return (
+              <Card key={d.id} className="opacity-70" data-testid={`card-delivery-done-${d.id}`}>
+                <CardContent className="p-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">{d.customerName}</p>
+                    <p className="text-xs text-muted-foreground">{format(new Date(d.createdAt), "dd.MM.yyyy HH:mm")}</p>
+                  </div>
+                  <Badge className={`${st.color} border-0`}>{st.label}</Badge>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

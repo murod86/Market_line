@@ -33,15 +33,21 @@ export default function OrdersManagement() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [detailOrder, setDetailOrder] = useState<any>(null);
+  const [deliverOrder, setDeliverOrder] = useState<any>(null);
+  const [selectedDealerId, setSelectedDealerId] = useState<string>("");
   const { toast } = useToast();
 
   const { data: orders, isLoading } = useQuery<any[]>({
     queryKey: ["/api/portal-orders"],
   });
 
+  const { data: dealers } = useQuery<any[]>({
+    queryKey: ["/api/dealers"],
+  });
+
   const statusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const res = await apiRequest("PATCH", `/api/portal-orders/${id}/status`, { status });
+    mutationFn: async ({ id, status, dealerId }: { id: string; status: string; dealerId?: string }) => {
+      const res = await apiRequest("PATCH", `/api/portal-orders/${id}/status`, { status, dealerId });
       return res.json();
     },
     onSuccess: () => {
@@ -346,7 +352,7 @@ export default function OrdersManagement() {
                               size="sm"
                               variant="outline"
                               className="h-7 text-xs text-blue-600 border-blue-200 hover:bg-blue-50"
-                              onClick={() => statusMutation.mutate({ id: order.id, status: "delivering" })}
+                              onClick={() => { setDeliverOrder(order); setSelectedDealerId(""); }}
                               disabled={statusMutation.isPending}
                               data-testid={`button-deliver-order-${order.id}`}
                             >
@@ -490,7 +496,8 @@ export default function OrdersManagement() {
                   size="sm"
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                   onClick={() => {
-                    statusMutation.mutate({ id: detailOrder.id, status: "delivering" });
+                    setDeliverOrder(detailOrder);
+                    setSelectedDealerId("");
                     setDetailOrder(null);
                   }}
                   data-testid="button-detail-deliver"
@@ -506,6 +513,60 @@ export default function OrdersManagement() {
                 </Badge>
               )}
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deliverOrder} onOpenChange={(o) => { if (!o) setDeliverOrder(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5 text-blue-500" />
+              Yetkazishga tayinlash
+            </DialogTitle>
+          </DialogHeader>
+          {deliverOrder && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/50">
+                <p className="text-sm"><strong>Buyurtma:</strong> #{deliverOrder.id.slice(0, 8)}</p>
+                <p className="text-sm"><strong>Mijoz:</strong> {deliverOrder.customerName}</p>
+                <p className="text-sm font-medium text-primary">{formatCurrency(Number(deliverOrder.totalAmount))}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Dillerga tayinlash (ixtiyoriy)</label>
+                <Select value={selectedDealerId} onValueChange={setSelectedDealerId}>
+                  <SelectTrigger data-testid="select-delivery-dealer">
+                    <SelectValue placeholder="Diller tanlang..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">O'zim yetkazaman</SelectItem>
+                    {dealers?.filter((d: any) => d.active).map((d: any) => (
+                      <SelectItem key={d.id} value={d.id}>{d.name} {d.phone ? `(${d.phone})` : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeliverOrder(null)}>Bekor qilish</Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => {
+                if (deliverOrder) {
+                  statusMutation.mutate({
+                    id: deliverOrder.id,
+                    status: "delivering",
+                    dealerId: selectedDealerId && selectedDealerId !== "none" ? selectedDealerId : undefined,
+                  });
+                  setDeliverOrder(null);
+                }
+              }}
+              disabled={statusMutation.isPending}
+              data-testid="button-confirm-deliver"
+            >
+              {statusMutation.isPending ? "Yuklanmoqda..." : "Yetkazishga berish"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

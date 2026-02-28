@@ -59,10 +59,13 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 ## Dealer Portal (/dealer-portal)
 - Login with store selector + phone + password (password set by admin)
 - Inventory view: see all products loaded by admin with quantities and values
-- Sell: select products from inventory, enter customer info, confirm sale (decreases dealer inventory)
+- Sell: select products from inventory, enter customer info, choose payment type (naqd/qarzga/qisman to'lov), confirm sale (decreases dealer inventory, tracks debt)
+- Delivery: view deliveries assigned by admin, update status (yo'lga chiqish → topshirdim), auto-updates portal order status
 - History: view all transactions (load/sell/return) with details
 - Debt & Payments: view current debt and payment history
-- API: `/api/dealer-portal/login`, `/api/dealer-portal/me`, `/api/dealer-portal/logout`, `/api/dealer-portal/inventory`, `/api/dealer-portal/transactions`, `/api/dealer-portal/payments`, `/api/dealer-portal/sell`
+- API: `/api/dealer-portal/login`, `/api/dealer-portal/me`, `/api/dealer-portal/logout`, `/api/dealer-portal/inventory`, `/api/dealer-portal/transactions`, `/api/dealer-portal/payments`, `/api/dealer-portal/sell`, `/api/dealer-portal/deliveries` (GET/PATCH)
+- Admin can assign portal orders to dealers when setting status to "delivering" (dealer selector dialog in orders-management)
+- `deliveries` table has `dealerId` column referencing `dealers` table
 
 ## Key Files
 - `shared/schema.ts` - All database schemas with tenantId columns

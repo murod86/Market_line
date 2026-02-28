@@ -1094,8 +1094,10 @@ export async function registerRoutes(
         customerName: z.string().optional().nullable(),
         customerPhone: z.string().optional().nullable(),
         notes: z.string().optional().nullable(),
+        paymentType: z.enum(["cash", "debt", "partial"]).default("cash"),
+        paidAmount: z.number().min(0).default(0),
       });
-      const { items, customerName, customerPhone, notes } = sellSchema.parse(req.body);
+      const { items, customerName, customerPhone, notes, paymentType, paidAmount } = sellSchema.parse(req.body);
 
       let totalAmount = 0;
       for (const item of items) {
@@ -1105,6 +1107,14 @@ export async function registerRoutes(
         }
         totalAmount += item.price * item.quantity;
       }
+
+      if (paymentType === "partial") {
+        if (paidAmount <= 0) return res.status(400).json({ message: "Qisman to'lovda summa kiritilishi shart" });
+        if (paidAmount >= totalAmount) return res.status(400).json({ message: "Qisman to'lov jami summadan kam bo'lishi kerak" });
+      }
+
+      const paymentLabel = paymentType === "cash" ? "Naqd" : paymentType === "debt" ? "Qarzga" : `Qisman (${paidAmount} UZS)`;
+      const noteText = `${paymentLabel} | Mijoz: ${customerName || "Noma'lum"}${customerPhone ? ` (${customerPhone})` : ""}${notes ? ` | ${notes}` : ""}`;
 
       for (const item of items) {
         const inv = await storage.getDealerInventoryItem(dealerId, item.productId);
@@ -1117,13 +1127,80 @@ export async function registerRoutes(
           type: "sell",
           quantity: item.quantity,
           price: String(item.price),
-          notes: notes || `Mijoz: ${customerName || "Noma'lum"}${customerPhone ? ` (${customerPhone})` : ""}`,
+          notes: noteText,
         });
       }
 
-      res.json({ success: true, totalAmount });
+      const debtAmount = paymentType === "cash" ? 0 : paymentType === "debt" ? totalAmount : Math.max(0, totalAmount - paidAmount);
+      if (debtAmount > 0) {
+        const newDebt = Number(dealer.debt) + debtAmount;
+        await storage.updateDealer(dealerId, { debt: newDebt.toFixed(2) } as any);
+      }
+
+      res.json({ success: true, totalAmount, debtAmount });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/dealer-portal/deliveries", requireDealer, async (req, res) => {
+    try {
+      const dealerId = req.session.dealerId!;
+      const tenantId = req.session.tenantId!;
+      const allDeliveries = await storage.getDeliveries(tenantId);
+      const dealerDeliveries = allDeliveries.filter(d => d.dealerId === dealerId);
+      const enriched = await Promise.all(dealerDeliveries.map(async (d) => {
+        const customer = d.customerId ? await storage.getCustomer(d.customerId) : null;
+        let items: any[] = [];
+        if (d.saleId) {
+          const saleItems = await storage.getSaleItems(d.saleId);
+          const allProducts = await storage.getProducts(tenantId);
+          items = saleItems.map(si => {
+            const product = allProducts.find(p => p.id === si.productId);
+            return { ...si, productName: product?.name || "Noma'lum", productUnit: product?.unit || "dona" };
+          });
+        }
+        return {
+          ...d,
+          customerName: customer?.fullName || d.customerName || "Noma'lum",
+          customerPhone: customer?.phone || d.customerPhone || "",
+          customerAddress: customer?.address || d.address || "",
+          items,
+        };
+      }));
+      res.json(enriched);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/dealer-portal/deliveries/:id", requireDealer, async (req, res) => {
+    try {
+      const dealerId = req.session.dealerId!;
+      const tenantId = req.session.tenantId!;
+      const delivery = await storage.getDelivery(req.params.id);
+      if (!delivery || delivery.dealerId !== dealerId) {
+        return res.status(404).json({ message: "Yetkazish topilmadi" });
+      }
+      const { status } = req.body;
+      const valid: Record<string, string[]> = {
+        pending: ["in_transit"],
+        in_transit: ["delivered"],
+      };
+      const allowed = valid[delivery.status];
+      if (!allowed || !allowed.includes(status)) {
+        return res.status(400).json({ message: "Bu holatdan o'tkazish mumkin emas" });
+      }
+      const updated = await storage.updateDelivery(delivery.id, { status });
+      if (status === "delivered" && delivery.saleId) {
+        const sale = await storage.getSale(delivery.saleId);
+        if (sale && sale.status === "delivering") {
+          await storage.updateSale(sale.id, { status: "shipped" } as any);
+        }
+      }
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
     }
   });
 
@@ -1661,7 +1738,7 @@ export async function registerRoutes(
   app.patch("/api/portal-orders/:id/status", requireTenant, async (req, res) => {
     try {
       const tenantId = req.session.tenantId!;
-      const { status } = req.body;
+      const { status, dealerId } = req.body;
       const validTransitions: Record<string, string[]> = {
         pending: ["completed", "cancelled"],
         completed: ["delivering", "cancelled"],
@@ -1699,13 +1776,22 @@ export async function registerRoutes(
         const existingDeliveries = await storage.getDeliveries(tenantId);
         const hasDelivery = existingDeliveries.some(d => d.saleId === sale.id);
         if (!hasDelivery && customer) {
+          let assignedDealerId: string | null = null;
+          if (dealerId) {
+            const dealer = await storage.getDealer(dealerId);
+            if (!dealer || dealer.tenantId !== tenantId || !dealer.active) {
+              return res.status(400).json({ message: "Diller topilmadi yoki nofaol" });
+            }
+            assignedDealerId = dealerId;
+          }
           await storage.createDelivery({
             tenantId,
             saleId: sale.id,
             customerId: sale.customerId,
+            dealerId: assignedDealerId,
             address: customer.address || "Manzil ko'rsatilmagan",
-            status: "in_transit",
-            notes: null,
+            status: assignedDealerId ? "pending" : "in_transit",
+            notes: assignedDealerId ? "Dillerga tayinlangan" : null,
           });
         }
       }
