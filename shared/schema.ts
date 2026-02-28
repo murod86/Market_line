@@ -142,6 +142,7 @@ export const deliveries = pgTable("deliveries", {
   tenantId: varchar("tenant_id").references(() => tenants.id),
   saleId: varchar("sale_id").references(() => sales.id),
   customerId: varchar("customer_id").references(() => customers.id),
+  dealerId: varchar("dealer_id").references(() => dealers.id),
   address: text("address").notNull(),
   status: text("status").notNull().default("pending"),
   notes: text("notes"),
