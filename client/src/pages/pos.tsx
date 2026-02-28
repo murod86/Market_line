@@ -328,31 +328,28 @@ export default function POS() {
                   onClick={() => addToCart(product)}
                   data-testid={`card-product-${product.id}`}
                 >
-                  {product.imageUrl && (
-                    <div className="w-full h-24 overflow-hidden rounded-t-lg">
-                      <img
-                        src={product.imageUrl}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                  {!product.imageUrl && (
-                    <div className="w-full h-24 bg-muted flex items-center justify-center rounded-t-lg">
-                      <Package className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                  )}
                   <CardContent className="p-3">
-                    <div className="flex items-start justify-between gap-1 mb-2">
-                      <h3 className="font-medium text-sm leading-tight">{product.name}</h3>
+                    <div className="flex items-center gap-2.5 mb-2">
+                      <div className="h-12 w-12 shrink-0 rounded-md bg-muted overflow-hidden flex items-center justify-center">
+                        {product.imageUrl ? (
+                          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Package className="w-5 h-5 text-muted-foreground/40" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-sm leading-tight truncate">{product.name}</h3>
+                        <p className="text-xs text-muted-foreground">{product.sku}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="font-bold text-sm text-primary">
+                        {formatCurrency(Number(product.price))}
+                      </p>
                       <Badge variant="secondary" className="text-xs shrink-0">
                         {product.stock} {product.unit}
                       </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground mb-1">{product.sku}</p>
-                    <p className="font-bold text-sm text-primary">
-                      {formatCurrency(Number(product.price))}
-                    </p>
                   </CardContent>
                 </Card>
               ))}

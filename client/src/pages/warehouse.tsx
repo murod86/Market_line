@@ -131,17 +131,25 @@ export default function Warehouse() {
                 data-testid={`card-warehouse-${product.id}`}
               >
                 <CardContent className="p-4">
-                  <div className="flex items-center justify-center h-24 mb-3 rounded-md bg-muted">
-                    <Package className="h-10 w-10 text-muted-foreground/40" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-start justify-between gap-1">
-                      <h3 className="font-medium text-sm leading-tight">{product.name}</h3>
-                      {isLow && (
-                        <Badge variant="destructive" className="text-xs shrink-0">Kam</Badge>
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <div className="h-12 w-12 shrink-0 rounded-md bg-muted overflow-hidden flex items-center justify-center">
+                      {product.imageUrl ? (
+                        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Package className="h-5 w-5 text-muted-foreground/40" />
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">{product.sku}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-1">
+                        <h3 className="font-medium text-sm leading-tight truncate">{product.name}</h3>
+                        {isLow && (
+                          <Badge variant="destructive" className="text-xs shrink-0">Kam</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{product.sku}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
                     {category && (
                       <Badge variant="secondary" className="text-xs">{category.name}</Badge>
                     )}
