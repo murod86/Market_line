@@ -99,6 +99,7 @@ export const customers = pgTable("customers", {
   password: text("password"),
   address: text("address"),
   telegramId: text("telegram_id"),
+  dealerId: varchar("dealer_id").references(() => dealers.id),
   debt: decimal("debt", { precision: 12, scale: 2 }).notNull().default("0"),
   active: boolean("active").notNull().default(true),
 });

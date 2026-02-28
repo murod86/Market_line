@@ -33,7 +33,7 @@ export default function Customers() {
   const [payNotes, setPayNotes] = useState("");
   const [payHistoryCustomer, setPayHistoryCustomer] = useState<Customer | null>(null);
   const [form, setForm] = useState({
-    fullName: "", phone: "", address: "", telegramId: "", password: "",
+    fullName: "", phone: "", address: "", telegramId: "", password: "", dealerId: "",
   });
   const { toast } = useToast();
   const qrRef = useRef<HTMLDivElement>(null);
@@ -104,8 +104,10 @@ export default function Customers() {
     });
   };
 
+  const { data: dealers } = useQuery<any[]>({ queryKey: ["/api/dealers"] });
+
   const resetForm = () => {
-    setForm({ fullName: "", phone: "", address: "", telegramId: "", password: "" });
+    setForm({ fullName: "", phone: "", address: "", telegramId: "", password: "", dealerId: "" });
   };
 
   const openEdit = (customer: Customer) => {
@@ -116,6 +118,7 @@ export default function Customers() {
       address: customer.address || "",
       telegramId: customer.telegramId || "",
       password: "",
+      dealerId: customer.dealerId || "",
     });
     setDialogOpen(true);
   };
@@ -134,6 +137,7 @@ export default function Customers() {
       phone: form.phone,
       address: form.address || null,
       telegramId: form.telegramId || null,
+      dealerId: form.dealerId || null,
       active: true,
       debt: editing ? undefined : "0",
     };
@@ -278,7 +282,7 @@ export default function Customers() {
                   <TableHead>Ism</TableHead>
                   <TableHead>Telefon</TableHead>
                   <TableHead>Manzil</TableHead>
-                  <TableHead>Telegram ID</TableHead>
+                  <TableHead>Diller</TableHead>
                   <TableHead>Qarz</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
@@ -308,7 +312,13 @@ export default function Customers() {
                         </div>
                       ) : "-"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{customer.telegramId || "-"}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {customer.dealerId ? (
+                        <Badge variant="outline" className="text-xs">
+                          {dealers?.find((d: any) => d.id === customer.dealerId)?.name || "—"}
+                        </Badge>
+                      ) : "-"}
+                    </TableCell>
                     <TableCell>
                       {Number(customer.debt) > 0 ? (
                         <Badge variant="destructive">{formatCurrency(Number(customer.debt))}</Badge>
@@ -405,6 +415,20 @@ export default function Customers() {
             <div>
               <label className="text-sm font-medium mb-1 block">Telegram ID</label>
               <Input value={form.telegramId} onChange={(e) => setForm({ ...form, telegramId: e.target.value })} data-testid="input-customer-telegram" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Diller</label>
+              <Select value={form.dealerId || "none"} onValueChange={(v) => setForm({ ...form, dealerId: v === "none" ? "" : v })}>
+                <SelectTrigger data-testid="select-customer-dealer">
+                  <SelectValue placeholder="Diller tanlang..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Dillersiz</SelectItem>
+                  {dealers?.filter((d: any) => d.active).map((d: any) => (
+                    <SelectItem key={d.id} value={d.id}>{d.name} {d.phone ? `(${d.phone})` : ""}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
