@@ -1,0 +1,42 @@
+You reached the start of the range
+Feb 28, 2026, 10:59 AM
+Starting Container
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/app/drizzle.config.ts'
+Using 'pg' driver for database querying
+[⣷] Pulling schema from database...
+npm warn config production Use `--omit=dev` instead.
+[⣯] Pulling schema from database...
+[⣟] Pulling schema from database...
+[⡿] Pulling schema from database...
+[⢿] Pulling schema from database...
+[⣻] Pulling schema from database...
+[✓] Pulling schema from database...
+[i] No changes detected
+npm warn config production Use `--omit=dev` instead.
+> rest-express@1.0.0 start
+> NODE_ENV=production node dist/index.cjs
+6:00:54 AM [express] serving on port 8080 [build-v2]
+6:01:20 AM [express] POST /api/auth/login 200 in 15ms :: {"id":"6548821e-0c6d-4d68-913d-6770781c3941","name":"wwww","ownerName":"eeee","phone":"+998949109000","plan":"free","active":true,"createdAt":"2026-02-28T05:03:49.948Z"}
+6:01:20 AM [express] GET /api/auth/me 200 in 11ms :: {"id":"6548821e-0c6d-4d68-913d-6770781c3941","name":"wwww","ownerName":"eeee","phone":"+998949109000","plan":"free","active":true,"createdAt":"2026-02-28T05:03:49.948Z"}
+6:01:21 AM [express] GET /api/stats 200 in 18ms :: {"totalProducts":0,"lowStockProducts":0,"totalCustomers":0,"totalDebt":0,"totalSales":0,"totalRevenue":0,"todaySales":0,"todayRevenue":0}
+6:01:37 AM [express] GET /api/products 200 in 13ms :: []
+6:01:37 AM [express] GET /api/categories 200 in 14ms :: []
+6:01:37 AM [express] GET /api/customers 200 in 16ms :: []
+6:01:37 AM [express] GET /api/settings 200 in 10ms :: [{"id":"b2a382a9-bd88-4c20-bf2b-aef732b76f6a","tenantId":"6548821e-0c6d-4d68-913d-6770781c3941","key":"company_name","value":"wwww"},{"id":"c7a9f5e8-c046-4ee1-92e2-807072c1a859","tenantId":"6548821e-0c6d-4d68-913d-6770781c3941","key":"currency","value":"UZS"},{"id":"af07cfb0-74d0-4e15-bc05-6de850f89db3","tenantId":"6548821e-0c6d-4d68-913d-6770781c3941","key":"telegram_bot_token","value":""},{"id":"25328c7b-f2f7-4204-8f94-d66fbe18c220","tenantId":"6548821e-0c6d-4d68-913d-6770781c3941","key":"telegram_chat_id","value":""}]
+6:01:44 AM [express] GET /api/deliveries 200 in 11ms :: []
+6:01:45 AM [express] GET /api/suppliers 200 in 11ms :: []
+6:01:46 AM [express] GET /api/purchases 200 in 10ms :: []
+6:01:50 AM [express] POST /api/super/plans 401 in 5ms :: {"message":"Super admin huquqi kerak"}
+6:01:51 AM [express] POST /api/super/plans 401 in 6ms :: {"message":"Super admin huquqi kerak"}
+6:01:51 AM [express] POST /api/super/plans 401 in 6ms :: {"message":"Super admin huquqi kerak"}
+6:01:52 AM [express] POST /api/super/plans 401 in 6ms :: {"message":"Super admin huquqi kerak"}
+6:01:53 AM [express] POST /api/super/plans 401 in 5ms :: {"message":"Super admin huquqi kerak"}
+6:01:54 AM [express] POST /api/super/plans 401 in 6ms :: {"message":"Super admin huquqi kerak"}
+6:01:55 AM [express] POST /api/super/plans 401 in 6ms :: {"message":"Super admin huquqi kerak"}
+6:01:56 AM [express] POST /api/super/plans 401 in 7ms :: {"message":"Super admin huquqi kerak"}
+6:01:56 AM [express] POST /api/super/plans 401 in 6ms :: {"message":"Super admin huquqi kerak"}
+6:01:57 AM [express] POST /api/super/plans 401 in 5ms :: {"message":"Super admin huquqi kerak"}
+6:01:58 AM [express] POST /api/super/plans 401 in 6ms :: {"message":"Super admin huquqi kerak"}
+6:02:01 AM [express] POST /api/super/plans 401 in 6ms :: {"message":"Super admin huquqi kerak"}
+6:02:02 AM [express] POST /api/super/plans 401 in 6ms :: {"message":"Super admin huquqi kerak"}
