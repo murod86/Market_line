@@ -1,6 +1,8 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, readFile } from "fs/promises";
+import { rm, readFile, copyFile, mkdir } from "fs/promises";
+import { existsSync } from "fs";
+import { resolve } from "path";
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
@@ -58,6 +60,12 @@ async function buildAll() {
     external: externals,
     logLevel: "info",
   });
+
+  const tableSqlPath = resolve("node_modules/connect-pg-simple/table.sql");
+  if (existsSync(tableSqlPath)) {
+    await copyFile(tableSqlPath, resolve("dist/table.sql"));
+    console.log("copied table.sql to dist/");
+  }
 }
 
 buildAll().catch((err) => {
