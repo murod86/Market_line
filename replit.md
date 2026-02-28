@@ -45,8 +45,13 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 13. **Settings** - Company info, Telegram bot config, webhook setup
 
 ## Customer Portal (/portal)
-- Login, Registration (with Telegram OTP), Password Reset
-- Catalog browsing, Cart & Orders, Debt Tracking
+- Login with store selector (fetches active tenants from `/api/tenants/public`), Registration (with Telegram OTP), Password Reset
+- Catalog browsing with search & category filter, Cart & Order placement
+- Orders list with detail view: see products, prices, status
+- Order statuses: pending → completed (admin confirms) → delivered (customer receives)
+- Customer can click "Qabul qildim" when order status is "completed" (via PATCH `/api/portal/orders/:id/receive`)
+- PDF export: full orders list or individual order detail (printable HTML)
+- Debt Tracking with payment history
 
 ## Key Files
 - `shared/schema.ts` - All database schemas with tenantId columns

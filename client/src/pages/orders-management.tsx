@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Search, CheckCircle, XCircle, Clock, Eye, Package, User, Phone } from "lucide-react";
+import { Search, CheckCircle, XCircle, Clock, Eye, Package, User, Phone, PackageCheck } from "lucide-react";
 import { format } from "date-fns";
 
 function formatCurrency(amount: number) {
@@ -19,6 +19,7 @@ function formatCurrency(amount: number) {
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   pending: { label: "Kutilmoqda", color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20", icon: Clock },
   completed: { label: "Tasdiqlangan", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", icon: CheckCircle },
+  delivered: { label: "Qabul qilingan", color: "bg-blue-500/10 text-blue-600 border-blue-500/20", icon: PackageCheck },
   cancelled: { label: "Bekor qilingan", color: "bg-red-500/10 text-red-600 border-red-500/20", icon: XCircle },
 };
 

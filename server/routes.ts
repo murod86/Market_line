@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { z } from "zod";
 import { storage } from "./storage";
 import { db } from "./db";
-import { products, customers, sales, saleItems, deliveries, purchases, purchaseItems } from "@shared/schema";
+import { products, customers, sales, saleItems, deliveries, purchases, purchaseItems, tenants } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 import {
   insertRoleSchema, insertEmployeeSchema, insertCategorySchema,
@@ -568,6 +568,18 @@ export async function registerRoutes(
     res.json(setting);
   });
 
+  app.get("/api/tenants/public", async (_req, res) => {
+    try {
+      const allTenants = await db.select({
+        id: tenants.id,
+        name: tenants.name,
+      }).from(tenants).where(eq(tenants.active, true));
+      res.json(allTenants);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // ===== CUSTOMER PORTAL AUTH =====
   app.post("/api/portal/login", async (req, res) => {
     try {
@@ -978,7 +990,13 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Buyurtma topilmadi" });
     }
     const items = await storage.getSaleItems(req.params.id);
-    res.json({ ...sale, items });
+    const itemsWithProducts = await Promise.all(
+      items.map(async (item) => {
+        const product = await storage.getProduct(item.productId);
+        return { ...item, product: product ? { name: product.name, unit: product.unit, imageUrl: product.imageUrl } : null };
+      })
+    );
+    res.json({ ...sale, items: itemsWithProducts });
   });
 
   app.post("/api/portal/orders", async (req, res) => {
@@ -1048,6 +1066,25 @@ export async function registerRoutes(
       });
 
       res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/portal/orders/:id/receive", async (req, res) => {
+    if (!req.session.customerId) {
+      return res.status(401).json({ message: "Tizimga kirilmagan" });
+    }
+    try {
+      const sale = await storage.getSale(req.params.id);
+      if (!sale || sale.customerId !== req.session.customerId) {
+        return res.status(404).json({ message: "Buyurtma topilmadi" });
+      }
+      if (sale.status !== "completed") {
+        return res.status(400).json({ message: "Faqat tasdiqlangan buyurtmani qabul qilish mumkin" });
+      }
+      await storage.updateSale(req.params.id, { status: "delivered" });
+      res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

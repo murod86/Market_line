@@ -1,9 +1,11 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Store, Phone, Lock, User, MapPin, MessageCircle, ArrowLeft, KeyRound, Shield } from "lucide-react";
@@ -19,6 +21,7 @@ type OtpStep = "phone" | "code" | "details";
 export default function PortalLogin({ onLogin }: PortalLoginProps) {
   const [loginPhone, setLoginPhone] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [selectedTenantId, setSelectedTenantId] = useState("");
   const [view, setView] = useState<View>("main");
   const [otpStep, setOtpStep] = useState<OtpStep>("phone");
   const [otpPhone, setOtpPhone] = useState("");
@@ -30,8 +33,18 @@ export default function PortalLogin({ onLogin }: PortalLoginProps) {
   const [resetPasswordConfirm, setResetPasswordConfirm] = useState("");
   const { toast } = useToast();
 
+  const { data: tenantsList, isLoading: tenantsLoading } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/tenants/public"],
+  });
+
+  useEffect(() => {
+    if (tenantsList && tenantsList.length === 1 && !selectedTenantId) {
+      setSelectedTenantId(tenantsList[0].id);
+    }
+  }, [tenantsList, selectedTenantId]);
+
   const loginMutation = useMutation({
-    mutationFn: async (data: { phone: string; password: string }) => {
+    mutationFn: async (data: { phone: string; password: string; tenantId: string }) => {
       const res = await apiRequest("POST", "/api/portal/login", data);
       return res.json();
     },
@@ -45,7 +58,7 @@ export default function PortalLogin({ onLogin }: PortalLoginProps) {
   });
 
   const sendOtpMutation = useMutation({
-    mutationFn: async (data: { phone: string }) => {
+    mutationFn: async (data: { phone: string; tenantId: string }) => {
       const res = await apiRequest("POST", "/api/portal/send-otp", data);
       return res.json();
     },
@@ -59,7 +72,7 @@ export default function PortalLogin({ onLogin }: PortalLoginProps) {
   });
 
   const sendRegisterOtpMutation = useMutation({
-    mutationFn: async (data: { phone: string }) => {
+    mutationFn: async (data: { phone: string; tenantId: string }) => {
       const res = await apiRequest("POST", "/api/portal/send-register-otp", data);
       return res.json();
     },
@@ -73,7 +86,7 @@ export default function PortalLogin({ onLogin }: PortalLoginProps) {
   });
 
   const verifyOtpMutation = useMutation({
-    mutationFn: async (data: { phone: string; code: string }) => {
+    mutationFn: async (data: { phone: string; code: string; tenantId: string }) => {
       const res = await apiRequest("POST", "/api/portal/verify-otp", data);
       return res.json();
     },
@@ -116,22 +129,30 @@ export default function PortalLogin({ onLogin }: PortalLoginProps) {
   });
 
   const handleLogin = () => {
+    if (!selectedTenantId) {
+      toast({ title: "Do'konni tanlang", variant: "destructive" });
+      return;
+    }
     if (!loginPhone || !loginPassword) {
       toast({ title: "Telefon va parol majburiy", variant: "destructive" });
       return;
     }
-    loginMutation.mutate({ phone: loginPhone, password: loginPassword });
+    loginMutation.mutate({ phone: loginPhone, password: loginPassword, tenantId: selectedTenantId });
   };
 
   const handleSendOtp = () => {
+    if (!selectedTenantId) {
+      toast({ title: "Do'konni tanlang", variant: "destructive" });
+      return;
+    }
     if (!otpPhone) {
       toast({ title: "Telefon raqam majburiy", variant: "destructive" });
       return;
     }
     if (view === "register-otp") {
-      sendRegisterOtpMutation.mutate({ phone: otpPhone });
+      sendRegisterOtpMutation.mutate({ phone: otpPhone, tenantId: selectedTenantId });
     } else {
-      sendOtpMutation.mutate({ phone: otpPhone });
+      sendOtpMutation.mutate({ phone: otpPhone, tenantId: selectedTenantId });
     }
   };
 
@@ -140,7 +161,7 @@ export default function PortalLogin({ onLogin }: PortalLoginProps) {
       toast({ title: "OTP kodni kiriting", variant: "destructive" });
       return;
     }
-    verifyOtpMutation.mutate({ phone: otpPhone, code: otpCode });
+    verifyOtpMutation.mutate({ phone: otpPhone, code: otpCode, tenantId: selectedTenantId });
   };
 
   const handleRegisterOtp = () => {
@@ -154,6 +175,7 @@ export default function PortalLogin({ onLogin }: PortalLoginProps) {
       fullName: regName,
       password: regPassword,
       address: regAddress || undefined,
+      tenantId: selectedTenantId,
     });
   };
 
@@ -170,6 +192,7 @@ export default function PortalLogin({ onLogin }: PortalLoginProps) {
       phone: otpPhone,
       code: otpCode,
       newPassword: resetPassword,
+      tenantId: selectedTenantId,
     });
   };
 
@@ -184,6 +207,29 @@ export default function PortalLogin({ onLogin }: PortalLoginProps) {
     setResetPassword("");
     setResetPasswordConfirm("");
   };
+
+  const tenantSelector = (
+    <div>
+      <label className="text-sm font-medium mb-1 block">Do'kon</label>
+      <div className="relative">
+        <Store className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+        {tenantsLoading ? (
+          <Skeleton className="h-10 w-full" />
+        ) : (
+          <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
+            <SelectTrigger className="pl-10" data-testid="select-tenant">
+              <SelectValue placeholder="Do'konni tanlang" />
+            </SelectTrigger>
+            <SelectContent>
+              {tenantsList?.map((t) => (
+                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+    </div>
+  );
 
   if (view === "register-otp" || view === "reset-password") {
     return (
@@ -212,6 +258,7 @@ export default function PortalLogin({ onLogin }: PortalLoginProps) {
 
               {otpStep === "phone" && (
                 <div className="space-y-4">
+                  {tenantSelector}
                   <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-sm">
                     <MessageCircle className="h-5 w-5 flex-shrink-0" />
                     <span>
@@ -416,6 +463,10 @@ export default function PortalLogin({ onLogin }: PortalLoginProps) {
 
         <Card>
           <CardContent className="p-6">
+            <div className="mb-6">
+              {tenantSelector}
+            </div>
+
             <Tabs defaultValue="login" className="space-y-6">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login" data-testid="tab-login">Kirish</TabsTrigger>
