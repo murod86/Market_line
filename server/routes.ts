@@ -635,8 +635,10 @@ export async function registerRoutes(
           quantity: z.number().int().positive(),
         })).min(1, "Mahsulotlar tanlanmagan"),
         notes: z.string().optional().nullable(),
+        paymentType: z.enum(["debt", "cash", "partial"]).default("debt"),
+        paidAmount: z.number().min(0).default(0),
       });
-      const { items, notes } = loadSchema.parse(req.body);
+      const { items, notes, paymentType, paidAmount } = loadSchema.parse(req.body);
 
       for (const item of items) {
         const product = await storage.getProduct(item.productId);
@@ -672,10 +674,31 @@ export async function registerRoutes(
         const product = await storage.getProduct(item.productId);
         if (product) totalLoaded += Number(product.price) * item.quantity;
       }
-      const currentDebt = Number(dealer!.debt);
-      await storage.updateDealer(req.params.id, { debt: (currentDebt + totalLoaded).toFixed(2) });
 
-      res.json({ message: "Mahsulotlar dillerga yuklandi" });
+      if (paymentType === "partial" && paidAmount <= 0) {
+        return res.status(400).json({ message: "Qisman to'lovda summa kiritilishi shart" });
+      }
+      if (paymentType === "partial" && paidAmount >= totalLoaded) {
+        return res.status(400).json({ message: "Qisman to'lov jami summadan kam bo'lishi kerak" });
+      }
+
+      const debtAmount = paymentType === "cash" ? 0 : paymentType === "debt" ? totalLoaded : Math.max(0, totalLoaded - paidAmount);
+      const currentDebt = Number(dealer!.debt);
+      await storage.updateDealer(req.params.id, { debt: (currentDebt + debtAmount).toFixed(2) });
+
+      if (paymentType === "cash" || paymentType === "partial") {
+        const paid = paymentType === "cash" ? totalLoaded : paidAmount;
+        await storage.createPayment({
+          tenantId,
+          dealerId: req.params.id,
+          amount: paid.toFixed(2),
+          method: "cash",
+          type: "dealer",
+          notes: `Mahsulot olishda to'lov (${paymentType === "cash" ? "to'liq naqd" : "qisman"})`,
+        });
+      }
+
+      res.json({ message: "Mahsulotlar dillerga yuklandi", totalLoaded, debtAmount });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }

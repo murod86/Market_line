@@ -48,6 +48,8 @@ export default function Dealers() {
   const [activeTab, setActiveTab] = useState("inventory");
 
   const [loadOpen, setLoadOpen] = useState(false);
+  const [loadPaymentType, setLoadPaymentType] = useState<"debt" | "cash" | "partial">("debt");
+  const [loadPaidAmount, setLoadPaidAmount] = useState("");
   const [sellOpen, setSellOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
@@ -125,9 +127,12 @@ export default function Dealers() {
       toast({ title: "Mahsulotlar dillerga yuklandi" });
       queryClient.invalidateQueries({ queryKey: ["/api/dealers", detailDealer?.id, "inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dealers", detailDealer?.id, "transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       resetCart();
       setLoadOpen(false);
+      setLoadPaymentType("debt");
+      setLoadPaidAmount("");
     },
     onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -301,6 +306,8 @@ export default function Dealers() {
     loadMutation.mutate({
       items: cart.map((i) => ({ productId: i.productId, quantity: i.quantity })),
       notes: operationNotes.trim() || null,
+      paymentType: loadPaymentType,
+      paidAmount: loadPaymentType === "partial" ? Number(loadPaidAmount) || 0 : 0,
     });
   };
 
@@ -549,7 +556,7 @@ export default function Dealers() {
 
         {renderProductPickerDialog(
           loadOpen,
-          () => { setLoadOpen(false); resetCart(); },
+          () => { setLoadOpen(false); resetCart(); setLoadPaymentType("debt"); setLoadPaidAmount(""); },
           "Ombordan mahsulot yuklash",
           <ArrowDownToLine className="h-5 w-5" />,
           filteredProducts || [],
@@ -557,6 +564,7 @@ export default function Dealers() {
           loadMutation.isPending,
           "Yuklash",
           false,
+          true,
         )}
 
         {renderProductPickerDialog(
@@ -596,6 +604,7 @@ export default function Dealers() {
     isPending: boolean,
     submitLabel: string,
     showCustomer: boolean,
+    showPaymentType: boolean = false,
   ) {
     const isFromInventory = productList.length === 0 && inventory;
     const sourceItems = isFromInventory ? inventory : null;
@@ -644,6 +653,54 @@ export default function Dealers() {
                   data-testid="input-operation-notes"
                 />
               </div>
+
+              {showPaymentType && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">To'lov turi</Label>
+                  <div className="flex gap-2">
+                    {([
+                      { value: "debt" as const, label: "Qarzga", color: "bg-red-500/10 text-red-700 border-red-300" },
+                      { value: "cash" as const, label: "Naqd to'laydi", color: "bg-green-500/10 text-green-700 border-green-300" },
+                      { value: "partial" as const, label: "Qisman", color: "bg-yellow-500/10 text-yellow-700 border-yellow-300" },
+                    ] as const).map((opt) => (
+                      <Button
+                        key={opt.value}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className={`flex-1 text-xs ${loadPaymentType === opt.value ? opt.color + " ring-1 ring-current" : ""}`}
+                        onClick={() => setLoadPaymentType(opt.value)}
+                        data-testid={`button-load-payment-${opt.value}`}
+                      >
+                        {opt.label}
+                      </Button>
+                    ))}
+                  </div>
+                  {loadPaymentType === "partial" && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">To'langan summa (UZS)</Label>
+                      <Input
+                        type="number"
+                        value={loadPaidAmount}
+                        onChange={(e) => setLoadPaidAmount(e.target.value)}
+                        placeholder="0"
+                        data-testid="input-load-paid-amount"
+                      />
+                      {Number(loadPaidAmount) > 0 && Number(loadPaidAmount) < cartTotal && (
+                        <p className="text-xs text-destructive mt-1">
+                          Qarz: {formatCurrency(cartTotal - Number(loadPaidAmount))}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {loadPaymentType === "cash" && cartTotal > 0 && (
+                    <p className="text-xs text-green-600">To'liq naqd to'lanadi: {formatCurrency(cartTotal)}</p>
+                  )}
+                  {loadPaymentType === "debt" && cartTotal > 0 && (
+                    <p className="text-xs text-destructive">To'liq qarzga: {formatCurrency(cartTotal)}</p>
+                  )}
+                </div>
+              )}
 
               {cart.length > 0 && (
                 <div className="space-y-2 pt-2 border-t">
