@@ -1,0 +1,53 @@
+the range
+Feb 28, 2026, 10:37 AM
+npm warn config production Use `--omit=dev` instead.
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/app/drizzle.config.ts'
+Starting Container
+Using 'pg' driver for database querying
+[⣷] Pulling schema from database...
+[⣯] Pulling schema from database...
+[⣟] Pulling schema from database...
+[⡿] Pulling schema from database...
+[✓] Pulling schema from database...
+[i] No changes detected
+npm warn config production Use `--omit=dev` instead.
+> rest-express@1.0.0 start
+> NODE_ENV=production node dist/index.cjs
+5:37:27 AM [express] serving on port 8080
+5:38:04 AM [express] POST /api/auth/login 200 in 43ms :: {"id":"6548821e-0c6d-4d68-913d-6770781c3941","name":"wwww","ownerName":"eeee","phone":"+998949109000","plan":"free","active":true,"createdAt":"2026-02-28T05:03:49.948Z"}
+Internal Server Error: Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+    at async open (node:internal/fs/promises:636:25)
+    at async Object.readFile (node:internal/fs/promises:1235:14)
+    at async i._rawEnsureSessionStoreTable (/app/dist/index.cjs:82:7198)
+    at async i._asyncQuery (/app/dist/index.cjs:82:8283) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/app/dist/table.sql'
+}
+Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+    at async open (node:internal/fs/promises:636:25)
+    at async Object.readFile (node:internal/fs/promises:1235:14)
+    at async i._rawEnsureSessionStoreTable (/app/dist/index.cjs:82:7198)
+    at async i._asyncQuery (/app/dist/index.cjs:82:8283)
+5:38:05 AM [express] GET /api/auth/me 401 in 1ms :: {"message":"Tizimga kirilmagan"}
+5:38:20 AM [express] POST /api/auth/login 200 in 30ms :: {"id":"6548821e-0c6d-4d68-913d-6770781c3941","name":"wwww","ownerName":"eeee","phone":"+998949109000","plan":"free","active":true,"createdAt":"2026-02-28T05:03:49.948Z"}
+Internal Server Error: Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+    at async open (node:internal/fs/promises:636:25)
+    at async Object.readFile (node:internal/fs/promises:1235:14)
+    at async i._rawEnsureSessionStoreTable (/app/dist/index.cjs:82:7198)
+    at async i._asyncQuery (/app/dist/index.cjs:82:8283) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/app/dist/table.sql'
+}
+Error: ENOENT: no such file or directory, open '/app/dist/table.sql'
+    at async open (node:internal/fs/promises:636:25)
+    at async Object.readFile (node:internal/fs/promises:1235:14)
+    at async i._rawEnsureSessionStoreTable (/app/dist/index.cjs:82:7198)
+    at async i._asyncQuery (/app/dist/index.cjs:82:8283)
+5:38:21 AM [express] GET /api/auth/me 401 in 0ms :: {"message":"Tizimga kirilmagan"}
+5:38:24 AM [express] POST /api/super/plans 401 in 1ms :: {"message":"Super admin huquqi kerak"}
+5:38:26 AM [express] POST /api/super/plans 401 in 1ms :: {"message":"Super admin huquqi kerak"}
