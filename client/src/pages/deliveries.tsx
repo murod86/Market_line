@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Delivery, Customer } from "@shared/schema";
-import { Truck, MapPin, Clock, CheckCircle, XCircle, Package, Eye } from "lucide-react";
+import { Truck, MapPin, Clock, CheckCircle, XCircle, Package, Eye, Printer } from "lucide-react";
 import { format } from "date-fns";
 
 function formatCurrency(amount: number) {
@@ -44,6 +44,7 @@ export default function Deliveries() {
     onSuccess: () => {
       toast({ title: "Holat yangilandi" });
       queryClient.invalidateQueries({ queryKey: ["/api/deliveries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portal-orders"] });
     },
   });
 
@@ -72,11 +73,149 @@ export default function Deliveries() {
   const inTransitCount = deliveries?.filter((d) => d.status === "in_transit").length || 0;
   const deliveredCount = deliveries?.filter((d) => d.status === "delivered").length || 0;
 
+  const printDeliveriesList = () => {
+    if (!filtered || filtered.length === 0) return;
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    const rows = filtered.map((delivery, i) => {
+      const customer = customers?.find((c) => c.id === delivery.customerId);
+      const status = statusMap[delivery.status] || statusMap.pending;
+      return `<tr>
+        <td style="padding:8px;border:1px solid #ddd;text-align:center">${i + 1}</td>
+        <td style="padding:8px;border:1px solid #ddd">${customer?.fullName || "-"}</td>
+        <td style="padding:8px;border:1px solid #ddd">${customer?.phone || "-"}</td>
+        <td style="padding:8px;border:1px solid #ddd">${delivery.address}</td>
+        <td style="padding:8px;border:1px solid #ddd;text-align:center">${status.label}</td>
+        <td style="padding:8px;border:1px solid #ddd">${format(new Date(delivery.createdAt), "dd.MM.yyyy HH:mm")}</td>
+        <td style="padding:8px;border:1px solid #ddd">${delivery.notes || "-"}</td>
+      </tr>`;
+    }).join("");
+
+    printWindow.document.write(`
+      <!DOCTYPE html><html><head>
+        <title>Yetkazib berish ro'yxati - MARKET_LINE</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+          h1 { text-align: center; color: #4338ca; margin-bottom: 5px; }
+          .subtitle { text-align: center; color: #666; margin-bottom: 20px; }
+          table { width: 100%; border-collapse: collapse; font-size: 13px; }
+          th { padding: 10px 8px; border: 1px solid #ddd; background: #4338ca; color: white; text-align: left; }
+          .footer { margin-top: 20px; text-align: center; color: #999; font-size: 12px; }
+          @media print { body { padding: 10px; } }
+        </style>
+      </head><body>
+        <h1>MARKET_LINE</h1>
+        <p class="subtitle">Yetkazib berish ro'yxati - ${format(new Date(), "dd.MM.yyyy HH:mm")}</p>
+        <table>
+          <thead><tr>
+            <th style="text-align:center">#</th>
+            <th>Mijoz</th>
+            <th>Telefon</th>
+            <th>Manzil</th>
+            <th style="text-align:center">Holat</th>
+            <th>Sana</th>
+            <th>Izoh</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <p class="footer">Jami ${filtered.length} ta yetkazib berish</p>
+      </body></html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
+  const printSingleDelivery = async (delivery: Delivery) => {
+    const customer = customers?.find((c) => c.id === delivery.customerId);
+    let items: any[] = [];
+    let sale: any = null;
+    try {
+      const res = await fetch(`/api/deliveries/${delivery.id}/items`);
+      const data = await res.json();
+      items = data.items || [];
+      sale = data.sale || null;
+    } catch {}
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    const status = statusMap[delivery.status] || statusMap.pending;
+    const itemRows = items.map((item: any, i: number) => {
+      return `<tr>
+        <td style="padding:8px;border:1px solid #ddd;text-align:center">${i + 1}</td>
+        <td style="padding:8px;border:1px solid #ddd">${item.productName || "Mahsulot"}</td>
+        <td style="padding:8px;border:1px solid #ddd;text-align:center">${item.quantity}</td>
+        <td style="padding:8px;border:1px solid #ddd;text-align:right">${formatCurrency(Number(item.price))}</td>
+        <td style="padding:8px;border:1px solid #ddd;text-align:right">${formatCurrency(Number(item.total))}</td>
+      </tr>`;
+    }).join("");
+
+    printWindow.document.write(`
+      <!DOCTYPE html><html><head>
+        <title>Yetkazib berish - MARKET_LINE</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+          h1 { text-align: center; color: #4338ca; margin-bottom: 5px; }
+          .subtitle { text-align: center; color: #666; margin-bottom: 20px; }
+          .info { margin-bottom: 15px; }
+          .info p { margin: 4px 0; }
+          .info span { display: inline-block; min-width: 140px; color: #666; }
+          table { width: 100%; border-collapse: collapse; font-size: 13px; }
+          th { padding: 10px 8px; border: 1px solid #ddd; background: #4338ca; color: white; text-align: left; }
+          .total-row { font-weight: bold; background: #f3f4f6; }
+          .footer { margin-top: 20px; text-align: center; color: #999; font-size: 12px; }
+          @media print { body { padding: 10px; } }
+        </style>
+      </head><body>
+        <h1>MARKET_LINE</h1>
+        <p class="subtitle">Yetkazib berish tafsilotlari</p>
+        <div class="info">
+          <p><span>Mijoz:</span> <strong>${customer?.fullName || "-"}</strong></p>
+          <p><span>Telefon:</span> ${customer?.phone || "-"}</p>
+          <p><span>Manzil:</span> <strong>${delivery.address}</strong></p>
+          <p><span>Holat:</span> <strong>${status.label}</strong></p>
+          <p><span>Sana:</span> ${format(new Date(delivery.createdAt), "dd.MM.yyyy HH:mm")}</p>
+          ${delivery.notes ? `<p><span>Izoh:</span> ${delivery.notes}</p>` : ""}
+        </div>
+        ${items.length > 0 ? `
+          <table>
+            <thead><tr>
+              <th style="text-align:center">#</th>
+              <th>Mahsulot</th>
+              <th style="text-align:center">Miqdor</th>
+              <th style="text-align:right">Narx</th>
+              <th style="text-align:right">Summa</th>
+            </tr></thead>
+            <tbody>
+              ${itemRows}
+              ${sale ? `<tr class="total-row">
+                <td colspan="4" style="padding:10px 8px;border:1px solid #ddd;text-align:right">Jami:</td>
+                <td style="padding:10px 8px;border:1px solid #ddd;text-align:right">${formatCurrency(Number(sale.totalAmount))}</td>
+              </tr>` : ""}
+            </tbody>
+          </table>
+        ` : "<p>Mahsulotlar topilmadi</p>"}
+        <p class="footer">MARKET_LINE - Yetkazib berish boshqaruvi</p>
+      </body></html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
   return (
     <div className="p-6 space-y-6 overflow-y-auto h-full">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight" data-testid="text-deliveries-title">Yetkazib berish</h1>
-        <p className="text-muted-foreground">Buyurtmalarni yetkazib berish boshqaruvi</p>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight" data-testid="text-deliveries-title">Yetkazib berish</h1>
+          <p className="text-muted-foreground">Buyurtmalarni yetkazib berish boshqaruvi</p>
+        </div>
+        {filtered && filtered.length > 0 && (
+          <Button variant="outline" size="sm" onClick={printDeliveriesList} data-testid="button-print-deliveries">
+            <Printer className="h-4 w-4 mr-2" />
+            Chop etish
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -186,8 +325,17 @@ export default function Deliveries() {
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">{delivery.notes || "-"}</TableCell>
                       <TableCell>
-                        {delivery.status === "pending" && (
-                          <div className="flex gap-1">
+                        <div className="flex gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            onClick={() => printSingleDelivery(delivery)}
+                            data-testid={`button-print-delivery-${delivery.id}`}
+                          >
+                            <Printer className="h-3.5 w-3.5" />
+                          </Button>
+                          {delivery.status === "pending" && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -197,10 +345,8 @@ export default function Deliveries() {
                               <Truck className="h-3 w-3 mr-1" />
                               Jo'natish
                             </Button>
-                          </div>
-                        )}
-                        {delivery.status === "in_transit" && (
-                          <div className="flex gap-1">
+                          )}
+                          {delivery.status === "in_transit" && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -210,8 +356,8 @@ export default function Deliveries() {
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Yetkazildi
                             </Button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -280,6 +426,17 @@ export default function Deliveries() {
                   <span className="font-bold">Jami:</span>
                   <span className="font-bold text-lg" data-testid="text-order-total">{formatCurrency(Number(orderSale.totalAmount))}</span>
                 </div>
+              )}
+              {selectedDelivery && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => printSingleDelivery(selectedDelivery)}
+                  data-testid="button-detail-print-delivery"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Chop etish
+                </Button>
               )}
             </div>
           )}

@@ -36,10 +36,10 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 4. **Categories** - Category CRUD with product counts
 5. **Products** - Product CRUD with categories, pricing, stock levels, image upload, units (dona/quti/kg/gram/litr/metr)
 6. **Customers** - Customer management with debt tracking, QR code generation (portal link with store+phone prefilled, downloadable PNG with branding)
-7. **Deliveries** - Delivery status tracking with order details
+7. **Deliveries** - Delivery status tracking with order details, print list and individual delivery
 8. **Suppliers** - Supplier management (name, phone, company, address)
 9. **Purchases (Kirim)** - Inventory procurement from suppliers, auto-updates stock
-10. **Orders (Buyurtmalar)** - Portal order management: view, confirm, reject customer orders with details
+10. **Orders (Buyurtmalar)** - Portal order management with full flow (confirm, send to delivery, shipped, customer receive), status filter, print list and individual order
 11. **Roles** - Role creation with granular permissions
 12. **Employees** - Employee management with role assignment
 13. **Settings** - Company info, Telegram bot config, webhook setup
@@ -48,8 +48,9 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 - Login with store selector (fetches active tenants from `/api/tenants/public`), Registration (with Telegram OTP), Password Reset
 - Catalog browsing with search & category filter, Cart & Order placement
 - Orders list with detail view: see products, prices, status
-- Order statuses: pending → completed (admin confirms) → delivered (customer receives)
-- Customer can click "Qabul qildim" when order status is "completed" (via PATCH `/api/portal/orders/:id/receive`)
+- Order statuses: pending → completed (admin confirms) → delivering (sent to delivery) → shipped (delivery person confirms) → delivered (customer receives)
+- Customer can click "Qabul qildim" when order status is "shipped" (via PATCH `/api/portal/orders/:id/receive`)
+- When admin sets order to "delivering", a delivery record is auto-created in deliveries table
 - PDF export: full orders list or individual order detail (printable HTML)
 - Debt Tracking with payment history
 

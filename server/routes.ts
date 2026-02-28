@@ -448,6 +448,12 @@ export async function registerRoutes(
     const existing = await storage.getDelivery(req.params.id);
     if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Delivery not found" });
     const delivery = await storage.updateDelivery(req.params.id, req.body);
+    if (req.body.status === "delivered" && existing.saleId) {
+      const sale = await storage.getSale(existing.saleId);
+      if (sale && sale.status === "delivering") {
+        await storage.updateSale(sale.id, { status: "shipped" } as any);
+      }
+    }
     res.json(delivery);
   });
 
@@ -1080,8 +1086,8 @@ export async function registerRoutes(
       if (!sale || sale.customerId !== req.session.customerId) {
         return res.status(404).json({ message: "Buyurtma topilmadi" });
       }
-      if (sale.status !== "completed") {
-        return res.status(400).json({ message: "Faqat tasdiqlangan buyurtmani qabul qilish mumkin" });
+      if (sale.status !== "shipped") {
+        return res.status(400).json({ message: "Faqat topshirilgan buyurtmani qabul qilish mumkin" });
       }
       await storage.updateSale(req.params.id, { status: "delivered" });
       res.json({ success: true });
@@ -1115,18 +1121,21 @@ export async function registerRoutes(
     try {
       const tenantId = req.session.tenantId!;
       const { status } = req.body;
-      if (!["completed", "cancelled"].includes(status)) {
-        return res.status(400).json({ message: "Noto'g'ri holat" });
-      }
+      const validTransitions: Record<string, string[]> = {
+        pending: ["completed", "cancelled"],
+        completed: ["delivering", "cancelled"],
+        delivering: ["shipped", "cancelled"],
+      };
       const sale = await storage.getSale(req.params.id);
       if (!sale || !verifyTenant(sale, tenantId)) {
         return res.status(404).json({ message: "Buyurtma topilmadi" });
       }
-      if (sale.status !== "pending") {
-        return res.status(400).json({ message: "Faqat kutilayotgan buyurtmalarni o'zgartirish mumkin" });
-      }
       if (sale.employeeId !== null) {
         return res.status(400).json({ message: "Bu portal buyurtmasi emas" });
+      }
+      const allowed = validTransitions[sale.status];
+      if (!allowed || !allowed.includes(status)) {
+        return res.status(400).json({ message: "Bu holatdan o'tkazish mumkin emas" });
       }
       if (status === "cancelled") {
         const items = await storage.getSaleItems(sale.id);
@@ -1142,6 +1151,21 @@ export async function registerRoutes(
             const newDebt = Math.max(0, Number(customer.debt) - Number(sale.totalAmount));
             await storage.updateCustomer(customer.id, { debt: newDebt.toFixed(2) } as any);
           }
+        }
+      }
+      if (status === "delivering" && sale.customerId) {
+        const customer = await storage.getCustomer(sale.customerId);
+        const existingDeliveries = await storage.getDeliveries(tenantId);
+        const hasDelivery = existingDeliveries.some(d => d.saleId === sale.id);
+        if (!hasDelivery && customer) {
+          await storage.createDelivery({
+            tenantId,
+            saleId: sale.id,
+            customerId: sale.customerId,
+            address: customer.address || "Manzil ko'rsatilmagan",
+            status: "in_transit",
+            notes: null,
+          });
         }
       }
       const updated = await storage.updateSale(sale.id, { status } as any);
