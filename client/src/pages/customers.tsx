@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Customer } from "@shared/schema";
-import { Plus, Search, Users, Edit, Phone, MapPin, Lock } from "lucide-react";
+import { Plus, Search, Edit, Phone, MapPin, Lock, QrCode, Download } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import logoImg from "@assets/marketline_final_v1.png";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -20,12 +22,17 @@ export default function Customers() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
+  const [qrCustomer, setQrCustomer] = useState<Customer | null>(null);
+  const [showQrAfterSave, setShowQrAfterSave] = useState(false);
   const [form, setForm] = useState({
     fullName: "", phone: "", address: "", telegramId: "", password: "",
   });
   const { toast } = useToast();
+  const qrRef = useRef<HTMLDivElement>(null);
 
   const { data: customers, isLoading } = useQuery<Customer[]>({ queryKey: ["/api/customers"] });
+
+  const { data: tenant } = useQuery<any>({ queryKey: ["/api/auth/me"] });
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
@@ -36,12 +43,16 @@ export default function Customers() {
       const res = await apiRequest("POST", "/api/customers", data);
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (result: Customer) => {
       toast({ title: editing ? "Mijoz yangilandi" : "Mijoz qo'shildi" });
       setDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      if (!editing) {
+        setQrCustomer(result);
+        setShowQrAfterSave(true);
+      }
       setEditing(null);
       resetForm();
-      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
     },
     onError: (error: Error) => {
       toast({ title: "Xatolik", description: error.message, variant: "destructive" });
@@ -86,6 +97,96 @@ export default function Customers() {
     }
     mutation.mutate(data);
   };
+
+  const getPortalUrl = useCallback((customer: Customer) => {
+    const base = window.location.origin;
+    const tenantId = tenant?.id || "";
+    return `${base}/portal?store=${tenantId}&phone=${encodeURIComponent(customer.phone)}`;
+  }, [tenant]);
+
+  const downloadQr = useCallback(() => {
+    if (!qrRef.current || !qrCustomer) return;
+    const svg = qrRef.current.querySelector("svg");
+    if (!svg) return;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const w = 400;
+    const h = 540;
+    canvas.width = w;
+    canvas.height = h;
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, w, h);
+
+    const logo = new Image();
+    logo.crossOrigin = "anonymous";
+    logo.onload = () => {
+      ctx.fillStyle = "#4338ca";
+      ctx.fillRect(0, 0, w, 65);
+      const logoH = 35;
+      const logoW = (logo.width / logo.height) * logoH;
+      ctx.drawImage(logo, (w - logoW - 130) / 2, 15, logoW, logoH);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 20px Arial";
+      ctx.textAlign = "left";
+      ctx.fillText("MARKET_LINE", (w - logoW - 130) / 2 + logoW + 10, 42);
+      ctx.textAlign = "center";
+
+      drawQrPart();
+    };
+    logo.onerror = () => {
+      ctx.fillStyle = "#4338ca";
+      ctx.fillRect(0, 0, w, 60);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 22px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("MARKET_LINE", w / 2, 40);
+
+      drawQrPart();
+    };
+    logo.src = logoImg;
+
+    function drawQrPart() {
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(svgBlob);
+      const qrImg = new Image();
+      qrImg.onload = () => {
+        const qrSize = 280;
+        const x = (w - qrSize) / 2;
+        ctx.drawImage(qrImg, x, 85, qrSize, qrSize);
+
+        ctx.fillStyle = "#333333";
+        ctx.font = "bold 16px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(qrCustomer!.fullName, w / 2, 400);
+
+        ctx.fillStyle = "#666666";
+        ctx.font = "14px Arial";
+        ctx.fillText(qrCustomer!.phone, w / 2, 425);
+
+        ctx.fillStyle = "#4338ca";
+        ctx.font = "12px Arial";
+        ctx.fillText("Portalga kirish uchun skanerlang", w / 2, 455);
+
+        if (tenant?.name) {
+          ctx.fillStyle = "#999999";
+          ctx.font = "11px Arial";
+          ctx.fillText(tenant.name, w / 2, 480);
+        }
+
+        const link = document.createElement("a");
+        link.download = `qr-${qrCustomer!.fullName.replace(/\s+/g, "_")}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+        URL.revokeObjectURL(url);
+      };
+      qrImg.src = url;
+    }
+  }, [qrCustomer, tenant]);
 
   const filtered = customers?.filter(
     (c) =>
@@ -171,9 +272,20 @@ export default function Customers() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Button size="icon" variant="ghost" onClick={() => openEdit(customer)} data-testid={`button-edit-customer-${customer.id}`}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => { setQrCustomer(customer); setShowQrAfterSave(false); }}
+                          data-testid={`button-qr-customer-${customer.id}`}
+                          title="QR kod"
+                        >
+                          <QrCode className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => openEdit(customer)} data-testid={`button-edit-customer-${customer.id}`}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -235,6 +347,70 @@ export default function Customers() {
               {mutation.isPending ? "Saqlanmoqda..." : "Saqlash"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!qrCustomer} onOpenChange={(open) => { if (!open) { setQrCustomer(null); setShowQrAfterSave(false); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              Mijoz QR kodi
+            </DialogTitle>
+          </DialogHeader>
+          {qrCustomer && (
+            <div className="flex flex-col items-center gap-4">
+              {showQrAfterSave && (
+                <div className="w-full p-3 rounded-lg bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 text-sm text-center">
+                  Mijoz muvaffaqiyatli qo'shildi! QR kodni mijozga ko'rsating.
+                </div>
+              )}
+
+              <div
+                ref={qrRef}
+                className="bg-white p-6 rounded-xl border-2 border-dashed border-muted"
+                data-testid="qr-code-container"
+              >
+                <div className="flex flex-col items-center gap-3">
+                  <img src={logoImg} alt="MARKET_LINE" className="h-8 w-auto" />
+                  <QRCodeSVG
+                    value={getPortalUrl(qrCustomer)}
+                    size={200}
+                    level="H"
+                    includeMargin={false}
+                    fgColor="#4338ca"
+                  />
+                  <div className="text-center">
+                    <p className="font-bold text-gray-800 text-sm">{qrCustomer.fullName}</p>
+                    <p className="text-gray-500 text-xs">{qrCustomer.phone}</p>
+                  </div>
+                  <p className="text-indigo-600 text-xs font-medium">Portalga kirish uchun skanerlang</p>
+                  {tenant?.name && (
+                    <p className="text-gray-400 text-[10px]">{tenant.name}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-2 w-full">
+                <Button
+                  className="flex-1"
+                  onClick={downloadQr}
+                  data-testid="button-download-qr"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Yuklab olish
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => { setQrCustomer(null); setShowQrAfterSave(false); }}
+                  data-testid="button-close-qr"
+                >
+                  Yopish
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

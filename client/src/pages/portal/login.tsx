@@ -19,9 +19,13 @@ type View = "main" | "register-otp" | "reset-password";
 type OtpStep = "phone" | "code" | "details";
 
 export default function PortalLogin({ onLogin }: PortalLoginProps) {
-  const [loginPhone, setLoginPhone] = useState("");
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialStore = urlParams.get("store") || "";
+  const initialPhone = urlParams.get("phone") || "";
+
+  const [loginPhone, setLoginPhone] = useState(initialPhone);
   const [loginPassword, setLoginPassword] = useState("");
-  const [selectedTenantId, setSelectedTenantId] = useState("");
+  const [selectedTenantId, setSelectedTenantId] = useState(initialStore);
   const [view, setView] = useState<View>("main");
   const [otpStep, setOtpStep] = useState<OtpStep>("phone");
   const [otpPhone, setOtpPhone] = useState("");
@@ -38,10 +42,14 @@ export default function PortalLogin({ onLogin }: PortalLoginProps) {
   });
 
   useEffect(() => {
-    if (tenantsList && tenantsList.length === 1 && !selectedTenantId) {
-      setSelectedTenantId(tenantsList[0].id);
+    if (tenantsList && !selectedTenantId) {
+      if (initialStore && tenantsList.some(t => t.id === initialStore)) {
+        setSelectedTenantId(initialStore);
+      } else if (tenantsList.length === 1) {
+        setSelectedTenantId(tenantsList[0].id);
+      }
     }
-  }, [tenantsList, selectedTenantId]);
+  }, [tenantsList, selectedTenantId, initialStore]);
 
   const loginMutation = useMutation({
     mutationFn: async (data: { phone: string; password: string; tenantId: string }) => {
