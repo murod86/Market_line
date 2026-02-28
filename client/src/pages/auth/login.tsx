@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Phone, Lock, ArrowLeft, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import logoImg from "@assets/ChatGPT_Image_Feb_27,_2026,_05_36_53_PM_1772195868435.png";
+import logoImg from "@assets/marketline_final_v1.png";
 
 export default function OwnerLogin() {
   const [, setLocation] = useLocation();

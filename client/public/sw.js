@@ -1,4 +1,4 @@
-const CACHE_NAME = 'marketline-v1';
+const CACHE_NAME = 'marketline-v2';
 const urlsToCache = [
   '/',
   '/favicon.png',

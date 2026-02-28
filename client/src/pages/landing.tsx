@@ -2,7 +2,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShoppingCart, Package, Users, Truck, BarChart3, Shield, Smartphone, Zap, Star, ArrowRight, CheckCircle2 } from "lucide-react";
-import logoImg from "@assets/ChatGPT_Image_Feb_27,_2026,_05_36_53_PM_1772195868435.png";
+import logoImg from "@assets/marketline_final_v1.png";
 
 const features = [
   { icon: ShoppingCart, title: "POS Kassa", desc: "58mm chek chiqarish, chegirma, qarzga sotish", color: "text-blue-500 bg-blue-500/10" },

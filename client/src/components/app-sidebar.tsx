@@ -15,7 +15,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import logoImg from "@assets/ChatGPT_Image_Feb_27,_2026,_05_36_53_PM_1772195868435.png";
+import logoImg from "@assets/marketline_final_v1.png";
 import {
   Sidebar,
   SidebarContent,

@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Store, Phone, Lock, User, MapPin, MessageCircle, ArrowLeft, KeyRound, Shield } from "lucide-react";
-import logoImg from "@assets/ChatGPT_Image_Feb_27,_2026,_05_36_53_PM_1772195868435.png";
+import logoImg from "@assets/marketline_final_v1.png";
 
 interface PortalLoginProps {
   onLogin: () => void;
