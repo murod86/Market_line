@@ -1,11 +1,7 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, readFile, copyFile, mkdir } from "fs/promises";
-import { existsSync } from "fs";
-import { resolve } from "path";
+import { rm, readFile } from "fs/promises";
 
-// server deps to bundle to reduce openat(2) syscalls
-// which helps cold start times
 const allowlist = [
   "@google/generative-ai",
   "axios",
@@ -33,6 +29,10 @@ const allowlist = [
   "zod-validation-error",
 ];
 
+const forceExternal = [
+  "connect-pg-simple",
+];
+
 async function buildAll() {
   await rm("dist", { recursive: true, force: true });
 
@@ -45,7 +45,10 @@ async function buildAll() {
     ...Object.keys(pkg.dependencies || {}),
     ...Object.keys(pkg.devDependencies || {}),
   ];
-  const externals = allDeps.filter((dep) => !allowlist.includes(dep));
+  const externals = [
+    ...allDeps.filter((dep) => !allowlist.includes(dep)),
+    ...forceExternal,
+  ];
 
   await esbuild({
     entryPoints: ["server/index.ts"],
@@ -60,18 +63,6 @@ async function buildAll() {
     external: externals,
     logLevel: "info",
   });
-
-  const tableSqlSources = [
-    resolve("server/table.sql"),
-    resolve("node_modules/connect-pg-simple/table.sql"),
-  ];
-  for (const src of tableSqlSources) {
-    if (existsSync(src)) {
-      await copyFile(src, resolve("dist/table.sql"));
-      console.log(`copied table.sql from ${src} to dist/`);
-      break;
-    }
-  }
 }
 
 buildAll().catch((err) => {
