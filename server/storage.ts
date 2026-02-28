@@ -106,6 +106,7 @@ export interface IStorage {
   getDealerByPhone(phone: string, tenantId: string): Promise<Dealer | undefined>;
   createDealer(dealer: InsertDealer): Promise<Dealer>;
   updateDealer(id: string, dealer: Partial<InsertDealer>): Promise<Dealer | undefined>;
+  deleteDealer(id: string): Promise<void>;
   getDealerInventory(dealerId: string): Promise<DealerInventory[]>;
   getDealerInventoryItem(dealerId: string, productId: string): Promise<DealerInventory | undefined>;
   upsertDealerInventory(dealerId: string, productId: string, quantity: number, tenantId: string): Promise<DealerInventory>;
@@ -428,6 +429,15 @@ export class DatabaseStorage implements IStorage {
   async updateDealer(id: string, dealer: Partial<InsertDealer>): Promise<Dealer | undefined> {
     const [updated] = await db.update(dealers).set(dealer).where(eq(dealers.id, id)).returning();
     return updated;
+  }
+
+  async deleteDealer(id: string): Promise<void> {
+    await db.transaction(async (tx) => {
+      await tx.delete(dealerTransactions).where(eq(dealerTransactions.dealerId, id));
+      await tx.delete(dealerInventory).where(eq(dealerInventory.dealerId, id));
+      await tx.delete(payments).where(eq(payments.dealerId, id));
+      await tx.delete(dealers).where(eq(dealers.id, id));
+    });
   }
 
   async getDealerInventory(dealerId: string): Promise<DealerInventory[]> {

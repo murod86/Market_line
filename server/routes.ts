@@ -582,6 +582,17 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/dealers/:id", requireTenant, async (req, res) => {
+    try {
+      const dealer = await storage.getDealer(req.params.id);
+      if (!verifyTenant(dealer, req.session.tenantId!)) return res.status(404).json({ message: "Diller topilmadi" });
+      await storage.deleteDealer(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/dealers/:id/inventory", requireTenant, async (req, res) => {
     const dealer = await storage.getDealer(req.params.id);
     if (!verifyTenant(dealer, req.session.tenantId!)) return res.status(404).json({ message: "Diller topilmadi" });

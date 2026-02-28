@@ -44,6 +44,7 @@ export default function Dealers() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editDealer, setEditDealer] = useState<Dealer | null>(null);
   const [detailDealer, setDetailDealer] = useState<Dealer | null>(null);
+  const [deleteDealer, setDeleteDealer] = useState<Dealer | null>(null);
   const [activeTab, setActiveTab] = useState("inventory");
 
   const [loadOpen, setLoadOpen] = useState(false);
@@ -158,6 +159,18 @@ export default function Dealers() {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       resetCart();
       setReturnOpen(false);
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/dealers/${id}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Diller o'chirildi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealers"] });
+      setDeleteDealer(null);
     },
     onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -890,6 +903,9 @@ export default function Dealers() {
                   }} data-testid={`button-edit-dealer-${dealer.id}`}>
                     <Edit className="h-3 w-3" />
                   </Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={(e) => { e.stopPropagation(); setDeleteDealer(dealer); }} data-testid={`button-delete-dealer-${dealer.id}`}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -1033,6 +1049,38 @@ export default function Dealers() {
               data-testid="button-update-dealer"
             >
               {updateMutation.isPending ? "Yuklanmoqda..." : "Saqlash"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteDealer} onOpenChange={(o) => { if (!o) setDeleteDealer(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Dillerni o'chirish
+            </DialogTitle>
+          </DialogHeader>
+          {deleteDealer && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                <strong>{deleteDealer.name}</strong> nomli dillerni o'chirishni tasdiqlaysizmi?
+              </p>
+              <p className="text-sm text-destructive">
+                Barcha ma'lumotlar (ombor, tarix, to'lovlar) butunlay o'chiriladi. Bu amalni qaytarib bo'lmaydi.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDealer(null)}>Bekor qilish</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteDealer && deleteMutation.mutate(deleteDealer.id)}
+              disabled={deleteMutation.isPending}
+              data-testid="button-confirm-delete-dealer"
+            >
+              {deleteMutation.isPending ? "O'chirilmoqda..." : "O'chirish"}
             </Button>
           </DialogFooter>
         </DialogContent>
