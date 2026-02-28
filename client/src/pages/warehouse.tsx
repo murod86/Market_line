@@ -146,7 +146,7 @@ export default function Warehouse() {
                           <Badge variant="destructive" className="text-xs shrink-0">Kam</Badge>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">{product.sku}</p>
+                      <p className="text-xs font-semibold text-primary">{formatCurrency(Number(product.price))}</p>
                     </div>
                   </div>
                   <div className="space-y-2">

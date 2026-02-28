@@ -339,16 +339,14 @@ export default function POS() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium text-sm leading-tight truncate">{product.name}</h3>
-                        <p className="text-xs text-muted-foreground">{product.sku}</p>
+                        <p className="text-xs font-semibold text-primary">{formatCurrency(Number(product.price))}</p>
                       </div>
                     </div>
                     <div className="flex items-center justify-between gap-1">
-                      <p className="font-bold text-sm text-primary">
-                        {formatCurrency(Number(product.price))}
-                      </p>
                       <Badge variant="secondary" className="text-xs shrink-0">
                         {product.stock} {product.unit}
                       </Badge>
+                      <p className="text-xs text-muted-foreground">{product.sku}</p>
                     </div>
                   </CardContent>
                 </Card>
