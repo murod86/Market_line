@@ -2,7 +2,7 @@ import { eq, desc, and, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   plans, tenants, roles, employees, categories, products, customers,
-  sales, saleItems, deliveries, settings,
+  sales, saleItems, deliveries, deliveryItems, settings,
   suppliers, purchases, purchaseItems,
   type InsertPlan, type Plan,
   type InsertTenant, type Tenant,
@@ -14,6 +14,7 @@ import {
   type InsertSale, type Sale,
   type InsertSaleItem, type SaleItem,
   type InsertDelivery, type Delivery,
+  type InsertDeliveryItem, type DeliveryItem,
   type InsertSetting, type Setting,
   type InsertSupplier, type Supplier,
   type InsertPurchase, type Purchase,
@@ -74,6 +75,8 @@ export interface IStorage {
   getDelivery(id: string): Promise<Delivery | undefined>;
   createDelivery(delivery: InsertDelivery): Promise<Delivery>;
   updateDelivery(id: string, delivery: Partial<InsertDelivery>): Promise<Delivery | undefined>;
+  getDeliveryItems(deliveryId: string): Promise<DeliveryItem[]>;
+  createDeliveryItem(item: InsertDeliveryItem): Promise<DeliveryItem>;
 
   getSuppliers(tenantId: string): Promise<Supplier[]>;
   getSupplier(id: string): Promise<Supplier | undefined>;
@@ -303,6 +306,15 @@ export class DatabaseStorage implements IStorage {
   async updateDelivery(id: string, delivery: Partial<InsertDelivery>): Promise<Delivery | undefined> {
     const [updated] = await db.update(deliveries).set(delivery).where(eq(deliveries.id, id)).returning();
     return updated;
+  }
+
+  async getDeliveryItems(deliveryId: string): Promise<DeliveryItem[]> {
+    return await db.select().from(deliveryItems).where(eq(deliveryItems.deliveryId, deliveryId));
+  }
+
+  async createDeliveryItem(item: InsertDeliveryItem): Promise<DeliveryItem> {
+    const [created] = await db.insert(deliveryItems).values(item).returning();
+    return created;
   }
 
   async getSettings(tenantId: string): Promise<Setting[]> {

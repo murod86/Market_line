@@ -424,14 +424,25 @@ export async function registerRoutes(
   app.get("/api/deliveries/:id/items", requireTenant, async (req, res) => {
     const delivery = await storage.getDelivery(req.params.id);
     if (!verifyTenant(delivery, req.session.tenantId!)) return res.status(404).json({ message: "Yetkazib berish topilmadi" });
-    const sale = await storage.getSale(delivery.saleId);
-    const items = await storage.getSaleItems(delivery.saleId);
-    const allProducts = await storage.getProducts(req.session.tenantId!);
-    const enrichedItems = items.map((item) => {
-      const product = allProducts.find((p) => p.id === item.productId);
-      return { ...item, productName: product?.name, productImage: product?.imageUrl };
-    });
-    res.json({ sale, items: enrichedItems });
+    if (delivery.saleId) {
+      const sale = await storage.getSale(delivery.saleId);
+      const items = await storage.getSaleItems(delivery.saleId);
+      const allProducts = await storage.getProducts(req.session.tenantId!);
+      const enrichedItems = items.map((item) => {
+        const product = allProducts.find((p) => p.id === item.productId);
+        return { ...item, productName: product?.name, productImage: product?.imageUrl };
+      });
+      res.json({ sale, items: enrichedItems });
+    } else {
+      const items = await storage.getDeliveryItems(delivery.id);
+      const allProducts = await storage.getProducts(req.session.tenantId!);
+      const enrichedItems = items.map((item) => {
+        const product = allProducts.find((p) => p.id === item.productId);
+        return { ...item, productName: product?.name || "Noma'lum", productImage: product?.imageUrl };
+      });
+      const totalAmount = items.reduce((sum, i) => sum + Number(i.total), 0);
+      res.json({ sale: { totalAmount: totalAmount.toFixed(2) }, items: enrichedItems });
+    }
   });
 
   app.post("/api/deliveries", requireTenant, async (req, res) => {
@@ -441,6 +452,59 @@ export async function registerRoutes(
       res.json(delivery);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/deliveries/pickup", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const pickupSchema = z.object({
+        customerName: z.string().optional(),
+        customerPhone: z.string().optional().nullable(),
+        address: z.string().min(1, "Manzil kiritilmagan"),
+        notes: z.string().optional().nullable(),
+        items: z.array(z.object({
+          productId: z.string().min(1),
+          quantity: z.number().int().positive("Miqdor musbat bo'lishi kerak"),
+        })).min(1, "Mahsulotlar tanlanmagan"),
+      });
+      const parsed = pickupSchema.parse(req.body);
+      const { customerName, customerPhone, address, notes, items } = parsed;
+      for (const item of items) {
+        const product = await storage.getProduct(item.productId);
+        if (!product) {
+          return res.status(400).json({ message: `Mahsulot topilmadi` });
+        }
+        if (product.stock < item.quantity) {
+          return res.status(400).json({ message: `${product.name}: omborda yetarli emas (${product.stock} ${product.unit} bor)` });
+        }
+      }
+      const delivery = await storage.createDelivery({
+        tenantId,
+        saleId: null,
+        customerId: null,
+        address,
+        status: "in_transit",
+        notes: notes || null,
+        customerName: customerName || "Noma'lum mijoz",
+        customerPhone: customerPhone || null,
+      });
+      for (const item of items) {
+        const product = await storage.getProduct(item.productId);
+        if (!product) continue;
+        const total = Number(product.price) * item.quantity;
+        await storage.createDeliveryItem({
+          deliveryId: delivery.id,
+          productId: item.productId,
+          quantity: item.quantity,
+          price: product.price,
+          total: total.toFixed(2),
+        });
+        await storage.updateProduct(product.id, { stock: product.stock - item.quantity });
+      }
+      res.json(delivery);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
     }
   });
 

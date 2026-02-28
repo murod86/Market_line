@@ -36,7 +36,7 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 4. **Categories** - Category CRUD with product counts
 5. **Products** - Product CRUD with categories, pricing, stock levels, image upload, units (dona/quti/kg/gram/litr/metr)
 6. **Customers** - Customer management with debt tracking, QR code generation (portal link with store+phone prefilled, downloadable PNG with branding)
-7. **Deliveries** - Delivery status tracking with order details, print list and individual delivery
+7. **Deliveries** - Delivery status tracking, print list/individual, "Mahsulot olish" for unknown customers (pickup with product selection, auto stock deduction, delivery_items table)
 8. **Suppliers** - Supplier management (name, phone, company, address)
 9. **Purchases (Kirim)** - Inventory procurement from suppliers, auto-updates stock
 10. **Orders (Buyurtmalar)** - Portal order management with full flow (confirm, send to delivery, shipped, customer receive), status filter, print list and individual order

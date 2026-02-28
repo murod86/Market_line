@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, numeric, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -140,17 +140,32 @@ export type SaleItem = typeof saleItems.$inferSelect;
 export const deliveries = pgTable("deliveries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   tenantId: varchar("tenant_id").references(() => tenants.id),
-  saleId: varchar("sale_id").references(() => sales.id).notNull(),
-  customerId: varchar("customer_id").references(() => customers.id).notNull(),
+  saleId: varchar("sale_id").references(() => sales.id),
+  customerId: varchar("customer_id").references(() => customers.id),
   address: text("address").notNull(),
   status: text("status").notNull().default("pending"),
   notes: text("notes"),
+  customerName: text("customer_name"),
+  customerPhone: text("customer_phone"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const insertDeliverySchema = createInsertSchema(deliveries).omit({ id: true, createdAt: true });
 export type InsertDelivery = z.infer<typeof insertDeliverySchema>;
 export type Delivery = typeof deliveries.$inferSelect;
+
+export const deliveryItems = pgTable("delivery_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  deliveryId: varchar("delivery_id").references(() => deliveries.id).notNull(),
+  productId: varchar("product_id").references(() => products.id).notNull(),
+  quantity: integer("quantity").notNull(),
+  price: numeric("price", { precision: 12, scale: 2 }).notNull(),
+  total: numeric("total", { precision: 12, scale: 2 }).notNull(),
+});
+
+export const insertDeliveryItemSchema = createInsertSchema(deliveryItems).omit({ id: true });
+export type InsertDeliveryItem = z.infer<typeof insertDeliveryItemSchema>;
+export type DeliveryItem = typeof deliveryItems.$inferSelect;
 
 export const suppliers = pgTable("suppliers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
