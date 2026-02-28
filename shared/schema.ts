@@ -172,6 +172,7 @@ export const dealers = pgTable("dealers", {
   tenantId: varchar("tenant_id").references(() => tenants.id),
   name: text("name").notNull(),
   phone: text("phone"),
+  password: text("password"),
   vehicleInfo: text("vehicle_info"),
   debt: decimal("debt", { precision: 12, scale: 2 }).notNull().default("0"),
   active: boolean("active").notNull().default(true),

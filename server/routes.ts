@@ -68,7 +68,7 @@ async function sendTelegramMessage(chatId: string, text: string, token: string):
 }
 
 function requireTenant(req: Request, res: Response, next: NextFunction) {
-  if (!req.session.tenantId) {
+  if (!req.session.tenantId || !req.session.ownerId) {
     return res.status(401).json({ message: "Tizimga kirilmagan" });
   }
   next();
@@ -552,9 +552,14 @@ export async function registerRoutes(
 
   app.post("/api/dealers", requireTenant, async (req, res) => {
     try {
-      const parsed = insertDealerSchema.parse({ ...req.body, tenantId: req.session.tenantId });
+      const data = { ...req.body, tenantId: req.session.tenantId };
+      if (data.password) {
+        data.password = hashPassword(data.password);
+      }
+      const parsed = insertDealerSchema.parse(data);
       const dealer = await storage.createDealer(parsed);
-      res.json(dealer);
+      const { password: _, ...safe } = dealer;
+      res.json(safe);
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
@@ -563,9 +568,18 @@ export async function registerRoutes(
   app.patch("/api/dealers/:id", requireTenant, async (req, res) => {
     const existing = await storage.getDealer(req.params.id);
     if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Diller topilmadi" });
-    const { name, phone, vehicleInfo, active } = req.body;
-    const dealer = await storage.updateDealer(req.params.id, { name, phone, vehicleInfo, active });
-    res.json(dealer);
+    const { name, phone, vehicleInfo, active, password } = req.body;
+    const updateData: any = { name, phone, vehicleInfo, active };
+    if (password) {
+      updateData.password = hashPassword(password);
+    }
+    const dealer = await storage.updateDealer(req.params.id, updateData);
+    if (dealer) {
+      const { password: _, ...safe } = dealer;
+      res.json(safe);
+    } else {
+      res.json(dealer);
+    }
   });
 
   app.get("/api/dealers/:id/inventory", requireTenant, async (req, res) => {
@@ -955,6 +969,150 @@ export async function registerRoutes(
       res.json(allTenants);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // ===== DEALER PORTAL AUTH =====
+  const requireDealer = (req: any, res: any, next: any) => {
+    if (!req.session.dealerId) {
+      return res.status(401).json({ message: "Tizimga kirilmagan" });
+    }
+    next();
+  };
+
+  app.post("/api/dealer-portal/login", async (req, res) => {
+    try {
+      const { phone, password, tenantId } = req.body;
+      if (!phone || !password) {
+        return res.status(400).json({ message: "Telefon va parol majburiy" });
+      }
+      if (!tenantId) {
+        return res.status(400).json({ message: "Do'kon tanlanmagan" });
+      }
+      const dealer = await storage.getDealerByPhone(phone, tenantId);
+      if (!dealer || !dealer.password) {
+        return res.status(401).json({ message: "Telefon raqam yoki parol noto'g'ri" });
+      }
+      if (dealer.password !== hashPassword(password)) {
+        return res.status(401).json({ message: "Telefon raqam yoki parol noto'g'ri" });
+      }
+      if (!dealer.active) {
+        return res.status(403).json({ message: "Hisob nofaol" });
+      }
+      req.session.dealerId = dealer.id;
+      req.session.dealerName = dealer.name;
+      req.session.tenantId = tenantId;
+      req.session.ownerId = undefined;
+      req.session.customerId = undefined;
+      req.session.customerName = undefined;
+      req.session.superAdmin = undefined;
+      const { password: _, ...safe } = dealer;
+      res.json(safe);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/dealer-portal/me", async (req, res) => {
+    if (!req.session.dealerId) {
+      return res.status(401).json({ message: "Tizimga kirilmagan" });
+    }
+    const dealer = await storage.getDealer(req.session.dealerId);
+    if (!dealer) return res.status(404).json({ message: "Diller topilmadi" });
+    const { password: _, ...safe } = dealer;
+    res.json(safe);
+  });
+
+  app.post("/api/dealer-portal/logout", (req, res) => {
+    req.session.destroy(() => {
+      res.json({ success: true });
+    });
+  });
+
+  app.get("/api/dealer-portal/inventory", requireDealer, async (req, res) => {
+    const dealerId = req.session.dealerId!;
+    const tenantId = req.session.tenantId!;
+    const inventory = await storage.getDealerInventory(dealerId);
+    const allProducts = await storage.getProducts(tenantId);
+    const enriched = inventory.filter(i => i.quantity > 0).map((item) => {
+      const product = allProducts.find((p) => p.id === item.productId);
+      return {
+        ...item,
+        productName: product?.name || "Noma'lum",
+        productUnit: product?.unit || "dona",
+        productPrice: product?.price || "0",
+        productCostPrice: product?.costPrice || "0",
+        productImage: product?.imageUrl || null,
+      };
+    });
+    res.json(enriched);
+  });
+
+  app.get("/api/dealer-portal/transactions", requireDealer, async (req, res) => {
+    const dealerId = req.session.dealerId!;
+    const tenantId = req.session.tenantId!;
+    const transactions = await storage.getDealerTransactions(dealerId);
+    const allProducts = await storage.getProducts(tenantId);
+    const enriched = transactions.map((tx) => {
+      const product = allProducts.find((p) => p.id === tx.productId);
+      return { ...tx, productName: product?.name || "Noma'lum", productUnit: product?.unit || "dona" };
+    });
+    res.json(enriched);
+  });
+
+  app.get("/api/dealer-portal/payments", requireDealer, async (req, res) => {
+    const dealerId = req.session.dealerId!;
+    const payments = await storage.getPayments(req.session.tenantId!);
+    const dealerPayments = payments.filter((p: any) => p.dealerId === dealerId);
+    res.json(dealerPayments);
+  });
+
+  app.post("/api/dealer-portal/sell", requireDealer, async (req, res) => {
+    try {
+      const dealerId = req.session.dealerId!;
+      const tenantId = req.session.tenantId!;
+      const dealer = await storage.getDealer(dealerId);
+      if (!dealer) return res.status(404).json({ message: "Diller topilmadi" });
+
+      const sellSchema = z.object({
+        items: z.array(z.object({
+          productId: z.string().min(1),
+          quantity: z.number().int().positive(),
+          price: z.number().positive(),
+        })).min(1, "Mahsulotlar tanlanmagan"),
+        customerName: z.string().optional().nullable(),
+        customerPhone: z.string().optional().nullable(),
+        notes: z.string().optional().nullable(),
+      });
+      const { items, customerName, customerPhone, notes } = sellSchema.parse(req.body);
+
+      let totalAmount = 0;
+      for (const item of items) {
+        const inv = await storage.getDealerInventoryItem(dealerId, item.productId);
+        if (!inv || inv.quantity < item.quantity) {
+          return res.status(400).json({ message: "Omborda yetarli mahsulot yo'q" });
+        }
+        totalAmount += item.price * item.quantity;
+      }
+
+      for (const item of items) {
+        const inv = await storage.getDealerInventoryItem(dealerId, item.productId);
+        if (!inv) continue;
+        await storage.upsertDealerInventory(dealerId, item.productId, inv.quantity - item.quantity, tenantId);
+        await storage.createDealerTransaction({
+          tenantId,
+          dealerId,
+          productId: item.productId,
+          type: "sell",
+          quantity: item.quantity,
+          price: String(item.price),
+          notes: notes || `Mijoz: ${customerName || "Noma'lum"}${customerPhone ? ` (${customerPhone})` : ""}`,
+        });
+      }
+
+      res.json({ success: true, totalAmount });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
     }
   });
 

@@ -103,6 +103,7 @@ export interface IStorage {
 
   getDealers(tenantId: string): Promise<Dealer[]>;
   getDealer(id: string): Promise<Dealer | undefined>;
+  getDealerByPhone(phone: string, tenantId: string): Promise<Dealer | undefined>;
   createDealer(dealer: InsertDealer): Promise<Dealer>;
   updateDealer(id: string, dealer: Partial<InsertDealer>): Promise<Dealer | undefined>;
   getDealerInventory(dealerId: string): Promise<DealerInventory[]>;
@@ -409,6 +410,13 @@ export class DatabaseStorage implements IStorage {
 
   async getDealer(id: string): Promise<Dealer | undefined> {
     const [dealer] = await db.select().from(dealers).where(eq(dealers.id, id));
+    return dealer;
+  }
+
+  async getDealerByPhone(phone: string, tenantId: string): Promise<Dealer | undefined> {
+    const [dealer] = await db.select().from(dealers).where(
+      and(eq(dealers.phone, phone), eq(dealers.tenantId, tenantId))
+    );
     return dealer;
   }
 

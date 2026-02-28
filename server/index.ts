@@ -81,6 +81,8 @@ declare module "express-session" {
     ownerId?: string;
     customerId?: string;
     customerName?: string;
+    dealerId?: string;
+    dealerName?: string;
     superAdmin?: boolean;
   }
 }

@@ -64,6 +64,7 @@ export default function Dealers() {
   const [formName, setFormName] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formVehicle, setFormVehicle] = useState("");
+  const [formPassword, setFormPassword] = useState("");
 
   const { toast } = useToast();
 
@@ -201,6 +202,7 @@ export default function Dealers() {
     setFormName("");
     setFormPhone("");
     setFormVehicle("");
+    setFormPassword("");
   };
 
   const resetCart = () => {
@@ -938,11 +940,22 @@ export default function Dealers() {
                 data-testid="input-dealer-vehicle"
               />
             </div>
+            <div>
+              <Label>Parol (portal uchun)</Label>
+              <Input
+                type="password"
+                placeholder="Parol kiriting"
+                value={formPassword}
+                onChange={(e) => setFormPassword(e.target.value)}
+                data-testid="input-dealer-password"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Diller portaliga kirish uchun parol</p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Bekor qilish</Button>
             <Button
-              onClick={() => createMutation.mutate({ name: formName, phone: formPhone || null, vehicleInfo: formVehicle || null })}
+              onClick={() => createMutation.mutate({ name: formName, phone: formPhone || null, vehicleInfo: formVehicle || null, password: formPassword || null })}
               disabled={!formName.trim() || createMutation.isPending}
               data-testid="button-create-dealer"
             >
@@ -982,6 +995,16 @@ export default function Dealers() {
                 data-testid="input-edit-dealer-vehicle"
               />
             </div>
+            <div>
+              <Label>Yangi parol (bo'sh qoldirsa o'zgarmaydi)</Label>
+              <Input
+                type="password"
+                placeholder="Yangi parol"
+                value={formPassword}
+                onChange={(e) => setFormPassword(e.target.value)}
+                data-testid="input-edit-dealer-password"
+              />
+            </div>
             <div className="flex items-center gap-2">
               <Label>Holati:</Label>
               <Select value={editDealer?.active ? "true" : "false"} onValueChange={(v) => setEditDealer(editDealer ? { ...editDealer, active: v === "true" } : null)}>
@@ -1000,7 +1023,11 @@ export default function Dealers() {
             <Button
               onClick={() => editDealer && updateMutation.mutate({
                 id: editDealer.id,
-                data: { name: formName, phone: formPhone || null, vehicleInfo: formVehicle || null, active: editDealer.active },
+                data: {
+                  name: formName, phone: formPhone || null, vehicleInfo: formVehicle || null,
+                  active: editDealer.active,
+                  ...(formPassword ? { password: formPassword } : {}),
+                },
               })}
               disabled={!formName.trim() || updateMutation.isPending}
               data-testid="button-update-dealer"

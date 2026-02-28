@@ -26,6 +26,8 @@ import OrdersManagement from "@/pages/orders-management";
 import DealersPage from "@/pages/dealers";
 import PortalLogin from "@/pages/portal/login";
 import PortalLayout from "@/pages/portal/portal-layout";
+import DealerLogin from "@/pages/dealer-portal/login";
+import DealerLayout from "@/pages/dealer-portal/layout";
 import SuperAdminPage from "@/pages/super/index";
 
 function AdminRouter() {
@@ -130,9 +132,41 @@ function PortalApp() {
   return <PortalLayout onLogout={() => setIsLoggedIn(false)} />;
 }
 
+function DealerPortalApp() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["/api/dealer-portal/me"],
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (!isLoading) {
+      setIsLoggedIn(!isError && !!data);
+      setChecking(false);
+    }
+  }, [isLoading, isError, data]);
+
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-muted-foreground">Yuklanmoqda...</div>
+      </div>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return <DealerLogin onLogin={() => setIsLoggedIn(true)} />;
+  }
+
+  return <DealerLayout onLogout={() => setIsLoggedIn(false)} />;
+}
+
 function App() {
   const [location] = useLocation();
   const isSuperAdmin = location.startsWith("/saas-admin");
+  const isDealerPortal = location.startsWith("/dealer-portal");
   const isPortal = location.startsWith("/portal");
   const isAuth = location.startsWith("/auth");
   const isLanding = location === "/";
@@ -149,6 +183,8 @@ function App() {
         <Route path="/auth/register" component={OwnerRegister} />
       </Switch>
     );
+  } else if (isDealerPortal) {
+    content = <DealerPortalApp />;
   } else if (isPortal) {
     content = <PortalApp />;
   } else {

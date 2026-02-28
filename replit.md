@@ -27,6 +27,7 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 - `/auth/register` - Owner registration (creates tenant + seeds initial data)
 - `/dashboard`, `/pos`, `/products`, etc. - Admin panel (requires tenant auth)
 - `/portal` - Customer portal (requires customer auth within a tenant)
+- `/dealer-portal` - Dealer portal (phone + password auth within a tenant)
 - `/saas-admin` - Super admin panel (password-protected, manages all tenants & plans, change password)
 
 ## Admin Modules (/dashboard, /pos, etc.)
@@ -40,7 +41,7 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 8. **Suppliers** - Supplier management (name, phone, company, address)
 9. **Purchases (Kirim)** - Inventory procurement from suppliers, auto-updates stock
 10. **Orders (Buyurtmalar)** - Portal order management with full flow (confirm, send to delivery, shipped, customer receive), status filter, print list and individual order
-11. **Dillerlar** - Dealer management: ombordan mahsulot yuklash, mijozga sotish, omborga qaytarish, inventory tracking, transaction history with print; category filter in load dialog
+11. **Dillerlar** - Dealer management: ombordan mahsulot yuklash, mijozga sotish, omborga qaytarish, inventory tracking, transaction history with print; category filter in load dialog; password field for dealer portal access
 12. **Roles** - Role creation with granular permissions
 12. **Employees** - Employee management with role assignment
 13. **Settings** - Company info, Telegram bot config, webhook setup
@@ -54,6 +55,14 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 - When admin sets order to "delivering", a delivery record is auto-created in deliveries table
 - PDF export: full orders list or individual order detail (printable HTML)
 - Debt Tracking with payment history
+
+## Dealer Portal (/dealer-portal)
+- Login with store selector + phone + password (password set by admin)
+- Inventory view: see all products loaded by admin with quantities and values
+- Sell: select products from inventory, enter customer info, confirm sale (decreases dealer inventory)
+- History: view all transactions (load/sell/return) with details
+- Debt & Payments: view current debt and payment history
+- API: `/api/dealer-portal/login`, `/api/dealer-portal/me`, `/api/dealer-portal/logout`, `/api/dealer-portal/inventory`, `/api/dealer-portal/transactions`, `/api/dealer-portal/payments`, `/api/dealer-portal/sell`
 
 ## Key Files
 - `shared/schema.ts` - All database schemas with tenantId columns
