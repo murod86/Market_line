@@ -119,8 +119,11 @@ export async function registerRoutes(
       req.session.tenantId = tenant.id;
       req.session.tenantName = tenant.name;
       req.session.ownerId = tenant.id;
-      const { password: _, ...safe } = tenant;
-      res.json(safe);
+      req.session.save((err) => {
+        if (err) return res.status(500).json({ message: "Session saqlashda xatolik" });
+        const { password: _, ...safe } = tenant;
+        res.json(safe);
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -145,8 +148,11 @@ export async function registerRoutes(
       req.session.tenantId = tenant.id;
       req.session.tenantName = tenant.name;
       req.session.ownerId = tenant.id;
-      const { password: _, ...safe } = tenant;
-      res.json(safe);
+      req.session.save((err) => {
+        if (err) return res.status(500).json({ message: "Session saqlashda xatolik" });
+        const { password: _, ...safe } = tenant;
+        res.json(safe);
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -1112,7 +1118,10 @@ export async function registerRoutes(
       }
       superLoginAttempts.delete(ip);
       req.session.superAdmin = true;
-      res.json({ success: true });
+      req.session.save((err) => {
+        if (err) return res.status(500).json({ message: "Session saqlashda xatolik" });
+        res.json({ success: true });
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
@@ -1163,7 +1172,10 @@ export async function registerRoutes(
         return res.json({ success: true, resetAllowed: true });
       }
       req.session.superAdmin = true;
-      res.json({ success: true });
+      req.session.save((err) => {
+        if (err) return res.status(500).json({ message: "Session saqlashda xatolik" });
+        res.json({ success: true });
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
