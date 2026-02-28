@@ -4,10 +4,24 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import { pool } from "./db";
 
 const app = express();
 app.set("trust proxy", 1);
 const httpServer = createServer(app);
+
+async function ensureSessionTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "session" (
+      "sid" varchar NOT NULL COLLATE "default",
+      "sess" json NOT NULL,
+      "expire" timestamp(6) NOT NULL,
+      CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
+    ) WITH (OIDS=FALSE);
+    CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+  `);
+}
+ensureSessionTable().catch(console.error);
 
 declare module "http" {
   interface IncomingMessage {
@@ -40,8 +54,8 @@ const PgSession = connectPgSimple(session);
 app.use(
   session({
     store: new PgSession({
-      conString: process.env.DATABASE_URL,
-      createTableIfMissing: true,
+      pool: pool,
+      tableName: "session",
     }),
     secret: process.env.SESSION_SECRET!,
     resave: false,
