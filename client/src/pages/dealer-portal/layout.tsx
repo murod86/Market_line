@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Package, ShoppingCart, History, CreditCard, LogOut, Truck,
-  Minus, Plus, Trash2, User, Phone
+  Minus, Plus, Trash2, User, Phone, LayoutDashboard, TrendingUp, TrendingDown, Wallet, ArrowDownToLine, ArrowUpFromLine
 } from "lucide-react";
 import { format } from "date-fns";
 import logoImg from "@assets/marketline_final_v1.png";
@@ -26,7 +26,7 @@ interface DealerLayoutProps {
 }
 
 export default function DealerLayout({ onLogout }: DealerLayoutProps) {
-  const [activeTab, setActiveTab] = useState<"inventory" | "sell" | "delivery" | "history" | "debt">("inventory");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "inventory" | "sell" | "delivery" | "history" | "debt">("dashboard");
   const { toast } = useToast();
 
   const { data: dealer, isLoading } = useQuery<any>({
@@ -52,6 +52,7 @@ export default function DealerLayout({ onLogout }: DealerLayoutProps) {
   }
 
   const tabs = [
+    { id: "dashboard" as const, label: "Bosh sahifa", icon: LayoutDashboard },
     { id: "inventory" as const, label: "Ombor", icon: Package },
     { id: "sell" as const, label: "Sotish", icon: ShoppingCart },
     { id: "delivery" as const, label: "Yetkazish", icon: Truck },
@@ -107,12 +108,138 @@ export default function DealerLayout({ onLogout }: DealerLayoutProps) {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6">
+        {activeTab === "dashboard" && <DashboardTab dealer={dealer} />}
         {activeTab === "inventory" && <InventoryTab />}
         {activeTab === "sell" && <SellTab />}
         {activeTab === "delivery" && <DeliveryTab />}
         {activeTab === "history" && <HistoryTab />}
         {activeTab === "debt" && <DebtTab dealer={dealer} />}
       </main>
+    </div>
+  );
+}
+
+function DashboardTab({ dealer }: { dealer: any }) {
+  const { data: inventory, isLoading: invLoading } = useQuery<any[]>({
+    queryKey: ["/api/dealer-portal/inventory"],
+  });
+  const { data: transactions, isLoading: txLoading } = useQuery<any[]>({
+    queryKey: ["/api/dealer-portal/transactions"],
+  });
+  const { data: payments, isLoading: payLoading } = useQuery<any[]>({
+    queryKey: ["/api/dealer-portal/payments"],
+  });
+
+  if (invLoading || txLoading || payLoading) return <Skeleton className="h-64 w-full" />;
+
+  const inventoryValue = inventory?.reduce((s, i) => s + i.quantity * Number(i.productPrice), 0) || 0;
+  const inventoryCount = inventory?.reduce((s, i) => s + i.quantity, 0) || 0;
+
+  const loadTxs = transactions?.filter((t: any) => t.type === "load") || [];
+  const sellTxs = transactions?.filter((t: any) => t.type === "sell") || [];
+
+  const totalLoaded = loadTxs.reduce((s: number, t: any) => s + Number(t.total), 0);
+  const totalSold = sellTxs.reduce((s: number, t: any) => s + Number(t.total), 0);
+  const totalPaid = payments?.reduce((s: number, p: any) => s + Number(p.amount), 0) || 0;
+  const currentDebt = Number(dealer?.debt || 0);
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todaySales = sellTxs.filter((t: any) => new Date(t.createdAt) >= todayStart);
+  const todayTotal = todaySales.reduce((s: number, t: any) => s + Number(t.total), 0);
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-lg font-bold" data-testid="text-dashboard-title">Bosh sahifa</h2>
+
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <Package className="h-6 w-6 mx-auto mb-2 text-blue-500" />
+            <p className="text-xs text-muted-foreground">Ombor qiymati</p>
+            <p className="text-lg font-bold text-blue-600" data-testid="text-dash-inv-value">{formatCurrency(inventoryValue)}</p>
+            <p className="text-xs text-muted-foreground">{inventoryCount} ta mahsulot</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <TrendingDown className="h-6 w-6 mx-auto mb-2 text-orange-500" />
+            <p className="text-xs text-muted-foreground">Joriy qarz</p>
+            <p className="text-lg font-bold text-destructive" data-testid="text-dash-debt">{formatCurrency(currentDebt)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <ArrowDownToLine className="h-6 w-6 mx-auto mb-2 text-purple-500" />
+            <p className="text-xs text-muted-foreground">Jami yuklangan</p>
+            <p className="text-lg font-bold" data-testid="text-dash-loaded">{formatCurrency(totalLoaded)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <TrendingUp className="h-6 w-6 mx-auto mb-2 text-green-500" />
+            <p className="text-xs text-muted-foreground">Jami sotilgan</p>
+            <p className="text-lg font-bold text-green-600" data-testid="text-dash-sold">{formatCurrency(totalSold)}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <Wallet className="h-6 w-6 mx-auto mb-2 text-green-500" />
+            <p className="text-xs text-muted-foreground">Jami to'langan</p>
+            <p className="text-lg font-bold text-green-600" data-testid="text-dash-paid">{formatCurrency(totalPaid)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <ArrowUpFromLine className="h-6 w-6 mx-auto mb-2 text-indigo-500" />
+            <p className="text-xs text-muted-foreground">Bugungi sotuvlar</p>
+            <p className="text-lg font-bold text-indigo-600" data-testid="text-dash-today">{formatCurrency(todayTotal)}</p>
+            <p className="text-xs text-muted-foreground">{todaySales.length} ta savdo</p>
+          </CardContent>
+        </Card>
+        <Card className="col-span-2 lg:col-span-1">
+          <CardContent className="p-4 text-center">
+            <ShoppingCart className="h-6 w-6 mx-auto mb-2 text-cyan-500" />
+            <p className="text-xs text-muted-foreground">Umumiy savdolar soni</p>
+            <p className="text-lg font-bold" data-testid="text-dash-sales-count">{sellTxs.length} ta</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {sellTxs.length > 0 && (
+        <div>
+          <h3 className="font-semibold text-sm text-muted-foreground mb-3">Oxirgi sotuvlar</h3>
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Sana</TableHead>
+                    <TableHead>Mahsulot</TableHead>
+                    <TableHead>Soni</TableHead>
+                    <TableHead>Summa</TableHead>
+                    <TableHead>Mijoz</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sellTxs.slice(-10).reverse().map((t: any) => (
+                    <TableRow key={t.id} data-testid={`row-dash-sale-${t.id}`}>
+                      <TableCell className="text-xs">{format(new Date(t.createdAt), "dd.MM HH:mm")}</TableCell>
+                      <TableCell className="text-sm font-medium">{t.productName || t.productId}</TableCell>
+                      <TableCell>{t.quantity}</TableCell>
+                      <TableCell className="font-medium text-green-600">{formatCurrency(Number(t.total))}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{t.customerName || "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
