@@ -27,7 +27,7 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 - `/auth/register` - Owner registration (creates tenant + seeds initial data)
 - `/dashboard`, `/pos`, `/products`, etc. - Admin panel (requires tenant auth)
 - `/portal` - Customer portal (requires customer auth within a tenant)
-- `/saas-admin` - Super admin panel (password-protected, manages all tenants & plans)
+- `/saas-admin` - Super admin panel (password-protected, manages all tenants & plans, change password)
 
 ## Admin Modules (/dashboard, /pos, etc.)
 1. **Dashboard** - Overview stats (sales, stock, customers, debt)
@@ -69,8 +69,8 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 ## Super Admin Panel (/saas-admin)
 - Password-protected via `SUPER_ADMIN_PASSWORD` env var (default: admin2025)
 - Session field `superAdmin: boolean` with `requireSuperAdmin` middleware
-- Features: tenant listing, plan/active toggling, plan CRUD, stats overview, tenant deletion with confirmation
-- API: `/api/super/login`, `/api/super/me`, `/api/super/logout`, `/api/super/tenants` (GET/PATCH/DELETE), `/api/super/plans` (GET/POST/PATCH/DELETE), `/api/super/stats`
+- Features: tenant listing, plan/active toggling, plan CRUD, stats overview, tenant deletion with confirmation, password change
+- API: `/api/super/login`, `/api/super/me`, `/api/super/logout`, `/api/super/tenants` (GET/PATCH/DELETE), `/api/super/plans` (GET/POST/PATCH/DELETE), `/api/super/stats`, `/api/super/change-password` (POST)
 - Plans table stores pricing info (name, slug, price, maxProducts, maxEmployees, features, sortOrder)
 - Landing page pricing dynamically fetches from `/api/plans/public`
 

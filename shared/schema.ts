@@ -173,6 +173,7 @@ export const dealers = pgTable("dealers", {
   name: text("name").notNull(),
   phone: text("phone"),
   vehicleInfo: text("vehicle_info"),
+  debt: decimal("debt", { precision: 12, scale: 2 }).notNull().default("0"),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -211,6 +212,22 @@ export const dealerTransactions = pgTable("dealer_transactions", {
 export const insertDealerTransactionSchema = createInsertSchema(dealerTransactions).omit({ id: true, createdAt: true });
 export type InsertDealerTransaction = z.infer<typeof insertDealerTransactionSchema>;
 export type DealerTransaction = typeof dealerTransactions.$inferSelect;
+
+export const payments = pgTable("payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  type: text("type").notNull(),
+  customerId: varchar("customer_id").references(() => customers.id),
+  dealerId: varchar("dealer_id").references(() => dealers.id),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  method: text("method").notNull().default("cash"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true, createdAt: true });
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type Payment = typeof payments.$inferSelect;
 
 export const suppliers = pgTable("suppliers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

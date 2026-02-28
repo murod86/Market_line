@@ -10,7 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Customer } from "@shared/schema";
-import { Plus, Search, Edit, Phone, MapPin, Lock, QrCode, Download } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Search, Edit, Phone, MapPin, Lock, QrCode, Download, Banknote, History } from "lucide-react";
+import { format } from "date-fns";
 import { QRCodeSVG } from "qrcode.react";
 import logoImg from "@assets/marketline_final_v1.png";
 
@@ -24,6 +27,11 @@ export default function Customers() {
   const [editing, setEditing] = useState<Customer | null>(null);
   const [qrCustomer, setQrCustomer] = useState<Customer | null>(null);
   const [showQrAfterSave, setShowQrAfterSave] = useState(false);
+  const [payCustomer, setPayCustomer] = useState<Customer | null>(null);
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState("cash");
+  const [payNotes, setPayNotes] = useState("");
+  const [payHistoryCustomer, setPayHistoryCustomer] = useState<Customer | null>(null);
   const [form, setForm] = useState({
     fullName: "", phone: "", address: "", telegramId: "", password: "",
   });
@@ -58,6 +66,43 @@ export default function Customers() {
       toast({ title: "Xatolik", description: error.message, variant: "destructive" });
     },
   });
+
+  const { data: payHistory } = useQuery<any[]>({
+    queryKey: ["/api/payments", "customer", payHistoryCustomer?.id],
+    enabled: !!payHistoryCustomer,
+  });
+
+  const paymentMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/payments/customer", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "To'lov qabul qilindi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
+      setPayCustomer(null);
+      setPayAmount("");
+      setPayMethod("cash");
+      setPayNotes("");
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const submitPayment = () => {
+    if (!payCustomer || !payAmount) return;
+    const amount = Number(payAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({ title: "Noto'g'ri summa", variant: "destructive" });
+      return;
+    }
+    paymentMutation.mutate({
+      customerId: payCustomer.id,
+      amount,
+      method: payMethod,
+      notes: payNotes.trim() || null,
+    });
+  };
 
   const resetForm = () => {
     setForm({ fullName: "", phone: "", address: "", telegramId: "", password: "" });
@@ -273,6 +318,27 @@ export default function Customers() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
+                        {Number(customer.debt) > 0 && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => { setPayCustomer(customer); setPayAmount(""); setPayNotes(""); setPayMethod("cash"); }}
+                            data-testid={`button-pay-customer-${customer.id}`}
+                            title="To'lov qilish"
+                            className="text-green-600"
+                          >
+                            <Banknote className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setPayHistoryCustomer(customer)}
+                          data-testid={`button-history-customer-${customer.id}`}
+                          title="To'lov tarixi"
+                        >
+                          <History className="h-4 w-4" />
+                        </Button>
                         <Button
                           size="icon"
                           variant="ghost"
@@ -409,6 +475,117 @@ export default function Customers() {
                   Yopish
                 </Button>
               </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!payCustomer} onOpenChange={(o) => { if (!o) setPayCustomer(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Banknote className="h-5 w-5 text-green-600" />
+              To'lov qabul qilish
+            </DialogTitle>
+          </DialogHeader>
+          {payCustomer && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-md bg-muted/50 border">
+                <p className="font-medium">{payCustomer.fullName}</p>
+                <p className="text-sm text-muted-foreground">{payCustomer.phone}</p>
+                <p className="text-lg font-bold text-destructive mt-1">
+                  Qarz: {formatCurrency(Number(payCustomer.debt))}
+                </p>
+              </div>
+              <div>
+                <Label>To'lov summasi *</Label>
+                <Input
+                  type="number"
+                  placeholder="Summa kiriting"
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(e.target.value)}
+                  data-testid="input-payment-amount"
+                />
+                <div className="flex gap-1 mt-1">
+                  <Button size="sm" variant="outline" onClick={() => setPayAmount(String(Number(payCustomer.debt)))} data-testid="button-pay-full">
+                    To'liq to'lash
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <Label>To'lov turi</Label>
+                <Select value={payMethod} onValueChange={setPayMethod}>
+                  <SelectTrigger data-testid="select-payment-method">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Naqd</SelectItem>
+                    <SelectItem value="card">Karta</SelectItem>
+                    <SelectItem value="transfer">O'tkazma</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Izoh (ixtiyoriy)</Label>
+                <Input
+                  placeholder="Izoh..."
+                  value={payNotes}
+                  onChange={(e) => setPayNotes(e.target.value)}
+                  data-testid="input-payment-notes"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPayCustomer(null)}>Bekor qilish</Button>
+            <Button
+              onClick={submitPayment}
+              disabled={paymentMutation.isPending || !payAmount}
+              data-testid="button-submit-payment"
+            >
+              {paymentMutation.isPending ? "Yuklanmoqda..." : "To'lovni tasdiqlash"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!payHistoryCustomer} onOpenChange={(o) => { if (!o) setPayHistoryCustomer(null); }}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              To'lov tarixi — {payHistoryCustomer?.fullName}
+            </DialogTitle>
+          </DialogHeader>
+          {payHistory && payHistory.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Sana</TableHead>
+                  <TableHead>Summa</TableHead>
+                  <TableHead>Turi</TableHead>
+                  <TableHead>Izoh</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {payHistory.map((p: any) => (
+                  <TableRow key={p.id} data-testid={`payment-row-${p.id}`}>
+                    <TableCell className="text-xs">{format(new Date(p.createdAt), "dd.MM.yyyy HH:mm")}</TableCell>
+                    <TableCell className="font-medium text-green-600">{formatCurrency(Number(p.amount))}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">
+                        {p.method === "cash" ? "Naqd" : p.method === "card" ? "Karta" : "O'tkazma"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{p.notes || "-"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <History className="h-8 w-8 mx-auto mb-2 opacity-20" />
+              <p>To'lov tarixi mavjud emas</p>
             </div>
           )}
         </DialogContent>

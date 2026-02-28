@@ -4,7 +4,7 @@ import {
   plans, tenants, roles, employees, categories, products, customers,
   sales, saleItems, deliveries, deliveryItems, settings,
   suppliers, purchases, purchaseItems,
-  dealers, dealerInventory, dealerTransactions,
+  dealers, dealerInventory, dealerTransactions, payments,
   type InsertPlan, type Plan,
   type InsertTenant, type Tenant,
   type InsertRole, type Role,
@@ -23,6 +23,7 @@ import {
   type InsertDealer, type Dealer,
   type InsertDealerInventory, type DealerInventory,
   type InsertDealerTransaction, type DealerTransaction,
+  type InsertPayment, type Payment,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -109,6 +110,9 @@ export interface IStorage {
   upsertDealerInventory(dealerId: string, productId: string, quantity: number, tenantId: string): Promise<DealerInventory>;
   getDealerTransactions(dealerId: string): Promise<DealerTransaction[]>;
   createDealerTransaction(tx: InsertDealerTransaction): Promise<DealerTransaction>;
+
+  getPayments(tenantId: string, type?: string, entityId?: string): Promise<Payment[]>;
+  createPayment(payment: InsertPayment): Promise<Payment>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -453,6 +457,21 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
+  async getPayments(tenantId: string, type?: string, entityId?: string): Promise<Payment[]> {
+    let conditions = [eq(payments.tenantId, tenantId)];
+    if (type === "customer" && entityId) {
+      conditions.push(eq(payments.type, "customer"), eq(payments.customerId, entityId));
+    } else if (type === "dealer" && entityId) {
+      conditions.push(eq(payments.type, "dealer"), eq(payments.dealerId, entityId));
+    }
+    return await db.select().from(payments).where(and(...conditions)).orderBy(desc(payments.createdAt));
+  }
+
+  async createPayment(payment: InsertPayment): Promise<Payment> {
+    const [created] = await db.insert(payments).values(payment).returning();
+    return created;
+  }
+
   async deleteTenant(id: string): Promise<void> {
     await db.transaction(async (tx) => {
       await tx.delete(settings).where(eq(settings.tenantId, id));
@@ -470,6 +489,7 @@ export class DatabaseStorage implements IStorage {
       }
       await tx.delete(purchases).where(eq(purchases.tenantId, id));
 
+      await tx.delete(payments).where(eq(payments.tenantId, id));
       await tx.delete(dealerTransactions).where(eq(dealerTransactions.tenantId, id));
       await tx.delete(dealerInventory).where(eq(dealerInventory.tenantId, id));
       await tx.delete(dealers).where(eq(dealers.tenantId, id));

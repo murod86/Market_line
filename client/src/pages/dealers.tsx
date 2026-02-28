@@ -17,7 +17,7 @@ import type { Dealer, Product, Category } from "@shared/schema";
 import {
   UserCheck, Plus, Edit, Phone, Car, Package, Search,
   Minus, Trash2, ArrowDownToLine, ArrowUpFromLine, ShoppingCart,
-  History, Eye, Printer, RotateCcw
+  History, Eye, Printer, RotateCcw, Banknote
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -49,6 +49,10 @@ export default function Dealers() {
   const [loadOpen, setLoadOpen] = useState(false);
   const [sellOpen, setSellOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
+  const [payOpen, setPayOpen] = useState(false);
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState("cash");
+  const [payNotes, setPayNotes] = useState("");
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -74,6 +78,11 @@ export default function Dealers() {
 
   const { data: transactions } = useQuery<any[]>({
     queryKey: ["/api/dealers", detailDealer?.id, "transactions"],
+    enabled: !!detailDealer,
+  });
+
+  const { data: dealerPayments } = useQuery<any[]>({
+    queryKey: ["/api/payments", "dealer", detailDealer?.id],
     enabled: !!detailDealer,
   });
 
@@ -151,6 +160,42 @@ export default function Dealers() {
     },
     onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
   });
+
+  const paymentMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/payments/dealer", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "To'lov qabul qilindi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/payments", "dealer", detailDealer?.id] });
+      if (detailDealer) {
+        const newDebt = Math.max(0, Number(detailDealer.debt) - Number(payAmount));
+        setDetailDealer({ ...detailDealer, debt: newDebt.toFixed(2) });
+      }
+      setPayOpen(false);
+      setPayAmount("");
+      setPayMethod("cash");
+      setPayNotes("");
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const submitDealerPayment = () => {
+    if (!detailDealer || !payAmount) return;
+    const amount = Number(payAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({ title: "Noto'g'ri summa", variant: "destructive" });
+      return;
+    }
+    paymentMutation.mutate({
+      dealerId: detailDealer.id,
+      amount,
+      method: payMethod,
+      notes: payNotes.trim() || null,
+    });
+  };
 
   const resetForm = () => {
     setFormName("");
@@ -329,7 +374,42 @@ export default function Dealers() {
               <RotateCcw className="h-4 w-4 mr-1" />
               Qaytarish
             </Button>
+            {Number(detailDealer.debt) > 0 && (
+              <Button size="sm" variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => { setPayOpen(true); setPayAmount(""); setPayMethod("cash"); setPayNotes(""); }} data-testid="button-dealer-pay">
+                <Banknote className="h-4 w-4 mr-1" />
+                To'lov qilish
+              </Button>
+            )}
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Card>
+            <CardContent className="p-3 text-center">
+              <p className="text-xs text-muted-foreground">Qarz</p>
+              <p className="text-lg font-bold text-destructive" data-testid="text-dealer-debt">{formatCurrency(Number(detailDealer.debt))}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 text-center">
+              <p className="text-xs text-muted-foreground">Ombor qiymati</p>
+              <p className="text-lg font-bold text-primary" data-testid="text-dealer-inv-total">{formatCurrency(inventoryTotal)}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 text-center">
+              <p className="text-xs text-muted-foreground">Jami to'langan</p>
+              <p className="text-lg font-bold text-green-600" data-testid="text-dealer-paid">
+                {formatCurrency(dealerPayments?.reduce((s: number, p: any) => s + Number(p.amount), 0) || 0)}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-3 text-center">
+              <p className="text-xs text-muted-foreground">Mahsulotlar</p>
+              <p className="text-lg font-bold">{inventory?.length || 0} ta</p>
+            </CardContent>
+          </Card>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -341,6 +421,10 @@ export default function Dealers() {
             <TabsTrigger value="history" data-testid="tab-history">
               <History className="h-4 w-4 mr-1" />
               Tarix ({transactions?.length || 0})
+            </TabsTrigger>
+            <TabsTrigger value="payments" data-testid="tab-payments">
+              <Banknote className="h-4 w-4 mr-1" />
+              To'lovlar ({dealerPayments?.length || 0})
             </TabsTrigger>
           </TabsList>
 

@@ -642,6 +642,14 @@ export async function registerRoutes(
         });
       }
 
+      let totalLoaded = 0;
+      for (const item of items) {
+        const product = await storage.getProduct(item.productId);
+        if (product) totalLoaded += Number(product.price) * item.quantity;
+      }
+      const currentDebt = Number(dealer!.debt);
+      await storage.updateDealer(req.params.id, { debt: (currentDebt + totalLoaded).toFixed(2) });
+
       res.json({ message: "Mahsulotlar dillerga yuklandi" });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
@@ -741,7 +749,104 @@ export async function registerRoutes(
         });
       }
 
+      let totalReturned = 0;
+      for (const item of items) {
+        const product = await storage.getProduct(item.productId);
+        if (product) totalReturned += Number(product.price) * item.quantity;
+      }
+      const currentDebt = Number(dealer!.debt);
+      await storage.updateDealer(req.params.id, { debt: Math.max(0, currentDebt - totalReturned).toFixed(2) });
+
       res.json({ message: "Mahsulotlar omborga qaytarildi" });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  // ===== PAYMENTS (TO'LOVLAR) =====
+  app.get("/api/payments", requireTenant, async (req, res) => {
+    const { type, entityId } = req.query;
+    const data = await storage.getPayments(
+      req.session.tenantId!,
+      type as string | undefined,
+      entityId as string | undefined
+    );
+    res.json(data);
+  });
+
+  app.post("/api/payments/customer", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const paySchema = z.object({
+        customerId: z.string().min(1),
+        amount: z.number().positive("Summa musbat bo'lishi kerak"),
+        method: z.string().default("cash"),
+        notes: z.string().optional().nullable(),
+      });
+      const { customerId, amount, method, notes } = paySchema.parse(req.body);
+
+      const customer = await storage.getCustomer(customerId);
+      if (!customer || customer.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Mijoz topilmadi" });
+      }
+
+      const currentDebt = Number(customer.debt);
+      if (amount > currentDebt) {
+        return res.status(400).json({ message: `Qarz summasi ${currentDebt.toFixed(2)} UZS. Bundan ko'p to'lab bo'lmaydi` });
+      }
+
+      const newDebt = (currentDebt - amount).toFixed(2);
+      await storage.updateCustomer(customerId, { debt: newDebt });
+      const payment = await storage.createPayment({
+        tenantId,
+        type: "customer",
+        customerId,
+        dealerId: null,
+        amount: amount.toFixed(2),
+        method,
+        notes: notes || null,
+      });
+
+      res.json({ payment, newDebt });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/payments/dealer", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const paySchema = z.object({
+        dealerId: z.string().min(1),
+        amount: z.number().positive("Summa musbat bo'lishi kerak"),
+        method: z.string().default("cash"),
+        notes: z.string().optional().nullable(),
+      });
+      const { dealerId, amount, method, notes } = paySchema.parse(req.body);
+
+      const dealer = await storage.getDealer(dealerId);
+      if (!dealer || dealer.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Diller topilmadi" });
+      }
+
+      const currentDebt = Number(dealer.debt);
+      if (amount > currentDebt) {
+        return res.status(400).json({ message: `Diller qarzi ${currentDebt.toFixed(2)} UZS. Bundan ko'p to'lab bo'lmaydi` });
+      }
+
+      const newDebt = (currentDebt - amount).toFixed(2);
+      await storage.updateDealer(dealerId, { debt: newDebt });
+      const payment = await storage.createPayment({
+        tenantId,
+        type: "dealer",
+        customerId: null,
+        dealerId,
+        amount: amount.toFixed(2),
+        method,
+        notes: notes || null,
+      });
+
+      res.json({ payment, newDebt });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
     }
@@ -1615,6 +1720,29 @@ export async function registerRoutes(
       return res.status(401).json({ message: "Tizimga kirilmagan" });
     }
     res.json({ superAdmin: true });
+  });
+
+  const changePasswordSchema = z.object({
+    currentPassword: z.string().min(1, "Joriy parolni kiriting"),
+    newPassword: z.string().min(4, "Yangi parol kamida 4 ta belgidan iborat bo'lishi kerak"),
+  });
+
+  app.post("/api/super/change-password", requireSuperAdmin, async (req, res) => {
+    try {
+      const parsed = changePasswordSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+      const { currentPassword, newPassword } = parsed.data;
+      const superPassword = process.env.SUPER_ADMIN_PASSWORD || "admin2025";
+      if (currentPassword !== superPassword) {
+        return res.status(401).json({ message: "Joriy parol noto'g'ri" });
+      }
+      process.env.SUPER_ADMIN_PASSWORD = newPassword;
+      res.json({ success: true, message: "Parol muvaffaqiyatli o'zgartirildi" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
   });
 
   app.post("/api/super/logout", (req, res) => {

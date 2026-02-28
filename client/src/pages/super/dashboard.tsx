@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Store, Users, CreditCard, Shield, LogOut, Plus, Pencil, Trash2,
-  BarChart3, Building2, Loader2, AlertTriangle,
+  BarChart3, Building2, Loader2, AlertTriangle, Key,
 } from "lucide-react";
 import { DialogFooter } from "@/components/ui/dialog";
 
@@ -436,6 +436,112 @@ function PlansManager() {
   );
 }
 
+function PasswordChange() {
+  const [open, setOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const { toast } = useToast();
+
+  const mutation = useMutation({
+    mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
+      const res = await apiRequest("POST", "/api/super/change-password", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Parol muvaffaqiyatli o'zgartirildi" });
+      setOpen(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const handleSubmit = () => {
+    if (!currentPassword || !newPassword) {
+      toast({ title: "Barcha maydonlarni to'ldiring", variant: "destructive" });
+      return;
+    }
+    if (newPassword.length < 4) {
+      toast({ title: "Yangi parol kamida 4 ta belgidan iborat bo'lishi kerak", variant: "destructive" });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Yangi parollar mos kelmadi", variant: "destructive" });
+      return;
+    }
+    mutation.mutate({ currentPassword, newPassword });
+  };
+
+  return (
+    <Card className="bg-white/5 border-white/10 mt-8">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-white flex items-center gap-2 text-base">
+          <Key className="w-5 h-5 text-purple-400" />
+          Xavfsizlik sozlamalari
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" className="border-white/10 text-white hover:bg-white/10" data-testid="button-change-password">
+              <Key className="w-4 h-4 mr-2" />
+              Parolni o'zgartirish
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Key className="w-5 h-5 text-purple-500" />
+                Parolni o'zgartirish
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Joriy parol</Label>
+                <Input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Joriy parolni kiriting"
+                  data-testid="input-current-password"
+                />
+              </div>
+              <div>
+                <Label>Yangi parol</Label>
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Yangi parolni kiriting"
+                  data-testid="input-new-password"
+                />
+              </div>
+              <div>
+                <Label>Yangi parolni tasdiqlang</Label>
+                <Input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Yangi parolni qayta kiriting"
+                  data-testid="input-confirm-password"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpen(false)}>Bekor qilish</Button>
+              <Button onClick={handleSubmit} disabled={mutation.isPending} data-testid="button-submit-password">
+                {mutation.isPending ? "Yuklanmoqda..." : "O'zgartirish"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SuperDashboard({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900">
@@ -464,6 +570,7 @@ export default function SuperDashboard({ onLogout }: { onLogout: () => void }) {
         <StatsCards />
         <TenantsTable />
         <PlansManager />
+        <PasswordChange />
       </main>
     </div>
   );
