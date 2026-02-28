@@ -11,7 +11,6 @@ const allowlist = [
   "drizzle-zod",
   "express",
   "express-rate-limit",
-  "express-session",
   "jsonwebtoken",
   "memorystore",
   "multer",
@@ -31,6 +30,7 @@ const allowlist = [
 
 const forceExternal = [
   "connect-pg-simple",
+  "express-session",
 ];
 
 async function buildAll() {
