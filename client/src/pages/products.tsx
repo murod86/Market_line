@@ -267,7 +267,9 @@ export default function Products() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="dona">Dona</SelectItem>
+                    <SelectItem value="quti">Quti</SelectItem>
                     <SelectItem value="kg">Kg</SelectItem>
+                    <SelectItem value="gram">Gram</SelectItem>
                     <SelectItem value="litr">Litr</SelectItem>
                     <SelectItem value="metr">Metr</SelectItem>
                   </SelectContent>

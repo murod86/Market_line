@@ -13,6 +13,7 @@ import {
   ShoppingBasket,
   FolderOpen,
   LogOut,
+  ClipboardList,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import logoImg from "@assets/marketline_final_v1.png";
@@ -39,6 +40,7 @@ const mainItems = [
   { title: "Yetkazib berish", url: "/deliveries", icon: Truck, color: "text-orange-400" },
   { title: "Ta'minotchilar", url: "/suppliers", icon: Building2, color: "text-rose-400" },
   { title: "Kirim (Xaridlar)", url: "/purchases", icon: ShoppingBasket, color: "text-teal-400" },
+  { title: "Buyurtmalar", url: "/orders", icon: ClipboardList, color: "text-lime-400" },
 ];
 
 const managementItems = [

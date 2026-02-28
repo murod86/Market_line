@@ -22,6 +22,7 @@ import Settings from "@/pages/settings";
 import Categories from "@/pages/categories";
 import Suppliers from "@/pages/suppliers";
 import Purchases from "@/pages/purchases";
+import OrdersManagement from "@/pages/orders-management";
 import PortalLogin from "@/pages/portal/login";
 import PortalLayout from "@/pages/portal/portal-layout";
 import SuperAdminPage from "@/pages/super/index";
@@ -41,6 +42,7 @@ function AdminRouter() {
       <Route path="/settings" component={Settings} />
       <Route path="/suppliers" component={Suppliers} />
       <Route path="/purchases" component={Purchases} />
+      <Route path="/orders" component={OrdersManagement} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -12,8 +12,9 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Store, Users, CreditCard, Shield, LogOut, Plus, Pencil, Trash2,
-  BarChart3, Building2, Loader2,
+  BarChart3, Building2, Loader2, AlertTriangle,
 } from "lucide-react";
+import { DialogFooter } from "@/components/ui/dialog";
 
 function StatsCards() {
   const { data: stats } = useQuery({ queryKey: ["/api/super/stats"] });
@@ -86,6 +87,7 @@ function TenantsTable() {
   const { toast } = useToast();
   const { data: tenants = [], isLoading } = useQuery({ queryKey: ["/api/super/tenants"] });
   const { data: allPlans = [] } = useQuery({ queryKey: ["/api/super/plans"] });
+  const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
 
   const updateTenantMut = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
@@ -99,75 +101,131 @@ function TenantsTable() {
     onError: (e: any) => toast({ title: "Xatolik", description: e.message, variant: "destructive" }),
   });
 
+  const deleteTenantMut = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/super/tenants/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/super/tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/super/stats"] });
+      setDeleteConfirm(null);
+      toast({ title: "Do'kon o'chirildi" });
+    },
+    onError: (e: any) => toast({ title: "Xatolik", description: e.message, variant: "destructive" }),
+  });
+
   const planSlugs = (allPlans as any[]).map((p: any) => p.slug);
 
   if (isLoading) return <div className="text-white/50 text-center py-8">Yuklanmoqda...</div>;
 
   return (
-    <Card className="bg-white/5 border-white/10 mb-8">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center gap-2">
-          <Store className="w-5 h-5 text-blue-400" />
-          Do'konlar ({(tenants as any[]).length})
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/10 text-white/50">
-                <th className="text-left py-3 px-2">Do'kon nomi</th>
-                <th className="text-left py-3 px-2">Egasi</th>
-                <th className="text-left py-3 px-2">Telefon</th>
-                <th className="text-left py-3 px-2">Reja</th>
-                <th className="text-left py-3 px-2">Holat</th>
-                <th className="text-left py-3 px-2">Sana</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(tenants as any[]).map((t: any) => (
-                <tr key={t.id} className="border-b border-white/5 hover:bg-white/5" data-testid={`row-tenant-${t.id}`}>
-                  <td className="py-3 px-2 text-white font-medium">{t.name}</td>
-                  <td className="py-3 px-2 text-white/70">{t.ownerName}</td>
-                  <td className="py-3 px-2 text-white/60">{t.phone}</td>
-                  <td className="py-3 px-2">
-                    <Select
-                      value={t.plan}
-                      onValueChange={(val) => updateTenantMut.mutate({ id: t.id, data: { plan: val } })}
-                    >
-                      <SelectTrigger className="w-28 h-7 text-xs bg-white/5 border-white/10 text-white" data-testid={`select-plan-${t.id}`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {planSlugs.length > 0 ? planSlugs.map((slug: string) => (
-                          <SelectItem key={slug} value={slug}>{slug}</SelectItem>
-                        )) : (
-                          <>
-                            <SelectItem value="free">free</SelectItem>
-                            <SelectItem value="pro">pro</SelectItem>
-                            <SelectItem value="enterprise">enterprise</SelectItem>
-                          </>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </td>
-                  <td className="py-3 px-2">
-                    <Switch
-                      checked={t.active}
-                      onCheckedChange={(val) => updateTenantMut.mutate({ id: t.id, data: { active: val } })}
-                      data-testid={`switch-active-${t.id}`}
-                    />
-                  </td>
-                  <td className="py-3 px-2 text-white/40 text-xs">
-                    {new Date(t.createdAt).toLocaleDateString("uz")}
-                  </td>
+    <>
+      <Card className="bg-white/5 border-white/10 mb-8">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Store className="w-5 h-5 text-blue-400" />
+            Do'konlar ({(tenants as any[]).length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/10 text-white/50">
+                  <th className="text-left py-3 px-2">Do'kon nomi</th>
+                  <th className="text-left py-3 px-2">Egasi</th>
+                  <th className="text-left py-3 px-2">Telefon</th>
+                  <th className="text-left py-3 px-2">Reja</th>
+                  <th className="text-left py-3 px-2">Holat</th>
+                  <th className="text-left py-3 px-2">Sana</th>
+                  <th className="text-left py-3 px-2">Amallar</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
+              </thead>
+              <tbody>
+                {(tenants as any[]).map((t: any) => (
+                  <tr key={t.id} className="border-b border-white/5 hover:bg-white/5" data-testid={`row-tenant-${t.id}`}>
+                    <td className="py-3 px-2 text-white font-medium">{t.name}</td>
+                    <td className="py-3 px-2 text-white/70">{t.ownerName}</td>
+                    <td className="py-3 px-2 text-white/60">{t.phone}</td>
+                    <td className="py-3 px-2">
+                      <Select
+                        value={t.plan}
+                        onValueChange={(val) => updateTenantMut.mutate({ id: t.id, data: { plan: val } })}
+                      >
+                        <SelectTrigger className="w-28 h-7 text-xs bg-white/5 border-white/10 text-white" data-testid={`select-plan-${t.id}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {planSlugs.length > 0 ? planSlugs.map((slug: string) => (
+                            <SelectItem key={slug} value={slug}>{slug}</SelectItem>
+                          )) : (
+                            <>
+                              <SelectItem value="free">free</SelectItem>
+                              <SelectItem value="pro">pro</SelectItem>
+                              <SelectItem value="enterprise">enterprise</SelectItem>
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </td>
+                    <td className="py-3 px-2">
+                      <Switch
+                        checked={t.active}
+                        onCheckedChange={(val) => updateTenantMut.mutate({ id: t.id, data: { active: val } })}
+                        data-testid={`switch-active-${t.id}`}
+                      />
+                    </td>
+                    <td className="py-3 px-2 text-white/40 text-xs">
+                      {new Date(t.createdAt).toLocaleDateString("uz")}
+                    </td>
+                    <td className="py-3 px-2">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-red-400/50 hover:text-red-400 hover:bg-red-500/10"
+                        onClick={() => setDeleteConfirm(t)}
+                        data-testid={`button-delete-tenant-${t.id}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <DialogContent className="bg-slate-900 border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-400">
+              <AlertTriangle className="w-5 h-5" />
+              Do'konni o'chirish
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-white/70 text-sm">
+            <strong className="text-white">{deleteConfirm?.name}</strong> do'konini va uning barcha ma'lumotlarini
+            (mahsulotlar, mijozlar, sotuvlar) o'chirishni tasdiqlaysizmi? Bu amalni ortga qaytarib bo'lmaydi.
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" className="text-white/50 hover:text-white" onClick={() => setDeleteConfirm(null)}>
+              Bekor qilish
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => deleteConfirm && deleteTenantMut.mutate(deleteConfirm.id)}
+              disabled={deleteTenantMut.isPending}
+              data-testid="button-confirm-delete-tenant"
+            >
+              {deleteTenantMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              O'chirish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

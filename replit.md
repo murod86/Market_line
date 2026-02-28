@@ -7,7 +7,7 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 - **Frontend**: React + TypeScript + Tailwind CSS + shadcn/ui components
 - **Backend**: Express.js REST API with session-based auth
 - **Database**: PostgreSQL with Drizzle ORM
-- **Sessions**: express-session + connect-pg-simple (stored in PostgreSQL)
+- **Sessions**: express-session + custom PgSessionStore (stored in PostgreSQL, no connect-pg-simple)
 - **Routing**: wouter (frontend)
 - **State Management**: TanStack React Query
 - **Telegram OTP**: Bot API for OTP verification, webhook for phone linking
@@ -31,17 +31,18 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 
 ## Admin Modules (/dashboard, /pos, etc.)
 1. **Dashboard** - Overview stats (sales, stock, customers, debt)
-2. **POS** - Point of Sale with cart, discounts, cash/debt payment, product images, 58mm receipt printing
+2. **POS** - Point of Sale with cart, discounts, cash/debt payment, product images, 58mm receipt printing, search & category filter
 3. **Warehouse** - Stock overview with catalog view
 4. **Categories** - Category CRUD with product counts
-5. **Products** - Product CRUD with categories, pricing, stock levels, image upload
+5. **Products** - Product CRUD with categories, pricing, stock levels, image upload, units (dona/quti/kg/gram/litr/metr)
 6. **Customers** - Customer management with debt tracking
 7. **Deliveries** - Delivery status tracking with order details
 8. **Suppliers** - Supplier management (name, phone, company, address)
 9. **Purchases (Kirim)** - Inventory procurement from suppliers, auto-updates stock
-10. **Roles** - Role creation with granular permissions
-11. **Employees** - Employee management with role assignment
-12. **Settings** - Company info, Telegram bot config, webhook setup
+10. **Orders (Buyurtmalar)** - Portal order management: view, confirm, reject customer orders with details
+11. **Roles** - Role creation with granular permissions
+12. **Employees** - Employee management with role assignment
+13. **Settings** - Company info, Telegram bot config, webhook setup
 
 ## Customer Portal (/portal)
 - Login, Registration (with Telegram OTP), Password Reset
@@ -61,9 +62,10 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 ## Super Admin Panel (/saas-admin)
 - Password-protected via `SUPER_ADMIN_PASSWORD` env var (default: admin2025)
 - Session field `superAdmin: boolean` with `requireSuperAdmin` middleware
-- Features: tenant listing, plan/active toggling, plan CRUD, stats overview
-- API: `/api/super/login`, `/api/super/me`, `/api/super/logout`, `/api/super/tenants`, `/api/super/plans`, `/api/super/stats`
+- Features: tenant listing, plan/active toggling, plan CRUD, stats overview, tenant deletion with confirmation
+- API: `/api/super/login`, `/api/super/me`, `/api/super/logout`, `/api/super/tenants` (GET/PATCH/DELETE), `/api/super/plans` (GET/POST/PATCH/DELETE), `/api/super/stats`
 - Plans table stores pricing info (name, slug, price, maxProducts, maxEmployees, features, sortOrder)
+- Landing page pricing dynamically fetches from `/api/plans/public`
 
 ## API Routes
 - `/api/auth/register` - Owner registration (POST)

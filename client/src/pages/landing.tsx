@@ -1,6 +1,8 @@
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ShoppingCart, Package, Users, Truck, BarChart3, Shield, Smartphone, Zap, Star, ArrowRight, CheckCircle2 } from "lucide-react";
 import logoImg from "@assets/marketline_final_v1.png";
 
@@ -15,32 +17,22 @@ const features = [
   { icon: Zap, title: "Tez va qulay", desc: "Zamonaviy interfeys, oson foydalanish", color: "text-yellow-500 bg-yellow-500/10" },
 ];
 
-const plans = [
+const defaultPlans = [
   {
-    name: "Free",
-    price: "0",
-    period: "Bepul",
+    name: "Free", slug: "free", price: "0",
     features: ["1 ta do'kon", "100 ta mahsulot", "POS kassa", "Ombor boshqaruvi", "3 ta xodim"],
-    popular: false,
-  },
-  {
-    name: "Pro",
-    price: "99,000",
-    period: "oyiga",
-    features: ["1 ta do'kon", "Cheksiz mahsulotlar", "POS kassa", "Barcha modullar", "Cheksiz xodimlar", "Telegram OTP", "Mijozlar portali", "Hisobotlar"],
-    popular: true,
-  },
-  {
-    name: "Enterprise",
-    price: "249,000",
-    period: "oyiga",
-    features: ["Ko'p filiallar", "Cheksiz mahsulotlar", "POS kassa", "Barcha modullar", "Cheksiz xodimlar", "Telegram OTP", "API kirish", "Premium yordam", "Shaxsiy sozlash"],
-    popular: false,
+    sortOrder: 0,
   },
 ];
 
 export default function LandingPage() {
   const [, setLocation] = useLocation();
+  const { data: apiPlans, isLoading: plansLoading } = useQuery<any[]>({
+    queryKey: ["/api/plans/public"],
+  });
+
+  const plans = apiPlans && apiPlans.length > 0 ? apiPlans : defaultPlans;
+  const popularIndex = plans.length > 1 ? 1 : -1;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white">
@@ -134,45 +126,72 @@ export default function LandingPage() {
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">Obuna rejalari</h2>
             <p className="text-white/50 text-lg">Biznesingiz hajmiga mos rejani tanlang</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {plans.map((plan, i) => (
-              <Card
-                key={i}
-                className={`relative bg-white/5 border-white/10 backdrop-blur-sm ${plan.popular ? "ring-2 ring-blue-500 bg-white/8" : ""}`}
-                data-testid={`card-plan-${plan.name.toLowerCase()}`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full text-xs font-semibold text-white">
-                    Mashhur
-                  </div>
-                )}
-                <CardHeader className="text-center pb-2">
-                  <CardTitle className="text-white text-xl">{plan.name}</CardTitle>
-                  <div className="pt-4">
-                    <span className="text-4xl font-bold text-white">{plan.price}</span>
-                    <span className="text-white/50 ml-1">UZS / {plan.period}</span>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3 mb-6">
-                    {plan.features.map((f, j) => (
-                      <li key={j} className="flex items-center gap-2 text-white/70 text-sm">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    className={`w-full ${plan.popular ? "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0" : "bg-white/10 hover:bg-white/15 text-white border-white/10"}`}
-                    onClick={() => setLocation("/auth/register")}
-                    data-testid={`button-plan-${plan.name.toLowerCase()}`}
+          {plansLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-80 bg-white/5" />
+              ))}
+            </div>
+          ) : (
+            <div className={`grid grid-cols-1 gap-6 ${plans.length >= 3 ? "md:grid-cols-3" : plans.length === 2 ? "md:grid-cols-2 max-w-3xl mx-auto" : "max-w-md mx-auto"}`}>
+              {plans.map((plan: any, i: number) => {
+                const isPopular = i === popularIndex;
+                const priceNum = Number(plan.price);
+                const priceFormatted = priceNum === 0 ? "0" : new Intl.NumberFormat("uz-UZ").format(priceNum);
+                const periodText = priceNum === 0 ? "Bepul" : "oyiga";
+                const planFeatures = Array.isArray(plan.features) ? plan.features : [];
+                return (
+                  <Card
+                    key={plan.id || i}
+                    className={`relative bg-white/5 border-white/10 backdrop-blur-sm ${isPopular ? "ring-2 ring-blue-500 bg-white/8" : ""}`}
+                    data-testid={`card-plan-${(plan.slug || plan.name).toLowerCase()}`}
                   >
-                    Boshlash
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    {isPopular && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full text-xs font-semibold text-white">
+                        Mashhur
+                      </div>
+                    )}
+                    <CardHeader className="text-center pb-2">
+                      <CardTitle className="text-white text-xl">{plan.name}</CardTitle>
+                      <div className="pt-4">
+                        <span className="text-4xl font-bold text-white">{priceFormatted}</span>
+                        <span className="text-white/50 ml-1">UZS / {periodText}</span>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-3 mb-6">
+                        {planFeatures.map((f: string, j: number) => (
+                          <li key={j} className="flex items-center gap-2 text-white/70 text-sm">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                            {f}
+                          </li>
+                        ))}
+                        {plan.maxProducts && (
+                          <li className="flex items-center gap-2 text-white/70 text-sm">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                            {plan.maxProducts >= 999999 ? "Cheksiz" : plan.maxProducts} mahsulot
+                          </li>
+                        )}
+                        {plan.maxEmployees && (
+                          <li className="flex items-center gap-2 text-white/70 text-sm">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                            {plan.maxEmployees >= 999999 ? "Cheksiz" : plan.maxEmployees} xodim
+                          </li>
+                        )}
+                      </ul>
+                      <Button
+                        className={`w-full ${isPopular ? "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0" : "bg-white/10 hover:bg-white/15 text-white border-white/10"}`}
+                        onClick={() => setLocation("/auth/register")}
+                        data-testid={`button-plan-${(plan.slug || plan.name).toLowerCase()}`}
+                      >
+                        Boshlash
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 

@@ -346,7 +346,7 @@ export default function POS() {
                     <div className="flex items-start justify-between gap-1 mb-2">
                       <h3 className="font-medium text-sm leading-tight">{product.name}</h3>
                       <Badge variant="secondary" className="text-xs shrink-0">
-                        {product.stock}
+                        {product.stock} {product.unit}
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mb-1">{product.sku}</p>

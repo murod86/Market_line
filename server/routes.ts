@@ -1053,6 +1053,67 @@ export async function registerRoutes(
     }
   });
 
+  // ===== ADMIN ORDER MANAGEMENT =====
+  app.get("/api/portal-orders", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const allSales = await storage.getSales(tenantId);
+      const portalOrders = allSales.filter(s => s.employeeId === null && s.customerId !== null);
+      const ordersWithDetails = await Promise.all(portalOrders.map(async (sale) => {
+        const items = await storage.getSaleItems(sale.id);
+        const customer = sale.customerId ? await storage.getCustomer(sale.customerId) : null;
+        const itemsWithProducts = await Promise.all(items.map(async (item) => {
+          const product = await storage.getProduct(item.productId);
+          return { ...item, productName: product?.name || "Noma'lum", productUnit: product?.unit || "dona" };
+        }));
+        return { ...sale, items: itemsWithProducts, customerName: customer?.fullName || "Noma'lum", customerPhone: customer?.phone || "" };
+      }));
+      res.json(ordersWithDetails);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/portal-orders/:id/status", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const { status } = req.body;
+      if (!["completed", "cancelled"].includes(status)) {
+        return res.status(400).json({ message: "Noto'g'ri holat" });
+      }
+      const sale = await storage.getSale(req.params.id);
+      if (!sale || !verifyTenant(sale, tenantId)) {
+        return res.status(404).json({ message: "Buyurtma topilmadi" });
+      }
+      if (sale.status !== "pending") {
+        return res.status(400).json({ message: "Faqat kutilayotgan buyurtmalarni o'zgartirish mumkin" });
+      }
+      if (sale.employeeId !== null) {
+        return res.status(400).json({ message: "Bu portal buyurtmasi emas" });
+      }
+      if (status === "cancelled") {
+        const items = await storage.getSaleItems(sale.id);
+        for (const item of items) {
+          const product = await storage.getProduct(item.productId);
+          if (product) {
+            await storage.updateProduct(product.id, { stock: product.stock + item.quantity });
+          }
+        }
+        if (sale.customerId) {
+          const customer = await storage.getCustomer(sale.customerId);
+          if (customer) {
+            const newDebt = Math.max(0, Number(customer.debt) - Number(sale.totalAmount));
+            await storage.updateCustomer(customer.id, { debt: newDebt.toFixed(2) } as any);
+          }
+        }
+      }
+      const updated = await storage.updateSale(sale.id, { status } as any);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // ===== DASHBOARD STATS =====
   app.get("/api/stats", requireTenant, async (req, res) => {
     try {
@@ -1248,6 +1309,17 @@ export async function registerRoutes(
     if (!tenant) return res.status(404).json({ message: "Do'kon topilmadi" });
     const { password: _, ...safe } = tenant;
     res.json(safe);
+  });
+
+  app.delete("/api/super/tenants/:id", requireSuperAdmin, async (req, res) => {
+    try {
+      const tenant = await storage.getTenant(req.params.id);
+      if (!tenant) return res.status(404).json({ message: "Do'kon topilmadi" });
+      await storage.deleteTenant(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
   });
 
   app.get("/api/super/plans", requireSuperAdmin, async (_req, res) => {

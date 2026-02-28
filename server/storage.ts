@@ -89,6 +89,9 @@ export interface IStorage {
   getSettings(tenantId: string): Promise<Setting[]>;
   getSetting(key: string, tenantId: string): Promise<Setting | undefined>;
   upsertSetting(key: string, value: string, tenantId: string): Promise<Setting>;
+
+  updateSale(id: string, data: Partial<InsertSale>): Promise<Sale | undefined>;
+  deleteTenant(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -363,6 +366,38 @@ export class DatabaseStorage implements IStorage {
   async createPurchaseItem(item: InsertPurchaseItem): Promise<PurchaseItem> {
     const [created] = await db.insert(purchaseItems).values(item).returning();
     return created;
+  }
+
+  async updateSale(id: string, data: Partial<InsertSale>): Promise<Sale | undefined> {
+    const [updated] = await db.update(sales).set(data).where(eq(sales.id, id)).returning();
+    return updated;
+  }
+
+  async deleteTenant(id: string): Promise<void> {
+    await db.transaction(async (tx) => {
+      await tx.delete(settings).where(eq(settings.tenantId, id));
+
+      const tenantSales = await tx.select().from(sales).where(eq(sales.tenantId, id));
+      for (const sale of tenantSales) {
+        await tx.delete(saleItems).where(eq(saleItems.saleId, sale.id));
+        await tx.delete(deliveries).where(eq(deliveries.saleId, sale.id));
+      }
+      await tx.delete(sales).where(eq(sales.tenantId, id));
+
+      const tenantPurchases = await tx.select().from(purchases).where(eq(purchases.tenantId, id));
+      for (const purchase of tenantPurchases) {
+        await tx.delete(purchaseItems).where(eq(purchaseItems.purchaseId, purchase.id));
+      }
+      await tx.delete(purchases).where(eq(purchases.tenantId, id));
+
+      await tx.delete(products).where(eq(products.tenantId, id));
+      await tx.delete(customers).where(eq(customers.tenantId, id));
+      await tx.delete(categories).where(eq(categories.tenantId, id));
+      await tx.delete(suppliers).where(eq(suppliers.tenantId, id));
+      await tx.delete(employees).where(eq(employees.tenantId, id));
+      await tx.delete(roles).where(eq(roles.tenantId, id));
+      await tx.delete(tenants).where(eq(tenants.id, id));
+    });
   }
 }
 
