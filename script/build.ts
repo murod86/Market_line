@@ -61,10 +61,16 @@ async function buildAll() {
     logLevel: "info",
   });
 
-  const tableSqlPath = resolve("node_modules/connect-pg-simple/table.sql");
-  if (existsSync(tableSqlPath)) {
-    await copyFile(tableSqlPath, resolve("dist/table.sql"));
-    console.log("copied table.sql to dist/");
+  const tableSqlSources = [
+    resolve("server/table.sql"),
+    resolve("node_modules/connect-pg-simple/table.sql"),
+  ];
+  for (const src of tableSqlSources) {
+    if (existsSync(src)) {
+      await copyFile(src, resolve("dist/table.sql"));
+      console.log(`copied table.sql from ${src} to dist/`);
+      break;
+    }
   }
 }
 

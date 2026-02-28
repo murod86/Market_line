@@ -1,5 +1,5 @@
 [phases.build]
-cmds = ["npm install", "npm run build"]
+cmds = ["npm install", "npm run build", "cp server/table.sql dist/table.sql || cp node_modules/connect-pg-simple/table.sql dist/table.sql || true"]
 
 [start]
 cmd = "npx drizzle-kit push --force && npm start"
