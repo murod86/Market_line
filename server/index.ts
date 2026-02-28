@@ -3,25 +3,70 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
+import { Store } from "express-session";
+
+class PgSessionStore extends Store {
+  private pruneInterval: ReturnType<typeof setInterval> | null = null;
+
+  constructor() {
+    super();
+    this.setupTable().catch(console.error);
+    this.pruneInterval = setInterval(() => this.pruneSessions(), 15 * 60 * 1000);
+  }
+
+  private async setupTable() {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "session" (
+        "sid" varchar NOT NULL COLLATE "default",
+        "sess" json NOT NULL,
+        "expire" timestamp(6) NOT NULL,
+        CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
+      ) WITH (OIDS=FALSE);
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");`);
+  }
+
+  private async pruneSessions() {
+    try { await pool.query(`DELETE FROM "session" WHERE "expire" < NOW()`); } catch {}
+  }
+
+  get(sid: string, callback: (err?: any, session?: session.SessionData | null) => void) {
+    pool.query(`SELECT "sess" FROM "session" WHERE "sid" = $1 AND "expire" > NOW()`, [sid])
+      .then(result => callback(null, result.rows.length ? result.rows[0].sess : null))
+      .catch(err => callback(err));
+  }
+
+  set(sid: string, sessionData: session.SessionData, callback?: (err?: any) => void) {
+    const maxAge = sessionData.cookie?.maxAge || 86400000;
+    const expire = new Date(Date.now() + maxAge);
+    pool.query(
+      `INSERT INTO "session" ("sid", "sess", "expire") VALUES ($1, $2, $3)
+       ON CONFLICT ("sid") DO UPDATE SET "sess" = $2, "expire" = $3`,
+      [sid, JSON.stringify(sessionData), expire]
+    )
+      .then(() => callback?.())
+      .catch(err => callback?.(err));
+  }
+
+  destroy(sid: string, callback?: (err?: any) => void) {
+    pool.query(`DELETE FROM "session" WHERE "sid" = $1`, [sid])
+      .then(() => callback?.())
+      .catch(err => callback?.(err));
+  }
+
+  touch(sid: string, sessionData: session.SessionData, callback?: (err?: any) => void) {
+    const maxAge = sessionData.cookie?.maxAge || 86400000;
+    const expire = new Date(Date.now() + maxAge);
+    pool.query(`UPDATE "session" SET "expire" = $1 WHERE "sid" = $2`, [expire, sid])
+      .then(() => callback?.())
+      .catch(err => callback?.(err));
+  }
+}
 
 const app = express();
 app.set("trust proxy", 1);
 const httpServer = createServer(app);
-
-async function ensureSessionTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS "session" (
-      "sid" varchar NOT NULL COLLATE "default",
-      "sess" json NOT NULL,
-      "expire" timestamp(6) NOT NULL,
-      CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
-    ) WITH (OIDS=FALSE);
-    CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
-  `);
-}
-ensureSessionTable().catch(console.error);
 
 declare module "http" {
   interface IncomingMessage {
@@ -50,14 +95,9 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
-const PgSession = connectPgSimple(session);
 app.use(
   session({
-    store: new PgSession({
-      pool: pool,
-      tableName: "session",
-      createTableIfMissing: false,
-    }),
+    store: new PgSessionStore(),
     secret: process.env.SESSION_SECRET!,
     resave: false,
     saveUninitialized: false,
