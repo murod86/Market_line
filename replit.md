@@ -40,7 +40,8 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 8. **Suppliers** - Supplier management (name, phone, company, address)
 9. **Purchases (Kirim)** - Inventory procurement from suppliers, auto-updates stock
 10. **Orders (Buyurtmalar)** - Portal order management with full flow (confirm, send to delivery, shipped, customer receive), status filter, print list and individual order
-11. **Roles** - Role creation with granular permissions
+11. **Dillerlar** - Dealer management: ombordan mahsulot yuklash, mijozga sotish, omborga qaytarish, inventory tracking, transaction history with print; category filter in load dialog
+12. **Roles** - Role creation with granular permissions
 12. **Employees** - Employee management with role assignment
 13. **Settings** - Company info, Telegram bot config, webhook setup
 
@@ -85,7 +86,7 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 - All `/api/*` admin routes use `requireTenant` middleware
 
 ## Database Tables
-- plans, tenants, roles, employees, categories, products, customers, sales, sale_items, deliveries, settings, suppliers, purchases, purchase_items, session
+- plans, tenants, roles, employees, categories, products, customers, sales, sale_items, deliveries, delivery_items, settings, suppliers, purchases, purchase_items, dealers, dealer_inventory, dealer_transactions, session
 
 ## Language
 UI is in Uzbek language (O'zbek tili)

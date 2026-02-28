@@ -4,6 +4,7 @@ import {
   plans, tenants, roles, employees, categories, products, customers,
   sales, saleItems, deliveries, deliveryItems, settings,
   suppliers, purchases, purchaseItems,
+  dealers, dealerInventory, dealerTransactions,
   type InsertPlan, type Plan,
   type InsertTenant, type Tenant,
   type InsertRole, type Role,
@@ -19,6 +20,9 @@ import {
   type InsertSupplier, type Supplier,
   type InsertPurchase, type Purchase,
   type InsertPurchaseItem, type PurchaseItem,
+  type InsertDealer, type Dealer,
+  type InsertDealerInventory, type DealerInventory,
+  type InsertDealerTransaction, type DealerTransaction,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -95,6 +99,16 @@ export interface IStorage {
 
   updateSale(id: string, data: Partial<InsertSale>): Promise<Sale | undefined>;
   deleteTenant(id: string): Promise<void>;
+
+  getDealers(tenantId: string): Promise<Dealer[]>;
+  getDealer(id: string): Promise<Dealer | undefined>;
+  createDealer(dealer: InsertDealer): Promise<Dealer>;
+  updateDealer(id: string, dealer: Partial<InsertDealer>): Promise<Dealer | undefined>;
+  getDealerInventory(dealerId: string): Promise<DealerInventory[]>;
+  getDealerInventoryItem(dealerId: string, productId: string): Promise<DealerInventory | undefined>;
+  upsertDealerInventory(dealerId: string, productId: string, quantity: number, tenantId: string): Promise<DealerInventory>;
+  getDealerTransactions(dealerId: string): Promise<DealerTransaction[]>;
+  createDealerTransaction(tx: InsertDealerTransaction): Promise<DealerTransaction>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -385,6 +399,60 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+  async getDealers(tenantId: string): Promise<Dealer[]> {
+    return await db.select().from(dealers).where(eq(dealers.tenantId, tenantId)).orderBy(desc(dealers.createdAt));
+  }
+
+  async getDealer(id: string): Promise<Dealer | undefined> {
+    const [dealer] = await db.select().from(dealers).where(eq(dealers.id, id));
+    return dealer;
+  }
+
+  async createDealer(dealer: InsertDealer): Promise<Dealer> {
+    const [created] = await db.insert(dealers).values(dealer).returning();
+    return created;
+  }
+
+  async updateDealer(id: string, dealer: Partial<InsertDealer>): Promise<Dealer | undefined> {
+    const [updated] = await db.update(dealers).set(dealer).where(eq(dealers.id, id)).returning();
+    return updated;
+  }
+
+  async getDealerInventory(dealerId: string): Promise<DealerInventory[]> {
+    return await db.select().from(dealerInventory).where(eq(dealerInventory.dealerId, dealerId));
+  }
+
+  async getDealerInventoryItem(dealerId: string, productId: string): Promise<DealerInventory | undefined> {
+    const [item] = await db.select().from(dealerInventory).where(
+      and(eq(dealerInventory.dealerId, dealerId), eq(dealerInventory.productId, productId))
+    );
+    return item;
+  }
+
+  async upsertDealerInventory(dealerId: string, productId: string, quantity: number, tenantId: string): Promise<DealerInventory> {
+    const existing = await this.getDealerInventoryItem(dealerId, productId);
+    if (existing) {
+      if (quantity <= 0) {
+        await db.delete(dealerInventory).where(eq(dealerInventory.id, existing.id));
+        return { ...existing, quantity: 0 };
+      }
+      const [updated] = await db.update(dealerInventory).set({ quantity }).where(eq(dealerInventory.id, existing.id)).returning();
+      return updated;
+    }
+    if (quantity <= 0) return { id: "", dealerId, productId, quantity: 0, tenantId };
+    const [created] = await db.insert(dealerInventory).values({ dealerId, productId, quantity, tenantId }).returning();
+    return created;
+  }
+
+  async getDealerTransactions(dealerId: string): Promise<DealerTransaction[]> {
+    return await db.select().from(dealerTransactions).where(eq(dealerTransactions.dealerId, dealerId)).orderBy(desc(dealerTransactions.createdAt));
+  }
+
+  async createDealerTransaction(tx: InsertDealerTransaction): Promise<DealerTransaction> {
+    const [created] = await db.insert(dealerTransactions).values(tx).returning();
+    return created;
+  }
+
   async deleteTenant(id: string): Promise<void> {
     await db.transaction(async (tx) => {
       await tx.delete(settings).where(eq(settings.tenantId, id));
@@ -402,6 +470,9 @@ export class DatabaseStorage implements IStorage {
       }
       await tx.delete(purchases).where(eq(purchases.tenantId, id));
 
+      await tx.delete(dealerTransactions).where(eq(dealerTransactions.tenantId, id));
+      await tx.delete(dealerInventory).where(eq(dealerInventory.tenantId, id));
+      await tx.delete(dealers).where(eq(dealers.tenantId, id));
       await tx.delete(products).where(eq(products.tenantId, id));
       await tx.delete(customers).where(eq(customers.tenantId, id));
       await tx.delete(categories).where(eq(categories.tenantId, id));

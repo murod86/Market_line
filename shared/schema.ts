@@ -167,6 +167,51 @@ export const insertDeliveryItemSchema = createInsertSchema(deliveryItems).omit({
 export type InsertDeliveryItem = z.infer<typeof insertDeliveryItemSchema>;
 export type DeliveryItem = typeof deliveryItems.$inferSelect;
 
+export const dealers = pgTable("dealers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  name: text("name").notNull(),
+  phone: text("phone"),
+  vehicleInfo: text("vehicle_info"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertDealerSchema = createInsertSchema(dealers).omit({ id: true, createdAt: true });
+export type InsertDealer = z.infer<typeof insertDealerSchema>;
+export type Dealer = typeof dealers.$inferSelect;
+
+export const dealerInventory = pgTable("dealer_inventory", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  dealerId: varchar("dealer_id").references(() => dealers.id).notNull(),
+  productId: varchar("product_id").references(() => products.id).notNull(),
+  quantity: integer("quantity").notNull().default(0),
+});
+
+export const insertDealerInventorySchema = createInsertSchema(dealerInventory).omit({ id: true });
+export type InsertDealerInventory = z.infer<typeof insertDealerInventorySchema>;
+export type DealerInventory = typeof dealerInventory.$inferSelect;
+
+export const dealerTransactions = pgTable("dealer_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  dealerId: varchar("dealer_id").references(() => dealers.id).notNull(),
+  type: text("type").notNull(),
+  productId: varchar("product_id").references(() => products.id).notNull(),
+  quantity: integer("quantity").notNull(),
+  price: decimal("price", { precision: 12, scale: 2 }).notNull().default("0"),
+  total: decimal("total", { precision: 12, scale: 2 }).notNull().default("0"),
+  customerName: text("customer_name"),
+  customerPhone: text("customer_phone"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertDealerTransactionSchema = createInsertSchema(dealerTransactions).omit({ id: true, createdAt: true });
+export type InsertDealerTransaction = z.infer<typeof insertDealerTransactionSchema>;
+export type DealerTransaction = typeof dealerTransactions.$inferSelect;
+
 export const suppliers = pgTable("suppliers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   tenantId: varchar("tenant_id").references(() => tenants.id),
@@ -237,6 +282,8 @@ export const ALL_PERMISSIONS = [
   "employees.manage",
   "deliveries.view",
   "deliveries.manage",
+  "dealers.view",
+  "dealers.manage",
   "settings.manage",
   "reports.view",
 ] as const;

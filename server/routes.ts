@@ -8,7 +8,7 @@ import { eq, desc } from "drizzle-orm";
 import {
   insertRoleSchema, insertEmployeeSchema, insertCategorySchema,
   insertProductSchema, insertCustomerSchema, insertDeliverySchema,
-  insertSupplierSchema,
+  insertSupplierSchema, insertDealerSchema,
 } from "@shared/schema";
 import { createHash } from "crypto";
 import multer from "multer";
@@ -542,6 +542,209 @@ export async function registerRoutes(
     if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Ta'minotchi topilmadi" });
     const supplier = await storage.updateSupplier(req.params.id, req.body);
     res.json(supplier);
+  });
+
+  // ===== DEALERS (DILLERLAR) =====
+  app.get("/api/dealers", requireTenant, async (req, res) => {
+    const data = await storage.getDealers(req.session.tenantId!);
+    res.json(data);
+  });
+
+  app.post("/api/dealers", requireTenant, async (req, res) => {
+    try {
+      const parsed = insertDealerSchema.parse({ ...req.body, tenantId: req.session.tenantId });
+      const dealer = await storage.createDealer(parsed);
+      res.json(dealer);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.patch("/api/dealers/:id", requireTenant, async (req, res) => {
+    const existing = await storage.getDealer(req.params.id);
+    if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Diller topilmadi" });
+    const { name, phone, vehicleInfo, active } = req.body;
+    const dealer = await storage.updateDealer(req.params.id, { name, phone, vehicleInfo, active });
+    res.json(dealer);
+  });
+
+  app.get("/api/dealers/:id/inventory", requireTenant, async (req, res) => {
+    const dealer = await storage.getDealer(req.params.id);
+    if (!verifyTenant(dealer, req.session.tenantId!)) return res.status(404).json({ message: "Diller topilmadi" });
+    const inventory = await storage.getDealerInventory(req.params.id);
+    const allProducts = await storage.getProducts(req.session.tenantId!);
+    const enriched = inventory.filter(i => i.quantity > 0).map((item) => {
+      const product = allProducts.find((p) => p.id === item.productId);
+      return {
+        ...item,
+        productName: product?.name || "Noma'lum",
+        productUnit: product?.unit || "dona",
+        productPrice: product?.price || "0",
+        productImage: product?.imageUrl || null,
+      };
+    });
+    res.json(enriched);
+  });
+
+  app.get("/api/dealers/:id/transactions", requireTenant, async (req, res) => {
+    const dealer = await storage.getDealer(req.params.id);
+    if (!verifyTenant(dealer, req.session.tenantId!)) return res.status(404).json({ message: "Diller topilmadi" });
+    const transactions = await storage.getDealerTransactions(req.params.id);
+    const allProducts = await storage.getProducts(req.session.tenantId!);
+    const enriched = transactions.map((tx) => {
+      const product = allProducts.find((p) => p.id === tx.productId);
+      return { ...tx, productName: product?.name || "Noma'lum", productUnit: product?.unit || "dona" };
+    });
+    res.json(enriched);
+  });
+
+  app.post("/api/dealers/:id/load", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const dealer = await storage.getDealer(req.params.id);
+      if (!verifyTenant(dealer, tenantId)) return res.status(404).json({ message: "Diller topilmadi" });
+
+      const loadSchema = z.object({
+        items: z.array(z.object({
+          productId: z.string().min(1),
+          quantity: z.number().int().positive(),
+        })).min(1, "Mahsulotlar tanlanmagan"),
+        notes: z.string().optional().nullable(),
+      });
+      const { items, notes } = loadSchema.parse(req.body);
+
+      for (const item of items) {
+        const product = await storage.getProduct(item.productId);
+        if (!product || product.tenantId !== tenantId) {
+          return res.status(400).json({ message: "Mahsulot topilmadi" });
+        }
+        if (product.stock < item.quantity) {
+          return res.status(400).json({ message: `${product.name}: omborda yetarli emas (${product.stock} ta bor)` });
+        }
+      }
+
+      for (const item of items) {
+        const product = await storage.getProduct(item.productId);
+        if (!product) continue;
+        await storage.updateProduct(item.productId, { stock: product.stock - item.quantity });
+        const existing = await storage.getDealerInventoryItem(req.params.id, item.productId);
+        const newQty = (existing?.quantity || 0) + item.quantity;
+        await storage.upsertDealerInventory(req.params.id, item.productId, newQty, tenantId);
+        await storage.createDealerTransaction({
+          tenantId,
+          dealerId: req.params.id,
+          type: "load",
+          productId: item.productId,
+          quantity: item.quantity,
+          price: product.price,
+          total: (Number(product.price) * item.quantity).toFixed(2),
+          notes: notes || null,
+        });
+      }
+
+      res.json({ message: "Mahsulotlar dillerga yuklandi" });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/dealers/:id/sell", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const dealer = await storage.getDealer(req.params.id);
+      if (!verifyTenant(dealer, tenantId)) return res.status(404).json({ message: "Diller topilmadi" });
+
+      const sellSchema = z.object({
+        items: z.array(z.object({
+          productId: z.string().min(1),
+          quantity: z.number().int().positive(),
+        })).min(1),
+        customerName: z.string().optional(),
+        customerPhone: z.string().optional().nullable(),
+        notes: z.string().optional().nullable(),
+      });
+      const { items, customerName, customerPhone, notes } = sellSchema.parse(req.body);
+
+      for (const item of items) {
+        const inv = await storage.getDealerInventoryItem(req.params.id, item.productId);
+        if (!inv || inv.quantity < item.quantity) {
+          const product = await storage.getProduct(item.productId);
+          return res.status(400).json({ message: `${product?.name || "Mahsulot"}: dillerda yetarli emas` });
+        }
+      }
+
+      for (const item of items) {
+        const product = await storage.getProduct(item.productId);
+        if (!product) continue;
+        const inv = await storage.getDealerInventoryItem(req.params.id, item.productId);
+        const newQty = (inv?.quantity || 0) - item.quantity;
+        await storage.upsertDealerInventory(req.params.id, item.productId, newQty, tenantId);
+        await storage.createDealerTransaction({
+          tenantId,
+          dealerId: req.params.id,
+          type: "sell",
+          productId: item.productId,
+          quantity: item.quantity,
+          price: product.price,
+          total: (Number(product.price) * item.quantity).toFixed(2),
+          customerName: customerName || null,
+          customerPhone: customerPhone || null,
+          notes: notes || null,
+        });
+      }
+
+      res.json({ message: "Sotish muvaffaqiyatli" });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/dealers/:id/return", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const dealer = await storage.getDealer(req.params.id);
+      if (!verifyTenant(dealer, tenantId)) return res.status(404).json({ message: "Diller topilmadi" });
+
+      const returnSchema = z.object({
+        items: z.array(z.object({
+          productId: z.string().min(1),
+          quantity: z.number().int().positive(),
+        })).min(1),
+        notes: z.string().optional().nullable(),
+      });
+      const { items, notes } = returnSchema.parse(req.body);
+
+      for (const item of items) {
+        const inv = await storage.getDealerInventoryItem(req.params.id, item.productId);
+        if (!inv || inv.quantity < item.quantity) {
+          const product = await storage.getProduct(item.productId);
+          return res.status(400).json({ message: `${product?.name || "Mahsulot"}: dillerda yetarli emas` });
+        }
+      }
+
+      for (const item of items) {
+        const product = await storage.getProduct(item.productId);
+        if (!product) continue;
+        const inv = await storage.getDealerInventoryItem(req.params.id, item.productId);
+        const newQty = (inv?.quantity || 0) - item.quantity;
+        await storage.upsertDealerInventory(req.params.id, item.productId, newQty, tenantId);
+        await storage.updateProduct(item.productId, { stock: product.stock + item.quantity });
+        await storage.createDealerTransaction({
+          tenantId,
+          dealerId: req.params.id,
+          type: "return",
+          productId: item.productId,
+          quantity: item.quantity,
+          price: product.price,
+          total: (Number(product.price) * item.quantity).toFixed(2),
+          notes: notes || null,
+        });
+      }
+
+      res.json({ message: "Mahsulotlar omborga qaytarildi" });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
   });
 
   // ===== PURCHASES (KIRIM) =====
