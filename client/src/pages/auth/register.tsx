@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Phone, Lock, User, Store, ArrowLeft, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import logoImg from "@assets/ChatGPT_Image_Feb_27,_2026,_05_36_53_PM_1772195868435.png";
 
 export default function OwnerRegister() {
   const [, setLocation] = useLocation();
@@ -49,11 +50,8 @@ export default function OwnerRegister() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
-              <Store className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-2xl font-bold text-white tracking-tight">MARKET_LINE</span>
+          <div className="mb-2">
+            <img src={logoImg} alt="MARKET_LINE" className="h-20 w-auto mx-auto" />
           </div>
           <p className="text-white/50">Yangi do'kon yarating va daqiqalarda boshlang</p>
         </div>
