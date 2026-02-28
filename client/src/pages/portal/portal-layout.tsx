@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,61 @@ import {
   Plus,
   Minus,
   MapPin,
+  Download,
+  X,
+  Smartphone,
 } from "lucide-react";
+
+function usePwaInstall() {
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showBanner, setShowBanner] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone) {
+      setIsInstalled(true);
+      return;
+    }
+
+    const dismissed = sessionStorage.getItem("pwa-dismissed");
+    if (dismissed) return;
+
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowBanner(true);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+
+    const isIos = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+    const isSafari = /safari/.test(navigator.userAgent.toLowerCase()) && !/chrome/.test(navigator.userAgent.toLowerCase());
+    if (isIos && isSafari) {
+      setShowBanner(true);
+    }
+
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const install = async () => {
+    if (!deferredPrompt) return false;
+    deferredPrompt.prompt();
+    const result = await deferredPrompt.userChoice;
+    setDeferredPrompt(null);
+    if (result.outcome === "accepted") {
+      setShowBanner(false);
+      setIsInstalled(true);
+      return true;
+    }
+    return false;
+  };
+
+  const dismiss = () => {
+    setShowBanner(false);
+    sessionStorage.setItem("pwa-dismissed", "1");
+  };
+
+  return { showBanner, install, dismiss, deferredPrompt, isInstalled };
+}
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -44,6 +98,7 @@ export default function PortalLayout({ onLogout }: PortalLayoutProps) {
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
   const { toast } = useToast();
+  const pwa = usePwaInstall();
 
   const { data: customer } = useQuery<Customer>({
     queryKey: ["/api/portal/me"],
@@ -190,6 +245,46 @@ export default function PortalLayout({ onLogout }: PortalLayoutProps) {
             </div>
           </div>
         </div>
+
+        {pwa.showBanner && (
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2.5">
+            <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 text-white">
+                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Smartphone className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">Ilovani o'rnating</p>
+                  <p className="text-xs text-white/70">Tezroq kirish uchun telefoningizga qo'shing</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {pwa.deferredPrompt ? (
+                  <Button
+                    size="sm"
+                    onClick={() => pwa.install()}
+                    className="bg-white text-indigo-700 hover:bg-white/90 font-semibold text-xs h-8 px-3"
+                    data-testid="button-pwa-install"
+                  >
+                    <Download className="w-3.5 h-3.5 mr-1" />
+                    O'rnatish
+                  </Button>
+                ) : (
+                  <div className="text-white text-xs text-right leading-tight">
+                    <span className="font-medium">Safari:</span> <span className="text-white/80">Ulashish → Bosh ekranga</span>
+                  </div>
+                )}
+                <button
+                  onClick={() => pwa.dismiss()}
+                  className="text-white/60 hover:text-white p-1"
+                  data-testid="button-pwa-dismiss"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="max-w-6xl mx-auto px-4">
           <nav className="flex gap-1">

@@ -1,11 +1,12 @@
 {
-  "name": "MARKET_LINE - Biznes Boshqaruvi",
+  "name": "MARKET_LINE - Mijoz Portali",
   "short_name": "MARKET_LINE",
-  "description": "POS kassa, ombor, mijozlar va biznes boshqaruv tizimi",
-  "start_url": "/",
+  "description": "Mahsulotlar katalogi, buyurtma berish va qarz ko'rish",
+  "start_url": "/portal",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#ffffff",
+  "theme_color": "#4F46E5",
   "orientation": "any",
   "icons": [
     {
