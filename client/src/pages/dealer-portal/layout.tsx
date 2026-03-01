@@ -315,6 +315,9 @@ interface SellCartItem {
   unit: string;
   quantity: number;
   maxQty: number;
+  buyUnit: string;
+  boxQuantity: number;
+  stockPieces: number;
 }
 
 function SellTab() {
@@ -363,12 +366,14 @@ function SellTab() {
     setCart((prev) => {
       const existing = prev.find((c) => c.productId === item.productId);
       if (existing) {
-        if (existing.quantity >= item.quantity) {
+        const newQty = existing.quantity + 1;
+        const newPieces = existing.buyUnit === "quti" ? newQty * existing.boxQuantity : newQty;
+        if (newPieces > item.quantity) {
           toast({ title: "Omborda yetarli emas", variant: "destructive" });
           return prev;
         }
         return prev.map((c) =>
-          c.productId === item.productId ? { ...c, quantity: c.quantity + 1 } : c
+          c.productId === item.productId ? { ...c, quantity: newQty, stockPieces: newPieces } : c
         );
       }
       return [...prev, {
@@ -378,8 +383,34 @@ function SellTab() {
         unit: item.productUnit,
         quantity: 1,
         maxQty: item.quantity,
+        buyUnit: item.productUnit,
+        boxQuantity: item.boxQuantity || 1,
+        stockPieces: 1,
       }];
     });
+  };
+
+  const getUnitOptions = (item: SellCartItem) => {
+    const units: string[] = [item.unit];
+    if (item.boxQuantity > 1 && !units.includes("quti")) units.push("quti");
+    return units;
+  };
+
+  const changeCartUnit = (productId: string, newUnit: string) => {
+    setCart((prev) =>
+      prev.map((c) => {
+        if (c.productId !== productId) return c;
+        let newQty = c.quantity;
+        if (newUnit === "quti" && c.buyUnit !== "quti") {
+          newQty = Math.max(1, Math.floor(c.quantity / c.boxQuantity));
+        } else if (c.buyUnit === "quti" && newUnit !== "quti") {
+          newQty = c.quantity * c.boxQuantity;
+        }
+        const newPieces = newUnit === "quti" ? newQty * c.boxQuantity : newQty;
+        if (newPieces > c.maxQty) return c;
+        return { ...c, buyUnit: newUnit, quantity: newQty, stockPieces: newPieces };
+      })
+    );
   };
 
   const updateQty = (productId: string, delta: number) => {
@@ -388,11 +419,12 @@ function SellTab() {
         if (c.productId === productId) {
           const newQty = c.quantity + delta;
           if (newQty <= 0) return c;
-          if (newQty > c.maxQty) {
+          const newPieces = c.buyUnit === "quti" ? newQty * c.boxQuantity : newQty;
+          if (newPieces > c.maxQty) {
             toast({ title: "Omborda yetarli emas", variant: "destructive" });
             return c;
           }
-          return { ...c, quantity: newQty };
+          return { ...c, quantity: newQty, stockPieces: newPieces };
         }
         return c;
       })
@@ -403,14 +435,14 @@ function SellTab() {
     setCart((prev) => prev.filter((c) => c.productId !== productId));
   };
 
-  const total = cart.reduce((s, c) => s + c.price * c.quantity, 0);
+  const total = cart.reduce((s, c) => s + c.price * c.stockPieces, 0);
 
   const handleSell = () => {
     if (cart.length === 0) return;
     sellMutation.mutate({
       items: cart.map((c) => ({
         productId: c.productId,
-        quantity: c.quantity,
+        quantity: c.stockPieces,
         price: c.price,
       })),
       customerName: customerName || null,
@@ -449,9 +481,12 @@ function SellTab() {
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-bold text-primary">{formatCurrency(Number(item.productPrice))}</span>
                             <Badge variant="outline" className="text-[10px]">
-                              {item.quantity - (inCart?.quantity || 0)} {item.productUnit}
+                              {item.quantity - (inCart?.stockPieces || 0)} {item.productUnit}
                             </Badge>
                           </div>
+                          {(item.boxQuantity || 1) > 1 && (
+                            <p className="text-[10px] text-muted-foreground">1 quti = {item.boxQuantity} {item.productUnit}</p>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -486,9 +521,28 @@ function SellTab() {
                       <div key={item.productId} className="flex items-center justify-between gap-2 py-2 border-b last:border-0">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{item.name}</p>
-                          <p className="text-xs text-muted-foreground">{formatCurrency(item.price)} × {item.quantity}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatCurrency(item.price)} × {item.stockPieces} {item.unit} = {formatCurrency(item.price * item.stockPieces)}
+                          </p>
+                          {item.buyUnit === "quti" && item.boxQuantity > 1 && (
+                            <p className="text-[10px] text-blue-600">
+                              {item.quantity} quti × {item.boxQuantity} = {item.stockPieces} {item.unit}
+                            </p>
+                          )}
                         </div>
                         <div className="flex items-center gap-1">
+                          {getUnitOptions(item).length > 1 && (
+                            <Select value={item.buyUnit} onValueChange={(val) => changeCartUnit(item.productId, val)}>
+                              <SelectTrigger className="h-7 w-16 text-[10px] px-1.5" data-testid={`select-sell-unit-${item.productId}`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {getUnitOptions(item).map((u) => (
+                                  <SelectItem key={u} value={u}>{u}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                           <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateQty(item.productId, -1)}>
                             <Minus className="h-3 w-3" />
                           </Button>
