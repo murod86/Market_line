@@ -1,0 +1,116 @@
+You reached the start of the range
+Mar 1, 2026, 12:29 PM
+Starting Container
+Using 'pg' driver for database querying
+[⣷] Pulling schema from database...
+npm warn config production Use `--omit=dev` instead.
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/app/drizzle.config.ts'
+[⣯] Pulling schema from database...
+[⣟] Pulling schema from database...
+[⡿] Pulling schema from database...
+[⢿] Pulling schema from database...
+[✓] Pulling schema from database...
+Is dealer_customers table created or renamed from another table?
+❯ + dealer_customers           create table
+  ~ session › dealer_customers rename tablenpm warn config production Use `--omit=dev` instead.
+> rest-express@1.0.0 start
+> NODE_ENV=production node dist/index.cjs
+7:31:18 AM [express] serving on port 8080 [build-v2]
+7:33:13 AM [express] POST /api/super/plans 400 in 12ms :: {"message":"String must contain at least 1 character(s)"}
+7:33:23 AM [express] POST /api/super/plans 400 in 9ms :: {"message":"String must contain at least 1 character(s)"}
+7:33:33 AM [express] POST /api/super/plans 400 in 61ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
+7:33:36 AM [express] POST /api/super/plans 400 in 40ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
+7:33:37 AM [express] POST /api/super/plans 400 in 35ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
+7:33:37 AM [express] POST /api/super/plans 400 in 34ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
+7:33:38 AM [express] POST /api/super/plans 400 in 35ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
+7:33:39 AM [express] POST /api/super/plans 400 in 37ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
+  code: '42703',
+  detail: undefined,
+  constraint: undefined,
+  hint: undefined,
+  file: 'parse_relation.c',
+  routine: 'errorMissingColumn'
+  line: '3716',
+    at async gg.getAllTenants (/app/dist/index.cjs:74:55927)
+}
+    at async /app/dist/index.cjs:110:5412 {
+  length: 113,
+  severity: 'ERROR',
+Internal Server Error: error: column "trial_ends_at" does not exist
+    at /app/dist/index.cjs:68:13326
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+  where: undefined,
+    at async /app/dist/index.cjs:74:37954
+  position: '65',
+  internalPosition: undefined,
+  schema: undefined,
+  internalQuery: undefined,
+  table: undefined,
+  column: undefined,
+  where: undefined,
+  dataType: undefined,
+  schema: undefined,
+  table: undefined,
+  file: 'parse_relation.c',
+  line: '3716',
+  column: undefined,
+  routine: 'errorMissingColumn'
+  dataType: undefined,
+}
+  constraint: undefined,
+7:36:26 AM [express] POST /api/super/plans 400 in 36ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
+7:36:28 AM [express] POST /api/super/plans 400 in 38ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
+7:36:29 AM [express] POST /api/super/plans 400 in 39ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
+7:36:33 AM [express] GET /api/super/me 304 in 4ms :: {"superAdmin":true}
+Internal Server Error: error: column "allowed_modules" does not exist
+    at /app/dist/index.cjs:68:13326
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async /app/dist/index.cjs:74:37954
+    at async gg.getPlans (/app/dist/index.cjs:74:55545)
+    at async /app/dist/index.cjs:110:4286 {
+  length: 115,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '84',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  dataType: undefined,
+  routine: 'errorMissingColumn'
+}
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3716',
+  length: 113,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: undefined,
+  position: '65',
+7:36:33 AM [express] GET /api/super/stats 500 in 42ms :: {"message":"column \"trial_ends_at\" does not exist"}
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+7:36:33 AM [express] GET /api/super/plans 500 in 45ms :: {"message":"column \"allowed_modules\" does not exist"}
+Internal Server Error: error: column "trial_ends_at" does not exist
+    at /app/dist/index.cjs:68:13326
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async /app/dist/index.cjs:74:37954
+    at async gg.getAllTenants (/app/dist/index.cjs:74:55927)
+    at async /app/dist/index.cjs:110:2739 {
+7:36:33 AM [express] GET /api/super/tenants 500 in 10ms :: {"message":"column \"trial_ends_at\" does not exist"}
+7:36:49 AM [express] POST /api/super/plans 400 in 37ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
+7:37:02 AM [express] POST /api/super/plans 400 in 35ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
+7:37:11 AM [express] POST /api/super/plans 400 in 42ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
+7:37:12 AM [express] POST /api/super/plans 400 in 40ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
+7:37:12 AM [express] POST /api/super/plans 400 in 34ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
+7:37:13 AM [express] POST /api/super/plans 400 in 35ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
+7:37:13 AM [express] POST /api/super/plans 400 in 34ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
+7:37:14 AM [express] POST /api/super/plans 400 in 35ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
+7:37:15 AM [express] POST /api/super/plans 400 in 37ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
+7:37:15 AM [express] POST /api/super/plans 400 in 34ms :: {"message":"column \"allowed_modules\" of relation \"plans\" does not exist"}
