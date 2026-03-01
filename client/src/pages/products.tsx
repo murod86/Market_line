@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Product, Category } from "@shared/schema";
-import { Plus, Search, Package, Edit, Upload, X, Image as ImageIcon } from "lucide-react";
+import { Plus, Search, Package, Edit, X, Image as ImageIcon, Link } from "lucide-react";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -21,35 +21,11 @@ export default function Products() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState({
     name: "", description: "", sku: "", price: "", costPrice: "",
     stock: "", minStock: "5", categoryId: "", unit: "dona", boxQuantity: "1", imageUrl: "",
   });
   const { toast } = useToast();
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: "Rasm hajmi 5MB dan oshmasligi kerak", variant: "destructive" });
-      return;
-    }
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("image", file);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Yuklash xatosi");
-      const data = await res.json();
-      setForm((prev) => ({ ...prev, imageUrl: data.url }));
-      toast({ title: "Rasm yuklandi" });
-    } catch {
-      toast({ title: "Rasm yuklashda xatolik", variant: "destructive" });
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const { data: products, isLoading } = useQuery<Product[]>({ queryKey: ["/api/products"] });
   const { data: categories } = useQuery<Category[]>({ queryKey: ["/api/categories"] });
@@ -313,42 +289,42 @@ export default function Products() {
               </Select>
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Mahsulot rasmi</label>
-              {form.imageUrl ? (
-                <div className="relative w-full h-40 rounded-md overflow-hidden border bg-muted">
-                  <img src={form.imageUrl} alt="Mahsulot" className="w-full h-full object-contain" />
+              <label className="text-sm font-medium mb-1 block">Rasm URL manzili</label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Link className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={form.imageUrl}
+                    onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+                    placeholder="https://example.com/rasm.jpg"
+                    className="pl-10"
+                    data-testid="input-product-image-url"
+                  />
+                </div>
+                {form.imageUrl && (
                   <Button
                     type="button"
                     size="icon"
-                    variant="destructive"
-                    className="absolute top-2 right-2 h-7 w-7"
+                    variant="ghost"
+                    className="shrink-0"
                     onClick={() => setForm({ ...form, imageUrl: "" })}
                     data-testid="button-remove-image"
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-4 w-4" />
                   </Button>
-                </div>
-              ) : (
-                <label className="flex flex-col items-center justify-center w-full h-32 rounded-md border-2 border-dashed border-muted-foreground/25 bg-muted/50 cursor-pointer hover:border-primary/50 transition-colors">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageUpload}
-                    disabled={uploading}
-                    data-testid="input-product-image"
+                )}
+              </div>
+              {form.imageUrl && (
+                <div className="mt-2 w-full h-36 rounded-md overflow-hidden border bg-muted flex items-center justify-center">
+                  <img
+                    src={form.imageUrl}
+                    alt="Ko'rinish"
+                    className="max-w-full max-h-full object-contain"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />
-                  {uploading ? (
-                    <p className="text-sm text-muted-foreground">Yuklanmoqda...</p>
-                  ) : (
-                    <>
-                      <Upload className="h-8 w-8 text-muted-foreground/50 mb-2" />
-                      <p className="text-sm text-muted-foreground">Rasm yuklash uchun bosing</p>
-                      <p className="text-xs text-muted-foreground/60 mt-1">JPG, PNG, WebP (max 5MB)</p>
-                    </>
-                  )}
-                </label>
+                </div>
               )}
+              <p className="text-xs text-muted-foreground/60 mt-1">Rasm havola manzilini kiriting</p>
             </div>
           </div>
           <DialogFooter>
