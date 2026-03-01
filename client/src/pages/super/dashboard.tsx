@@ -88,6 +88,22 @@ function TenantsTable() {
   const { data: tenants = [], isLoading } = useQuery({ queryKey: ["/api/super/tenants"] });
   const { data: allPlans = [] } = useQuery({ queryKey: ["/api/super/plans"] });
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [newTenant, setNewTenant] = useState({ name: "", ownerName: "", phone: "", password: "", plan: "free" });
+
+  const createTenantMut = useMutation({
+    mutationFn: async (data: any) => {
+      await apiRequest("POST", "/api/super/tenants", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/super/tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/super/stats"] });
+      setAddOpen(false);
+      setNewTenant({ name: "", ownerName: "", phone: "", password: "", plan: "free" });
+      toast({ title: "Do'kon yaratildi" });
+    },
+    onError: (e: any) => toast({ title: "Xatolik", description: e.message, variant: "destructive" }),
+  });
 
   const updateTenantMut = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
@@ -121,11 +137,15 @@ function TenantsTable() {
   return (
     <>
       <Card className="bg-white/5 border-white/10 mb-8">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-white flex items-center gap-2">
             <Store className="w-5 h-5 text-blue-400" />
             Do'konlar ({(tenants as any[]).length})
           </CardTitle>
+          <Button size="sm" className="bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border-0"
+            onClick={() => setAddOpen(true)} data-testid="button-add-tenant">
+            <Plus className="w-4 h-4 mr-1" /> Yangi do'kon
+          </Button>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -221,6 +241,74 @@ function TenantsTable() {
             >
               {deleteTenantMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               O'chirish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="bg-slate-900 border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Store className="w-5 h-5 text-blue-400" />
+              Yangi do'kon yaratish
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-white/70 text-xs">Do'kon nomi *</Label>
+              <Input value={newTenant.name} onChange={(e) => setNewTenant(f => ({ ...f, name: e.target.value }))}
+                placeholder="Do'kon nomi" className="bg-white/5 border-white/10 text-white text-sm" data-testid="input-new-tenant-name" />
+            </div>
+            <div>
+              <Label className="text-white/70 text-xs">Egasining ismi *</Label>
+              <Input value={newTenant.ownerName} onChange={(e) => setNewTenant(f => ({ ...f, ownerName: e.target.value }))}
+                placeholder="To'liq ism" className="bg-white/5 border-white/10 text-white text-sm" data-testid="input-new-tenant-owner" />
+            </div>
+            <div>
+              <Label className="text-white/70 text-xs">Telefon *</Label>
+              <Input value={newTenant.phone} onChange={(e) => setNewTenant(f => ({ ...f, phone: e.target.value }))}
+                placeholder="+998901234567" className="bg-white/5 border-white/10 text-white text-sm" data-testid="input-new-tenant-phone" />
+            </div>
+            <div>
+              <Label className="text-white/70 text-xs">Parol *</Label>
+              <Input type="password" value={newTenant.password} onChange={(e) => setNewTenant(f => ({ ...f, password: e.target.value }))}
+                placeholder="Parol" className="bg-white/5 border-white/10 text-white text-sm" data-testid="input-new-tenant-password" />
+            </div>
+            <div>
+              <Label className="text-white/70 text-xs">Tarif</Label>
+              <Select value={newTenant.plan} onValueChange={(v) => setNewTenant(f => ({ ...f, plan: v }))}>
+                <SelectTrigger className="bg-white/5 border-white/10 text-white text-sm" data-testid="select-new-tenant-plan">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {planSlugs.length > 0 ? planSlugs.map((slug: string) => (
+                    <SelectItem key={slug} value={slug}>{slug}</SelectItem>
+                  )) : (
+                    <SelectItem value="free">free</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" className="text-white/50 hover:text-white" onClick={() => setAddOpen(false)}>
+              Bekor qilish
+            </Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => {
+                if (!newTenant.name || !newTenant.ownerName || !newTenant.phone || !newTenant.password) {
+                  toast({ title: "Barcha maydonlarni to'ldiring", variant: "destructive" });
+                  return;
+                }
+                createTenantMut.mutate(newTenant);
+              }}
+              disabled={createTenantMut.isPending}
+              data-testid="button-save-new-tenant"
+            >
+              {createTenantMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Yaratish
             </Button>
           </DialogFooter>
         </DialogContent>

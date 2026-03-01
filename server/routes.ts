@@ -2151,6 +2151,42 @@ export async function registerRoutes(
     res.json(safe);
   });
 
+  app.post("/api/super/tenants", requireSuperAdmin, async (req, res) => {
+    try {
+      const { name, ownerName, phone, password, plan } = req.body;
+      if (!name || !ownerName || !phone || !password) {
+        return res.status(400).json({ message: "Barcha maydonlar majburiy" });
+      }
+      const existing = await storage.getTenantByPhone(phone);
+      if (existing) {
+        return res.status(400).json({ message: "Bu telefon raqam allaqachon ro'yxatdan o'tgan" });
+      }
+      const selectedPlan = plan || "free";
+      const allPlans = await storage.getPlans();
+      const planObj = allPlans.find(p => p.slug === selectedPlan);
+      const trialEnd = planObj && planObj.trialDays > 0 ? new Date(Date.now() + planObj.trialDays * 86400000) : null;
+
+      const tenant = await storage.createTenant({
+        name,
+        ownerName,
+        phone,
+        password: hashPassword(password),
+        plan: selectedPlan,
+        trialEndsAt: trialEnd,
+        active: true,
+      });
+      await storage.upsertSetting("company_name", name, tenant.id);
+      await storage.upsertSetting("currency", "UZS", tenant.id);
+      await storage.upsertSetting("telegram_bot_token", "", tenant.id);
+      await storage.upsertSetting("telegram_chat_id", "", tenant.id);
+      await seedTenantData(tenant.id);
+      const { password: _, ...safe } = tenant;
+      res.json(safe);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.delete("/api/super/tenants/:id", requireSuperAdmin, async (req, res) => {
     try {
       const tenant = await storage.getTenant(req.params.id);
