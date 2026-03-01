@@ -176,28 +176,36 @@
 }
 
 .glass-header {
-  background: linear-gradient(135deg, rgba(56, 119, 235, 0.95) 0%, rgba(88, 86, 214, 0.93) 40%, rgba(147, 97, 253, 0.9) 100%);
+  background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 50%, #2563eb 100%);
   backdrop-filter: blur(24px) saturate(200%);
   -webkit-backdrop-filter: blur(24px) saturate(200%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 4px 24px rgba(79, 70, 229, 0.15), 0 1px 3px rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 20px rgba(30, 64, 175, 0.3);
   position: relative;
   z-index: 1;
 }
 
 .glass-sidebar-header {
-  background: linear-gradient(180deg, rgba(71, 110, 200, 0.97) 0%, rgba(85, 80, 210, 0.95) 100%) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 2px 12px rgba(71, 110, 200, 0.15);
+  background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 12px rgba(30, 58, 138, 0.2);
 }
 
 .glass-sidebar-content {
-  background: linear-gradient(180deg, rgba(60, 78, 148, 0.95) 0%, rgba(50, 55, 115, 0.96) 100%) !important;
+  background: linear-gradient(180deg, #1e3a8a 0%, #172554 100%) !important;
 }
 
 .glass-sidebar-footer {
-  background: rgba(45, 48, 95, 0.96) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  background: #172554 !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-text-shadow {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-text-shadow-strong {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7), 0 0 2px rgba(0, 0, 0, 0.4);
 }
 
 .glass-sidebar [data-sidebar="sidebar"],

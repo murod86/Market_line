@@ -88,7 +88,7 @@ function AdminLayout() {
           <header className="flex items-center gap-3 px-4 py-3 shrink-0 glass-header">
             <SidebarTrigger data-testid="button-sidebar-toggle" className="text-white/90 [&]:bg-transparent" />
             <div className="h-5 w-px bg-white/20" />
-            <h1 className="text-sm font-bold text-white/90 tracking-wide drop-shadow-sm" data-testid="text-tenant-name">
+            <h1 className="text-sm font-bold text-white tracking-wide sidebar-text-shadow-strong" data-testid="text-tenant-name">
               {(tenant as any)?.name || "MARKET_LINE"}
             </h1>
           </header>
