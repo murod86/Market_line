@@ -32,6 +32,9 @@ interface CartItem {
   price: number;
   stock: number;
   quantity: number;
+  buyUnit: "dona" | "quti";
+  boxQuantity: number;
+  stockPieces: number;
 }
 
 const txTypeLabels: Record<string, { label: string; color: string }> = {
@@ -235,8 +238,14 @@ export default function Dealers() {
   const addToCart = (product: Product) => {
     const existing = cart.find((i) => i.productId === product.id);
     if (existing) {
+      const newQty = existing.quantity + 1;
+      const newPieces = existing.buyUnit === "quti" ? newQty * existing.boxQuantity : newQty;
+      if (newPieces > product.stock) {
+        toast({ title: `${product.name}: omborda yetarli emas (${product.stock} ${product.unit} bor)`, variant: "destructive" });
+        return;
+      }
       setCart(cart.map((i) =>
-        i.productId === product.id ? { ...i, quantity: Math.min(i.quantity + 1, i.stock) } : i
+        i.productId === product.id ? { ...i, quantity: newQty, stockPieces: newPieces } : i
       ));
     } else {
       setCart([...cart, {
@@ -246,6 +255,9 @@ export default function Dealers() {
         price: Number(product.price),
         stock: product.stock,
         quantity: 1,
+        buyUnit: "dona",
+        boxQuantity: product.boxQuantity || 1,
+        stockPieces: 1,
       }]);
     }
   };
@@ -253,8 +265,14 @@ export default function Dealers() {
   const addInventoryToCart = (item: any) => {
     const existing = cart.find((i) => i.productId === item.productId);
     if (existing) {
+      const newQty = existing.quantity + 1;
+      const newPieces = existing.buyUnit === "quti" ? newQty * existing.boxQuantity : newQty;
+      if (newPieces > item.quantity) {
+        toast({ title: `${item.productName}: dillerda yetarli emas`, variant: "destructive" });
+        return;
+      }
       setCart(cart.map((i) =>
-        i.productId === item.productId ? { ...i, quantity: Math.min(i.quantity + 1, i.stock) } : i
+        i.productId === item.productId ? { ...i, quantity: newQty, stockPieces: newPieces } : i
       ));
     } else {
       setCart([...cart, {
@@ -264,6 +282,9 @@ export default function Dealers() {
         price: Number(item.productPrice),
         stock: item.quantity,
         quantity: 1,
+        buyUnit: "dona",
+        boxQuantity: item.boxQuantity || 1,
+        stockPieces: 1,
       }]);
     }
   };
@@ -272,13 +293,28 @@ export default function Dealers() {
     if (qty <= 0) {
       setCart(cart.filter((i) => i.productId !== productId));
     } else {
-      setCart(cart.map((i) =>
-        i.productId === productId ? { ...i, quantity: Math.min(qty, i.stock) } : i
-      ));
+      setCart(cart.map((i) => {
+        if (i.productId !== productId) return i;
+        const newPieces = i.buyUnit === "quti" ? qty * i.boxQuantity : qty;
+        const maxPieces = i.stock;
+        if (newPieces > maxPieces) return i;
+        return { ...i, quantity: qty, stockPieces: newPieces };
+      }));
     }
   };
 
-  const cartTotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const toggleCartUnit = (productId: string) => {
+    setCart(cart.map((i) => {
+      if (i.productId !== productId || i.boxQuantity <= 1) return i;
+      const newUnit = i.buyUnit === "dona" ? "quti" : "dona";
+      const newQty = newUnit === "quti" ? Math.max(1, Math.floor(i.quantity / i.boxQuantity)) : i.quantity * i.boxQuantity;
+      const newPieces = newUnit === "quti" ? newQty * i.boxQuantity : newQty;
+      if (newPieces > i.stock) return i;
+      return { ...i, buyUnit: newUnit as "dona" | "quti", quantity: newQty, stockPieces: newPieces };
+    }));
+  };
+
+  const cartTotal = cart.reduce((sum, i) => sum + i.price * i.stockPieces, 0);
 
   const filteredProducts = products?.filter((p) =>
     p.active && p.stock > 0 &&
@@ -304,7 +340,7 @@ export default function Dealers() {
   const submitLoad = () => {
     if (cart.length === 0) return;
     loadMutation.mutate({
-      items: cart.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      items: cart.map((i) => ({ productId: i.productId, quantity: Math.round(i.stockPieces) })),
       notes: operationNotes.trim() || null,
       paymentType: loadPaymentType,
       paidAmount: loadPaymentType === "partial" ? Number(loadPaidAmount) || 0 : 0,
@@ -314,7 +350,7 @@ export default function Dealers() {
   const submitSell = () => {
     if (cart.length === 0) return;
     sellMutation.mutate({
-      items: cart.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      items: cart.map((i) => ({ productId: i.productId, quantity: Math.round(i.stockPieces) })),
       customerName: sellCustomerName.trim() || null,
       customerPhone: sellCustomerPhone.trim() || null,
       notes: operationNotes.trim() || null,
@@ -324,7 +360,7 @@ export default function Dealers() {
   const submitReturn = () => {
     if (cart.length === 0) return;
     returnMutation.mutate({
-      items: cart.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      items: cart.map((i) => ({ productId: i.productId, quantity: Math.round(i.stockPieces) })),
       notes: operationNotes.trim() || null,
     });
   };
@@ -710,10 +746,26 @@ export default function Dealers() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{item.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {formatCurrency(item.price)} x {item.quantity} {item.unit} = {formatCurrency(item.price * item.quantity)}
+                          {formatCurrency(item.price)} × {item.stockPieces} {item.unit} = {formatCurrency(item.price * item.stockPieces)}
                         </p>
+                        {item.buyUnit === "quti" && item.boxQuantity > 1 && (
+                          <p className="text-[10px] text-blue-600">
+                            {item.quantity} quti × {item.boxQuantity} = {item.stockPieces} {item.unit}
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
+                        {item.boxQuantity > 1 && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-[10px] px-1.5 h-7"
+                            onClick={() => toggleCartUnit(item.productId)}
+                            data-testid={`button-cart-unit-${item.productId}`}
+                          >
+                            {item.buyUnit === "dona" ? item.unit : "quti"}
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
@@ -729,7 +781,7 @@ export default function Dealers() {
                           size="sm"
                           variant="outline"
                           onClick={() => updateCartQty(item.productId, item.quantity + 1)}
-                          disabled={item.quantity >= item.stock}
+                          disabled={item.stockPieces >= item.stock}
                           data-testid={`button-cart-plus-${item.productId}`}
                         >
                           <Plus className="h-3 w-3" />
@@ -860,10 +912,11 @@ export default function Dealers() {
                             <p className="text-sm font-medium truncate">{product.name}</p>
                             <p className="text-xs text-muted-foreground">
                               {formatCurrency(Number(product.price))} · {product.stock} {product.unit}
+                              {(product.boxQuantity || 1) > 1 && ` · 1 quti=${product.boxQuantity} ${product.unit}`}
                             </p>
                           </div>
                           {inCart ? (
-                            <Badge className="shrink-0">{inCart.quantity}</Badge>
+                            <Badge className="shrink-0">{inCart.stockPieces} {inCart.unit}</Badge>
                           ) : (
                             <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
                           )}

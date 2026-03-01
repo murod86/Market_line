@@ -737,6 +737,7 @@ export async function registerRoutes(
         productUnit: product?.unit || "dona",
         productPrice: product?.price || "0",
         productImage: product?.imageUrl || null,
+        boxQuantity: product?.boxQuantity || 1,
       };
     });
     res.json(enriched);
@@ -777,7 +778,7 @@ export async function registerRoutes(
           return res.status(400).json({ message: "Mahsulot topilmadi" });
         }
         if (product.stock < item.quantity) {
-          return res.status(400).json({ message: `${product.name}: omborda yetarli emas (${product.stock} ta bor)` });
+          return res.status(400).json({ message: `${product.name}: omborda yetarli emas (${product.stock} ${product.unit} bor)` });
         }
       }
 
@@ -1061,8 +1062,8 @@ export async function registerRoutes(
         if (!item.productId || typeof item.productId !== "string") {
           return res.status(400).json({ message: "Mahsulot ID noto'g'ri" });
         }
-        if (!Number.isInteger(item.quantity) || item.quantity < 1) {
-          return res.status(400).json({ message: "Miqdor musbat butun son bo'lishi kerak" });
+        if (!item.quantity || Number(item.quantity) < 1) {
+          return res.status(400).json({ message: "Miqdor musbat son bo'lishi kerak" });
         }
         if (!item.costPrice || Number(item.costPrice) <= 0) {
           return res.status(400).json({ message: "Tan narxi majburiy" });
@@ -1071,33 +1072,40 @@ export async function registerRoutes(
 
       const result = await db.transaction(async (tx) => {
         let totalAmount = 0;
+        const processedItems = [];
+
         for (const item of items) {
-          totalAmount += item.quantity * Number(item.costPrice);
+          const stockQuantity = Math.round(Number(item.quantity));
+          const unitCost = Number(item.costPrice);
+          const itemTotal = stockQuantity * unitCost;
+          totalAmount += itemTotal;
+          processedItems.push({ ...item, stockQuantity, unitCost, itemTotal });
         }
 
+        const paid = Number(paidAmount || 0);
         const [purchase] = await tx.insert(purchases).values({
           tenantId,
           supplierId: supplierId || null,
           totalAmount: totalAmount.toFixed(2),
-          paidAmount: (paidAmount || 0).toFixed ? Number(paidAmount || 0).toFixed(2) : "0.00",
+          paidAmount: paid.toFixed(2),
           notes: notes || null,
         }).returning();
 
-        for (const item of items) {
+        for (const pi of processedItems) {
           await tx.insert(purchaseItems).values({
             purchaseId: purchase.id,
-            productId: item.productId,
-            quantity: item.quantity,
-            costPrice: Number(item.costPrice).toFixed(2),
-            total: (item.quantity * Number(item.costPrice)).toFixed(2),
+            productId: pi.productId,
+            quantity: pi.stockQuantity,
+            costPrice: pi.unitCost.toFixed(2),
+            total: pi.itemTotal.toFixed(2),
           });
 
-          const [product] = await tx.select().from(products).where(eq(products.id, item.productId));
+          const [product] = await tx.select().from(products).where(eq(products.id, pi.productId));
           if (product) {
             await tx.update(products).set({
-              stock: product.stock + item.quantity,
-              costPrice: Number(item.costPrice).toFixed(2),
-            }).where(eq(products.id, item.productId));
+              stock: product.stock + pi.stockQuantity,
+              costPrice: pi.unitCost.toFixed(2),
+            }).where(eq(products.id, pi.productId));
           }
         }
 
@@ -1208,6 +1216,7 @@ export async function registerRoutes(
         productPrice: product?.price || "0",
         productCostPrice: product?.costPrice || "0",
         productImage: product?.imageUrl || null,
+        boxQuantity: product?.boxQuantity || 1,
       };
     });
     res.json(enriched);
@@ -1282,6 +1291,9 @@ export async function registerRoutes(
           type: "sell",
           quantity: item.quantity,
           price: String(item.price),
+          total: (item.price * item.quantity).toFixed(2),
+          customerName: customerName || null,
+          customerPhone: customerPhone || null,
           notes: noteText,
         });
       }

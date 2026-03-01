@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Product, Supplier, Purchase } from "@shared/schema";
-import { Plus, Trash2, Package, Eye, ShoppingBasket } from "lucide-react";
+import { Plus, Trash2, Package, Eye, Search } from "lucide-react";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -29,6 +29,10 @@ interface CartItem {
   productName: string;
   quantity: number;
   costPrice: number;
+  buyUnit: "dona" | "quti";
+  productUnit: string;
+  boxQuantity: number;
+  stockPieces: number;
 }
 
 export default function Purchases() {
@@ -39,9 +43,11 @@ export default function Purchases() {
   const [paidAmount, setPaidAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState("");
+  const [productSearch, setProductSearch] = useState("");
   const [itemQty, setItemQty] = useState("1");
   const [itemCost, setItemCost] = useState("");
+  const [itemBuyUnit, setItemBuyUnit] = useState<"dona" | "quti">("dona");
+  const [selectedProductId, setSelectedProductId] = useState("");
   const { toast } = useToast();
 
   const { data: purchases, isLoading } = useQuery<Purchase[]>({ queryKey: ["/api/purchases"] });
@@ -74,19 +80,33 @@ export default function Purchases() {
     setPaidAmount("");
     setNotes("");
     setCart([]);
-    setSelectedProduct("");
+    setProductSearch("");
     setItemQty("1");
     setItemCost("");
+    setItemBuyUnit("dona");
+    setSelectedProductId("");
+  };
+
+  const filteredProducts = products?.filter((p) =>
+    p.active &&
+    (productSearch === "" || p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.sku?.toLowerCase().includes(productSearch.toLowerCase()))
+  );
+
+  const selectProduct = (product: Product) => {
+    setSelectedProductId(product.id);
+    setItemCost(String(product.costPrice));
+    setItemBuyUnit("dona");
+    setProductSearch("");
   };
 
   const addToCart = () => {
-    if (!selectedProduct) {
+    if (!selectedProductId) {
       toast({ title: "Mahsulot tanlang", variant: "destructive" });
       return;
     }
     const qty = parseInt(itemQty);
     const cost = parseFloat(itemCost);
-    if (!qty || qty < 1) {
+    if (!qty || qty < 1 || isNaN(qty)) {
       toast({ title: "Miqdor noto'g'ri", variant: "destructive" });
       return;
     }
@@ -94,21 +114,37 @@ export default function Purchases() {
       toast({ title: "Tan narxi noto'g'ri", variant: "destructive" });
       return;
     }
-    const product = products?.find((p) => p.id === selectedProduct);
+    const product = products?.find((p) => p.id === selectedProductId);
     if (!product) return;
 
-    const existing = cart.findIndex((c) => c.productId === selectedProduct);
+    const boxQty = product.boxQuantity || 1;
+    const stockPieces = itemBuyUnit === "quti" ? qty * boxQty : qty;
+
+    const existing = cart.findIndex((c) => c.productId === selectedProductId);
     if (existing >= 0) {
       const updated = [...cart];
-      updated[existing].quantity += qty;
+      const newQty = updated[existing].quantity + qty;
+      updated[existing].quantity = newQty;
       updated[existing].costPrice = cost;
+      updated[existing].buyUnit = itemBuyUnit;
+      updated[existing].stockPieces = itemBuyUnit === "quti" ? newQty * boxQty : newQty;
       setCart(updated);
     } else {
-      setCart([...cart, { productId: selectedProduct, productName: product.name, quantity: qty, costPrice: cost }]);
+      setCart([...cart, {
+        productId: selectedProductId,
+        productName: product.name,
+        quantity: qty,
+        costPrice: cost,
+        buyUnit: itemBuyUnit,
+        productUnit: product.unit,
+        boxQuantity: boxQty,
+        stockPieces,
+      }]);
     }
-    setSelectedProduct("");
+    setSelectedProductId("");
     setItemQty("1");
     setItemCost("");
+    setItemBuyUnit("dona");
   };
 
   const removeFromCart = (index: number) => {
@@ -116,6 +152,7 @@ export default function Purchases() {
   };
 
   const cartTotal = cart.reduce((sum, item) => sum + item.quantity * item.costPrice, 0);
+  const cartTotalPieces = cart.reduce((sum, item) => sum + item.stockPieces, 0);
 
   const handleSubmit = () => {
     if (cart.length === 0) {
@@ -124,7 +161,14 @@ export default function Purchases() {
     }
     mutation.mutate({
       supplierId: supplierId || null,
-      items: cart.map((c) => ({ productId: c.productId, quantity: c.quantity, costPrice: c.costPrice })),
+      items: cart.map((c) => ({
+        productId: c.productId,
+        quantity: Math.round(c.stockPieces),
+        costPrice: c.buyUnit === "quti" ? (c.costPrice / c.boxQuantity) : c.costPrice,
+        displayQuantity: c.quantity,
+        displayUnit: c.buyUnit,
+        boxQuantity: c.boxQuantity,
+      })),
       paidAmount: parseFloat(paidAmount) || 0,
       notes: notes || null,
     });
@@ -139,6 +183,8 @@ export default function Purchases() {
     if (!id) return "—";
     return suppliers?.find((s) => s.id === id)?.name || "—";
   };
+
+  const selectedProduct = products?.find((p) => p.id === selectedProductId);
 
   if (isLoading) {
     return (
@@ -258,40 +304,110 @@ export default function Purchases() {
 
             <div>
               <h3 className="font-medium mb-3">Mahsulot qo'shish</h3>
-              <div className="grid grid-cols-4 gap-2">
-                <Select value={selectedProduct} onValueChange={(val) => {
-                  setSelectedProduct(val);
-                  const p = products?.find((p) => p.id === val);
-                  if (p) setItemCost(String(p.costPrice));
-                }}>
-                  <SelectTrigger data-testid="select-purchase-product">
-                    <SelectValue placeholder="Mahsulot" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products?.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+              <div className="relative mb-3">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  type="number"
-                  value={itemQty}
-                  onChange={(e) => setItemQty(e.target.value)}
-                  placeholder="Miqdor"
-                  min="1"
-                  data-testid="input-purchase-qty"
+                  placeholder="Mahsulot nomi yoki SKU bo'yicha qidirish..."
+                  value={selectedProductId ? (selectedProduct?.name || "") : productSearch}
+                  onChange={(e) => {
+                    setProductSearch(e.target.value);
+                    setSelectedProductId("");
+                  }}
+                  className="pl-10"
+                  data-testid="input-purchase-product-search"
                 />
-                <Input
-                  type="number"
-                  value={itemCost}
-                  onChange={(e) => setItemCost(e.target.value)}
-                  placeholder="Tan narxi"
-                  data-testid="input-purchase-cost"
-                />
-                <Button onClick={addToCart} variant="secondary" data-testid="button-add-to-cart">
-                  <Plus className="h-4 w-4 mr-1" /> Qo'shish
-                </Button>
               </div>
+
+              {productSearch && !selectedProductId && filteredProducts && filteredProducts.length > 0 && (
+                <div className="border rounded-md max-h-48 overflow-y-auto mb-3 bg-background shadow-lg">
+                  {filteredProducts.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center gap-3 p-2 hover:bg-muted cursor-pointer border-b last:border-0"
+                      onClick={() => selectProduct(p)}
+                      data-testid={`search-result-${p.id}`}
+                    >
+                      {p.imageUrl ? (
+                        <img src={p.imageUrl} alt="" className="h-8 w-8 rounded object-cover" />
+                      ) : (
+                        <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
+                          <Package className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{p.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          SKU: {p.sku} | Stok: {p.stock} {p.unit}
+                          {p.boxQuantity > 1 && ` | 1 quti = ${p.boxQuantity} ${p.unit}`}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-xs font-medium">{formatCurrency(Number(p.costPrice))}</p>
+                        <p className="text-[10px] text-muted-foreground">tan narxi</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {selectedProductId && selectedProduct && (
+                <div className="grid grid-cols-4 gap-2 items-end">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Birlik</label>
+                    <Select value={itemBuyUnit} onValueChange={(v) => {
+                      setItemBuyUnit(v as "dona" | "quti");
+                      if (v === "quti") {
+                        setItemCost(String(Number(selectedProduct.costPrice) * (selectedProduct.boxQuantity || 1)));
+                      } else {
+                        setItemCost(String(selectedProduct.costPrice));
+                      }
+                    }}>
+                      <SelectTrigger data-testid="select-purchase-unit">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="dona">{selectedProduct.unit} (dona)</SelectItem>
+                        {(selectedProduct.boxQuantity || 1) > 1 && (
+                          <SelectItem value="quti">Quti ({selectedProduct.boxQuantity} {selectedProduct.unit})</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Miqdor</label>
+                    <Input
+                      type="number"
+                      value={itemQty}
+                      onChange={(e) => setItemQty(e.target.value)}
+                      placeholder="1"
+                      min="1"
+                      data-testid="input-purchase-qty"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">
+                      Narx (1 {itemBuyUnit === "quti" ? "quti" : selectedProduct.unit})
+                    </label>
+                    <Input
+                      type="number"
+                      value={itemCost}
+                      onChange={(e) => setItemCost(e.target.value)}
+                      placeholder="Tan narxi"
+                      data-testid="input-purchase-cost"
+                    />
+                  </div>
+                  <Button onClick={addToCart} variant="secondary" data-testid="button-add-to-cart">
+                    <Plus className="h-4 w-4 mr-1" /> Qo'shish
+                  </Button>
+                </div>
+              )}
+
+              {selectedProductId && selectedProduct && itemBuyUnit === "quti" && (selectedProduct.boxQuantity || 1) > 1 && (
+                <p className="text-xs text-blue-600 mt-1">
+                  {itemQty || 0} quti × {selectedProduct.boxQuantity} {selectedProduct.unit} = {(Number(itemQty) || 0) * selectedProduct.boxQuantity} {selectedProduct.unit} omborga qo'shiladi
+                </p>
+              )}
             </div>
 
             {cart.length > 0 && (
@@ -301,18 +417,28 @@ export default function Purchases() {
                     <TableRow>
                       <TableHead>Mahsulot</TableHead>
                       <TableHead className="text-right">Miqdor</TableHead>
-                      <TableHead className="text-right">Tan narxi</TableHead>
+                      <TableHead className="text-right">Narx</TableHead>
                       <TableHead className="text-right">Jami</TableHead>
+                      <TableHead className="text-right">Omborga</TableHead>
                       <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {cart.map((item, index) => (
                       <TableRow key={index} data-testid={`row-cart-item-${index}`}>
-                        <TableCell>{item.productName}</TableCell>
-                        <TableCell className="text-right">{item.quantity}</TableCell>
+                        <TableCell>
+                          <span className="font-medium">{item.productName}</span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {item.quantity} {item.buyUnit === "quti" ? "quti" : item.productUnit}
+                        </TableCell>
                         <TableCell className="text-right">{formatCurrency(item.costPrice)}</TableCell>
                         <TableCell className="text-right font-medium">{formatCurrency(item.quantity * item.costPrice)}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant="secondary" className="text-xs">
+                            +{Math.round(item.stockPieces)} {item.productUnit}
+                          </Badge>
+                        </TableCell>
                         <TableCell>
                           <Button variant="ghost" size="icon" onClick={() => removeFromCart(index)} data-testid={`button-remove-cart-${index}`}>
                             <Trash2 className="h-4 w-4 text-destructive" />
@@ -322,10 +448,18 @@ export default function Purchases() {
                     ))}
                   </TableBody>
                 </Table>
-                <div className="flex justify-end mt-2">
+                <div className="flex justify-between mt-3 items-center">
+                  <p className="text-sm text-muted-foreground">
+                    Jami omborga: <span className="font-medium text-foreground">{cartTotalPieces} dona</span>
+                  </p>
                   <div className="text-right">
                     <p className="text-sm text-muted-foreground">Jami summa:</p>
                     <p className="text-lg font-bold" data-testid="text-cart-total">{formatCurrency(cartTotal)}</p>
+                    {parseFloat(paidAmount) > 0 && parseFloat(paidAmount) < cartTotal && (
+                      <p className="text-sm text-destructive">
+                        Qarz: {formatCurrency(cartTotal - parseFloat(paidAmount))}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -366,6 +500,14 @@ export default function Purchases() {
                   <span className="text-muted-foreground">To'langan:</span>
                   <p className="font-medium">{formatCurrency(Number((purchaseDetail as any).paidAmount))}</p>
                 </div>
+                {Number((purchaseDetail as any).totalAmount) - Number((purchaseDetail as any).paidAmount) > 0 && (
+                  <div className="col-span-2">
+                    <span className="text-muted-foreground">Qarz:</span>
+                    <p className="font-medium text-destructive">
+                      {formatCurrency(Number((purchaseDetail as any).totalAmount) - Number((purchaseDetail as any).paidAmount))}
+                    </p>
+                  </div>
+                )}
               </div>
               {(purchaseDetail as any).notes && (
                 <div className="text-sm">

@@ -103,6 +103,7 @@ export const products = pgTable("products", {
   categoryId: varchar("category_id").references(() => categories.id),
   imageUrl: text("image_url"),
   unit: text("unit").notNull().default("dona"),
+  boxQuantity: integer("box_quantity").notNull().default(1),
   active: boolean("active").notNull().default(true),
 });
 

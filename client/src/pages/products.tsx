@@ -24,7 +24,7 @@ export default function Products() {
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState({
     name: "", description: "", sku: "", price: "", costPrice: "",
-    stock: "", minStock: "5", categoryId: "", unit: "dona", imageUrl: "",
+    stock: "", minStock: "5", categoryId: "", unit: "dona", boxQuantity: "1", imageUrl: "",
   });
   const { toast } = useToast();
 
@@ -76,7 +76,7 @@ export default function Products() {
   });
 
   const resetForm = () => {
-    setForm({ name: "", description: "", sku: "", price: "", costPrice: "", stock: "", minStock: "5", categoryId: "", unit: "dona", imageUrl: "" });
+    setForm({ name: "", description: "", sku: "", price: "", costPrice: "", stock: "", minStock: "5", categoryId: "", unit: "dona", boxQuantity: "1", imageUrl: "" });
   };
 
   const openEdit = (product: Product) => {
@@ -91,6 +91,7 @@ export default function Products() {
       minStock: String(product.minStock),
       categoryId: product.categoryId || "",
       unit: product.unit,
+      boxQuantity: String(product.boxQuantity || 1),
       imageUrl: product.imageUrl || "",
     });
     setDialogOpen(true);
@@ -111,6 +112,7 @@ export default function Products() {
       minStock: Number(form.minStock) || 5,
       categoryId: form.categoryId || null,
       unit: form.unit,
+      boxQuantity: Number(form.boxQuantity) || 1,
       imageUrl: form.imageUrl || null,
       active: true,
     });
@@ -250,30 +252,47 @@ export default function Products() {
                 <Input type="number" value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: e.target.value })} data-testid="input-product-cost" />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium mb-1 block">Stok</label>
+                <label className="text-sm font-medium mb-1 block">Stok ({form.unit})</label>
                 <Input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} data-testid="input-product-stock" />
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">Min stok</label>
                 <Input type="number" value={form.minStock} onChange={(e) => setForm({ ...form, minStock: e.target.value })} data-testid="input-product-min-stock" />
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium mb-1 block">Birlik</label>
+                <label className="text-sm font-medium mb-1 block">Sotish birligi</label>
                 <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
                   <SelectTrigger data-testid="select-product-unit">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="dona">Dona</SelectItem>
-                    <SelectItem value="quti">Quti</SelectItem>
                     <SelectItem value="kg">Kg</SelectItem>
                     <SelectItem value="gram">Gram</SelectItem>
                     <SelectItem value="litr">Litr</SelectItem>
                     <SelectItem value="metr">Metr</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">1 qutida nechta {form.unit}</label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={form.boxQuantity}
+                  onChange={(e) => setForm({ ...form, boxQuantity: e.target.value })}
+                  placeholder="Masalan: 30"
+                  data-testid="input-product-box-quantity"
+                />
+                {Number(form.boxQuantity) > 1 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    1 quti = {form.boxQuantity} {form.unit}
+                  </p>
+                )}
               </div>
             </div>
             <div>

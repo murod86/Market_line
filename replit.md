@@ -12,6 +12,7 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 - **State Management**: TanStack React Query
 - **Telegram OTP**: Bot API for OTP verification, webhook for phone linking
 - **Multi-tenancy**: All data tables have `tenantId` FK to `tenants` table
+- **Product Units**: Products have `unit` (base selling unit: dona, kg, litr, gram, metr) and `boxQuantity` (how many base units per box). Purchases support buying in boxes or individual units. Stock always stored in base units.
 
 ## Multi-Tenant SaaS Architecture
 - `tenants` table: id, name, ownerName, phone, password, plan, active, createdAt

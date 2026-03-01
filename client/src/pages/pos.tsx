@@ -346,6 +346,11 @@ export default function POS() {
                       <Badge variant="secondary" className="text-xs shrink-0">
                         {product.stock} {product.unit}
                       </Badge>
+                      {(product.boxQuantity || 1) > 1 && (
+                        <Badge variant="outline" className="text-[10px] shrink-0">
+                          1 quti={product.boxQuantity}
+                        </Badge>
+                      )}
                       <p className="text-xs text-muted-foreground">{product.sku}</p>
                     </div>
                   </CardContent>
@@ -390,7 +395,7 @@ export default function POS() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{item.product.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {formatCurrency(Number(item.product.price))}
+                      {formatCurrency(Number(item.product.price))} / {item.product.unit}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
