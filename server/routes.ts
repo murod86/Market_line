@@ -235,18 +235,34 @@ export async function registerRoutes(
     const allPlans = await storage.getPlans();
     const currentPlan = allPlans.find(p => p.slug === tenant.plan);
 
-    const isTrialActive = tenant.plan === "free" && tenant.trialEndsAt && new Date(tenant.trialEndsAt) > new Date();
-    const trialExpired = tenant.plan === "free" && tenant.trialEndsAt && new Date(tenant.trialEndsAt) <= new Date();
-
     const allModuleKeys = ["pos","warehouse","categories","products","customers","deliveries","suppliers","purchases","orders","dealers","roles","employees","settings"];
-    let allowedModules: string[] = [];
+
+    const hasTrial = tenant.trialEndsAt != null;
+    const isTrialActive = hasTrial && new Date(tenant.trialEndsAt!) > new Date();
+    const trialExpired = hasTrial && new Date(tenant.trialEndsAt!) <= new Date();
+
+    let allowedModules: string[] = allModuleKeys;
+
+    if (currentPlan) {
+      const planModules = currentPlan.allowedModules as string[];
+      if (planModules && planModules.length > 0) {
+        allowedModules = planModules;
+      } else {
+        allowedModules = allModuleKeys;
+      }
+    }
+
     if (isTrialActive) {
       allowedModules = allModuleKeys;
-    } else if (currentPlan) {
+    }
+
+    if (trialExpired && currentPlan) {
       const planModules = currentPlan.allowedModules as string[];
-      allowedModules = planModules && planModules.length > 0 ? planModules : ["dashboard"];
-    } else {
-      allowedModules = ["dashboard"];
+      if (planModules && planModules.length > 0) {
+        allowedModules = planModules;
+      } else {
+        allowedModules = allModuleKeys;
+      }
     }
 
     res.json({
@@ -2272,6 +2288,8 @@ export async function registerRoutes(
     maxProducts: z.number().int().min(0).default(100),
     maxEmployees: z.number().int().min(0).default(3),
     features: z.array(z.string()).default([]),
+    allowedModules: z.array(z.string()).default([]),
+    trialDays: z.number().int().min(0).default(0),
     active: z.boolean().default(true),
     sortOrder: z.number().int().default(0),
   });

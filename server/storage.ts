@@ -500,10 +500,15 @@ export class DatabaseStorage implements IStorage {
     await db.transaction(async (tx) => {
       await tx.delete(settings).where(eq(settings.tenantId, id));
 
+      const tenantDeliveries = await tx.select().from(deliveries).where(eq(deliveries.tenantId, id));
+      for (const delivery of tenantDeliveries) {
+        await tx.delete(deliveryItems).where(eq(deliveryItems.deliveryId, delivery.id));
+      }
+      await tx.delete(deliveries).where(eq(deliveries.tenantId, id));
+
       const tenantSales = await tx.select().from(sales).where(eq(sales.tenantId, id));
       for (const sale of tenantSales) {
         await tx.delete(saleItems).where(eq(saleItems.saleId, sale.id));
-        await tx.delete(deliveries).where(eq(deliveries.saleId, sale.id));
       }
       await tx.delete(sales).where(eq(sales.tenantId, id));
 
@@ -516,7 +521,13 @@ export class DatabaseStorage implements IStorage {
       await tx.delete(payments).where(eq(payments.tenantId, id));
       await tx.delete(dealerTransactions).where(eq(dealerTransactions.tenantId, id));
       await tx.delete(dealerInventory).where(eq(dealerInventory.tenantId, id));
+
+      const tenantDealers = await tx.select().from(dealers).where(eq(dealers.tenantId, id));
+      for (const dealer of tenantDealers) {
+        await tx.delete(dealerCustomers).where(eq(dealerCustomers.dealerId, dealer.id));
+      }
       await tx.delete(dealers).where(eq(dealers.tenantId, id));
+
       await tx.delete(products).where(eq(products.tenantId, id));
       await tx.delete(customers).where(eq(customers.tenantId, id));
       await tx.delete(categories).where(eq(categories.tenantId, id));

@@ -83,8 +83,12 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 - Session field `superAdmin: boolean` with `requireSuperAdmin` middleware
 - Features: tenant listing, plan/active toggling, plan CRUD, stats overview, tenant deletion with confirmation, password change
 - API: `/api/super/login`, `/api/super/me`, `/api/super/logout`, `/api/super/tenants` (GET/PATCH/DELETE), `/api/super/plans` (GET/POST/PATCH/DELETE), `/api/super/stats`, `/api/super/change-password` (POST)
-- Plans table stores pricing info (name, slug, price, maxProducts, maxEmployees, features, sortOrder)
+- Plans table stores pricing info (name, slug, price, maxProducts, maxEmployees, features, allowedModules, trialDays, sortOrder)
+- `allowedModules` in plans controls which sidebar modules are accessible for tenants on that plan
+- `/api/auth/me` returns `allowedModules` array based on tenant's plan; if plan has no modules specified, all modules are enabled by default
+- Trial logic: `trialEndsAt` field on tenants; during trial all modules enabled; after trial, plan's allowedModules apply
 - Landing page pricing dynamically fetches from `/api/plans/public`
+- Tenant cascade delete properly removes all related data: settings, deliveryItems, deliveries, saleItems, sales, purchaseItems, purchases, payments, dealerTransactions, dealerInventory, dealerCustomers, dealers, products, customers, categories, suppliers, employees, roles
 
 ## API Routes
 - `/api/auth/register` - Owner registration (POST)
