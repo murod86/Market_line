@@ -1,0 +1,221 @@
+10:52:20 AM [express] GET /api/super/stats 304 in 14ms :: {"totalTenants":1,"activeTenants":1,"planCounts":{"3":1},"totalPlans":3}
+10:52:20 AM [express] GET /api/super/global-settings 500 in 40ms :: {"message":"relation \"global_settings\" does not exist"}
+10:52:20 AM [express] GET /api/super/plans 304 in 10ms :: [{"id":"71c2c459-d2d5-405d-9893-a164424692d2","name":"FREE","slug":"1","price":"0.00","maxProducts":100,"maxEmployees":3,"features":["Sotuv (POS)","Ombor","Kategoriyalar","Mahsulotlar","Mijozlar","Yetkazib berish","Ta'minotchilar","Kirim (Xaridlar)","Buyurtmalar","Dillerlar","Rollar","Xodimlar","Sozlamalar"],"allowedModules":[],"trialDays":0,"active":true,"sortOrder":1},{"id":"2dbe4374-15fd-482d-b0a0-b929ea85907d","name":"OYLIK","slug":"2","price":"349000.00","maxProducts":1000,"maxEmployees":5,"features":["Sotuv (POS)","Ombor","Kategoriyalar","Mahsulotlar","Mijozlar","Yetkazib berish","Ta'minotchilar","Kirim (Xaridlar)","Buyurtmalar","Dillerlar","Rollar","Xodimlar","Sozlamalar"],"allowedModules":[],"trialDays":0,"active":true,"sortOrder":2},{"id":"5d8782d1-71de-4c1e-b46d-d341759a9714","name":"YILLIK","slug":"3","price":"3499000.00","maxProducts":1000,"maxEmployees":5,"features":["Sotuv (POS)","Ombor","Kategoriyalar","Mahsulotlar","Mijozlar","Yetkazib berish","Ta'minotchilar","Kirim (Xaridlar)","Buyurtmalar","Dillerlar","Rollar","Xodimlar","Sozlamalar"],"allowedModules":[],"trialDays":0,"active":true,"sortOrder":3}]
+10:52:32 AM [express] GET /api/auth/me 304 in 14ms :: {"id":"5975c9aa-8d16-49fa-9ba6-c768fd3a83df","name":"MUZAFFAR SARDOR-FAYZ","ownerName":"MUZAFFAR","phone":"+998932517722","plan":"3","trialEndsAt":null,"active":true,"createdAt":"2026-03-01T08:05:10.600Z","planDetails":{"name":"YILLIK","price":"3499000.00","maxProducts":1000,"maxEmployees":5},"allowedModules":["pos","warehouse","categories","products","customers","deliveries","suppliers","purchases","orders","dealers","roles","employees","settings"],"isTrialActive":false,"trialExpired":false,"trialDaysLeft":0}
+10:52:33 AM [express] GET /api/dealers 304 in 14ms :: [{"id":"9ada482e-1cde-4098-a7db-a0558607b829","tenantId":"5975c9aa-8d16-49fa-9ba6-c768fd3a83df","name":"kgkhf","phone":";hpio","password":null,"vehicleInfo":";kgh;oigh","debt":"740.00","active":true,"createdAt":"2026-03-01T08:21:52.678Z"}]
+10:52:33 AM [express] GET /api/customers 304 in 13ms :: []
+  detail: undefined,
+  hint: undefined,
+  constraint: undefined,
+    at async xg.getGlobalSetting (/app/dist/index.cjs:74:59862)
+  position: '34',
+  file: 'parse_relation.c',
+  table: undefined,
+    at async xg.upsertGlobalSetting (/app/dist/index.cjs:74:59950)
+  line: '1449',
+  internalPosition: undefined,
+    at async /app/dist/index.cjs:110:2853 {
+  column: undefined,
+  routine: 'parserOpenTable'
+  length: 114,
+}
+  internalQuery: undefined,
+  dataType: undefined,
+  severity: 'ERROR',
+  where: undefined,
+  code: '42P01',
+Internal Server Error: error: relation "global_settings" does not exist
+10:53:42 AM [express] POST /api/super/global-settings 500 in 49ms :: {"message":"relation \"global_settings\" does not exist"}
+  schema: undefined,
+    at /app/dist/index.cjs:68:13326
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async /app/dist/index.cjs:74:37954
+Internal Server Error: error: relation "global_settings" does not exist
+  routine: 'parserOpenTable'
+}
+    at /app/dist/index.cjs:68:13326
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async /app/dist/index.cjs:74:37954
+    at async xg.getGlobalSetting (/app/dist/index.cjs:74:59862)
+    at async xg.upsertGlobalSetting (/app/dist/index.cjs:74:59950)
+    at async /app/dist/index.cjs:110:2853 {
+  length: 114,
+  severity: 'ERROR',
+  code: '42P01',
+  detail: undefined,
+  hint: undefined,
+  position: '34',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '1449',
+10:53:44 AM [express] POST /api/super/global-settings 500 in 41ms :: {"message":"relation \"global_settings\" does not exist"}
+Internal Server Error: error: relation "global_settings" does not exist
+    at /app/dist/index.cjs:68:13326
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async /app/dist/index.cjs:74:37954
+    at async xg.getGlobalSetting (/app/dist/index.cjs:74:59862)
+    at async xg.upsertGlobalSetting (/app/dist/index.cjs:74:59950)
+    at async /app/dist/index.cjs:110:2853 {
+  length: 114,
+  severity: 'ERROR',
+  code: '42P01',
+  detail: undefined,
+  hint: undefined,
+  position: '34',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '1449',
+  routine: 'parserOpenTable'
+}
+10:53:44 AM [express] POST /api/super/global-settings 500 in 41ms :: {"message":"relation \"global_settings\" does not exist"}
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '1449',
+  routine: 'parserOpenTable'
+}
+10:53:45 AM [express] POST /api/super/global-settings 500 in 42ms :: {"message":"relation \"global_settings\" does not exist"}
+Internal Server Error: error: relation "global_settings" does not exist
+    at /app/dist/index.cjs:68:13326
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async /app/dist/index.cjs:74:37954
+    at async xg.getGlobalSetting (/app/dist/index.cjs:74:59862)
+    at async xg.upsertGlobalSetting (/app/dist/index.cjs:74:59950)
+    at async /app/dist/index.cjs:110:2853 {
+  length: 114,
+  severity: 'ERROR',
+  code: '42P01',
+  detail: undefined,
+  hint: undefined,
+  position: '34',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  detail: undefined,
+  hint: undefined,
+  position: '34',
+  internalPosition: undefined,
+  internalQuery: undefined,
+Internal Server Error: error: relation "global_settings" does not exist
+    at /app/dist/index.cjs:68:13326
+  where: undefined,
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+  schema: undefined,
+    at async /app/dist/index.cjs:74:37954
+  table: undefined,
+    at async xg.getGlobalSetting (/app/dist/index.cjs:74:59862)
+  column: undefined,
+    at async xg.upsertGlobalSetting (/app/dist/index.cjs:74:59950)
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '1449',
+  routine: 'parserOpenTable'
+}
+    at async /app/dist/index.cjs:110:2853 {
+  length: 114,
+  severity: 'ERROR',
+  code: '42P01',
+10:53:46 AM [express] POST /api/super/global-settings 500 in 42ms :: {"message":"relation \"global_settings\" does not exist"}
+  code: '42P01',
+  detail: undefined,
+  hint: undefined,
+  position: '34',
+Internal Server Error: error: relation "global_settings" does not exist
+  internalPosition: undefined,
+    at /app/dist/index.cjs:68:13326
+  internalQuery: undefined,
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+  where: undefined,
+    at async /app/dist/index.cjs:74:37954
+  schema: undefined,
+    at async xg.getGlobalSetting (/app/dist/index.cjs:74:59862)
+  table: undefined,
+    at async xg.upsertGlobalSetting (/app/dist/index.cjs:74:59950)
+  column: undefined,
+    at async /app/dist/index.cjs:110:2853 {
+  dataType: undefined,
+  length: 114,
+  constraint: undefined,
+  severity: 'ERROR',
+  file: 'parse_relation.c',
+  line: '1449',
+  routine: 'parserOpenTable'
+}
+10:53:46 AM [express] POST /api/super/global-settings 500 in 45ms :: {"message":"relation \"global_settings\" does not exist"}
+Internal Server Error: error: relation "global_settings" does not exist
+  length: 114,
+    at /app/dist/index.cjs:68:13326
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+  severity: 'ERROR',
+    at async /app/dist/index.cjs:74:37954
+  code: '42P01',
+    at async xg.getGlobalSetting (/app/dist/index.cjs:74:59862)
+  detail: undefined,
+    at async xg.upsertGlobalSetting (/app/dist/index.cjs:74:59950)
+  hint: undefined,
+    at async /app/dist/index.cjs:110:2853 {
+  position: '34',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '1449',
+  routine: 'parserOpenTable'
+}
+10:53:47 AM [express] POST /api/super/global-settings 500 in 40ms :: {"message":"relation \"global_settings\" does not exist"}
+Internal Server Error: error: relation "global_settings" does not exist
+  where: undefined,
+    at /app/dist/index.cjs:68:13326
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+  schema: undefined,
+    at async /app/dist/index.cjs:74:37954
+  table: undefined,
+    at async xg.getGlobalSetting (/app/dist/index.cjs:74:59862)
+  column: undefined,
+    at async xg.upsertGlobalSetting (/app/dist/index.cjs:74:59950)
+  dataType: undefined,
+    at async /app/dist/index.cjs:110:2853 {
+  length: 114,
+  constraint: undefined,
+  severity: 'ERROR',
+  file: 'parse_relation.c',
+  line: '1449',
+  code: '42P01',
+  detail: undefined,
+  routine: 'parserOpenTable'
+  hint: undefined,
+}
+  position: '34',
+  internalPosition: undefined,
+  internalQuery: undefined,
+10:53:48 AM [express] POST /api/super/global-settings 500 in 43ms :: {"message":"relation \"global_settings\" does not exist"}
+  routine: 'parserOpenTable'
+}
+Internal Server Error: error: relation "global_settings" does not exist
+    at /app/dist/index.cjs:68:13326
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async /app/dist/index.cjs:74:37954
+    at async xg.getGlobalSetting (/app/dist/index.cjs:74:59862)

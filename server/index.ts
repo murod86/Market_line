@@ -25,6 +25,14 @@ class PgSessionStore extends Store {
       ) WITH (OIDS=FALSE);
     `);
     await pool.query(`CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");`);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS "global_settings" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "key" varchar(255) NOT NULL UNIQUE,
+        "value" text NOT NULL,
+        "updated_at" timestamp DEFAULT now()
+      );
+    `);
   }
 
   private async pruneSessions() {
