@@ -89,7 +89,7 @@ function TenantsTable() {
   const { data: allPlans = [] } = useQuery({ queryKey: ["/api/super/plans"] });
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const [newTenant, setNewTenant] = useState({ name: "", ownerName: "", phone: "", password: "", plan: "free" });
+  const [newTenant, setNewTenant] = useState({ name: "", ownerName: "", phone: "", password: "", plan: "free", telegramChatId: "" });
 
   const createTenantMut = useMutation({
     mutationFn: async (data: any) => {
@@ -99,7 +99,7 @@ function TenantsTable() {
       queryClient.invalidateQueries({ queryKey: ["/api/super/tenants"] });
       queryClient.invalidateQueries({ queryKey: ["/api/super/stats"] });
       setAddOpen(false);
-      setNewTenant({ name: "", ownerName: "", phone: "", password: "", plan: "free" });
+      setNewTenant({ name: "", ownerName: "", phone: "", password: "", plan: "free", telegramChatId: "" });
       toast({ title: "Do'kon yaratildi" });
     },
     onError: (e: any) => toast({ title: "Xatolik", description: e.message, variant: "destructive" }),
@@ -274,6 +274,12 @@ function TenantsTable() {
               <Label className="text-white/70 text-xs">Parol *</Label>
               <Input type="password" value={newTenant.password} onChange={(e) => setNewTenant(f => ({ ...f, password: e.target.value }))}
                 placeholder="Parol" className="bg-white/5 border-white/10 text-white text-sm" data-testid="input-new-tenant-password" />
+            </div>
+            <div>
+              <Label className="text-white/70 text-xs">Telegram Chat ID (OTP uchun)</Label>
+              <Input value={newTenant.telegramChatId} onChange={(e) => setNewTenant(f => ({ ...f, telegramChatId: e.target.value }))}
+                placeholder="Masalan: 123456789" className="bg-white/5 border-white/10 text-white text-sm" data-testid="input-new-tenant-telegram" />
+              <p className="text-white/30 text-xs mt-1">Telegram OTP yuborish uchun chat ID kiriting</p>
             </div>
             <div>
               <Label className="text-white/70 text-xs">Tarif</Label>

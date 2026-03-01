@@ -2153,7 +2153,7 @@ export async function registerRoutes(
 
   app.post("/api/super/tenants", requireSuperAdmin, async (req, res) => {
     try {
-      const { name, ownerName, phone, password, plan } = req.body;
+      const { name, ownerName, phone, password, plan, telegramChatId } = req.body;
       if (!name || !ownerName || !phone || !password) {
         return res.status(400).json({ message: "Barcha maydonlar majburiy" });
       }
@@ -2178,7 +2178,7 @@ export async function registerRoutes(
       await storage.upsertSetting("company_name", name, tenant.id);
       await storage.upsertSetting("currency", "UZS", tenant.id);
       await storage.upsertSetting("telegram_bot_token", "", tenant.id);
-      await storage.upsertSetting("telegram_chat_id", "", tenant.id);
+      await storage.upsertSetting("telegram_chat_id", telegramChatId || "", tenant.id);
       await seedTenantData(tenant.id);
       const { password: _, ...safe } = tenant;
       res.json(safe);
