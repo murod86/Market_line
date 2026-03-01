@@ -121,9 +121,12 @@ export async function registerRoutes(
       const channelSetting = await storage.getSetting("telegram_image_channel", tenantId);
       let channelId = channelSetting?.value?.trim() || "";
 
+      console.log(`[Image Upload] Tenant bot: ${botToken ? "yes" : "no"}, channel: ${channelId || "empty"}`);
+
       if (!botToken || !channelId) {
         const globalBot = await getGlobalBotToken();
         const globalChannel = await getGlobalImageChannel();
+        console.log(`[Image Upload] Global bot: ${globalBot ? "yes" : "no"}, channel: ${globalChannel || "empty"}`);
         if (globalBot && globalChannel) {
           botToken = globalBot;
           channelId = globalChannel;
@@ -143,6 +146,7 @@ export async function registerRoutes(
           headers: formData.getHeaders(),
         });
         const tgData = await tgRes.json() as any;
+        console.log(`[Image Upload] Telegram response ok=${tgData.ok}, desc=${tgData.description || "none"}`);
 
         if (tgData.ok && tgData.result?.photo) {
           const photo = tgData.result.photo;
@@ -156,9 +160,10 @@ export async function registerRoutes(
         }
       }
     } catch (err) {
-      console.error("Telegram upload error:", err);
+      console.error("[Image Upload] Telegram upload error:", err);
     }
 
+    console.log(`[Image Upload] Falling back to local file: /uploads/${req.file.filename}`);
     res.json({ url: `/uploads/${req.file.filename}` });
   });
 
