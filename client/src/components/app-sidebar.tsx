@@ -80,7 +80,7 @@ export function AppSidebar() {
           <img src={logoImg} alt="MARKET_LINE" className="h-11 w-auto rounded-xl" data-testid="text-app-name" />
           <div>
             <h2 className="text-base font-bold tracking-wide text-white drop-shadow-sm">MARKET_LINE</h2>
-            <p className="text-[11px] text-white/60 font-medium">Biznes boshqaruvi</p>
+            <p className="text-[11px] text-white/70 font-medium">Biznes boshqaruvi</p>
           </div>
         </div>
       </SidebarHeader>
@@ -122,7 +122,7 @@ export function AppSidebar() {
           </div>
         )}
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-widest text-white/40 px-4 mb-1">Asosiy</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-widest text-white/45 px-4 mb-1">Asosiy</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {filteredMainItems.map((item) => {
@@ -133,10 +133,10 @@ export function AppSidebar() {
                       asChild
                       data-active={isActive}
                       data-testid={`nav-${item.url.replace("/", "") || "dashboard"}`}
-                      className="data-[active=true]:bg-white/15 data-[active=true]:text-white data-[active=true]:shadow-sm data-[active=true]:border-white/10 rounded-lg mx-2 transition-all duration-200 text-white/70 hover:text-white hover:bg-white/10"
+                      className="data-[active=true]:bg-white/20 data-[active=true]:text-white data-[active=true]:shadow-md data-[active=true]:border data-[active=true]:border-white/15 rounded-lg mx-2 transition-all duration-200 text-white/75 hover:text-white hover:bg-white/12"
                     >
                       <Link href={item.url}>
-                        <item.icon className={`h-4 w-4 ${isActive ? "text-white drop-shadow-sm" : item.color}`} />
+                        <item.icon className={`h-4 w-4 ${isActive ? "text-white drop-shadow-md" : item.color}`} />
                         <span className="font-medium text-sm">{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
@@ -148,7 +148,7 @@ export function AppSidebar() {
         </SidebarGroup>
         {filteredManagementItems.length > 0 && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-widest text-white/40 px-4 mb-1">Boshqaruv</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-widest text-white/45 px-4 mb-1">Boshqaruv</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {filteredManagementItems.map((item) => {
@@ -159,7 +159,7 @@ export function AppSidebar() {
                         asChild
                         data-active={isActive}
                         data-testid={`nav-${item.url.replace("/", "")}`}
-                        className="data-[active=true]:bg-white/15 data-[active=true]:text-white data-[active=true]:shadow-sm rounded-lg mx-2 transition-all duration-200 text-white/70 hover:text-white hover:bg-white/10"
+                        className="data-[active=true]:bg-white/20 data-[active=true]:text-white data-[active=true]:shadow-md data-[active=true]:border data-[active=true]:border-white/15 rounded-lg mx-2 transition-all duration-200 text-white/75 hover:text-white hover:bg-white/12"
                       >
                         <Link href={item.url}>
                           <item.icon className={`h-4 w-4 ${isActive ? "text-white drop-shadow-sm" : item.color}`} />
@@ -181,7 +181,7 @@ export function AppSidebar() {
             queryClient.clear();
             window.location.href = "/";
           }}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors text-sm"
+          className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-white/60 hover:text-white hover:bg-white/12 transition-colors text-sm"
           data-testid="button-logout"
         >
           <LogOut className="w-4 h-4" />
