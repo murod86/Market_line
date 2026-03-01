@@ -47,6 +47,7 @@ export default function Purchases() {
   const [itemQty, setItemQty] = useState("1");
   const [itemCost, setItemCost] = useState("");
   const [itemBuyUnit, setItemBuyUnit] = useState("dona");
+  const [itemBoxQty, setItemBoxQty] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
   const { toast } = useToast();
 
@@ -84,6 +85,7 @@ export default function Purchases() {
     setItemQty("1");
     setItemCost("");
     setItemBuyUnit("dona");
+    setItemBoxQty("");
     setSelectedProductId("");
   };
 
@@ -96,6 +98,7 @@ export default function Purchases() {
     setSelectedProductId(product.id);
     setItemCost(String(product.costPrice));
     setItemBuyUnit(product.unit);
+    setItemBoxQty(String(product.boxQuantity || 1));
     setProductSearch("");
   };
 
@@ -114,19 +117,23 @@ export default function Purchases() {
       toast({ title: "Tan narxi noto'g'ri", variant: "destructive" });
       return;
     }
+    if (itemBuyUnit === "quti" && (!itemBoxQty || parseInt(itemBoxQty) < 1)) {
+      toast({ title: "Qutidagi sonni kiriting", variant: "destructive" });
+      return;
+    }
     const product = products?.find((p) => p.id === selectedProductId);
     if (!product) return;
 
-    const boxQty = product.boxQuantity || 1;
+    const boxQty = itemBuyUnit === "quti" ? (parseInt(itemBoxQty) || product.boxQuantity || 1) : 1;
     const stockPieces = itemBuyUnit === "quti" ? qty * boxQty : qty;
 
-    const existing = cart.findIndex((c) => c.productId === selectedProductId);
+    const existing = cart.findIndex((c) => c.productId === selectedProductId && c.buyUnit === itemBuyUnit);
     if (existing >= 0) {
       const updated = [...cart];
       const newQty = updated[existing].quantity + qty;
       updated[existing].quantity = newQty;
       updated[existing].costPrice = cost;
-      updated[existing].buyUnit = itemBuyUnit;
+      updated[existing].boxQuantity = boxQty;
       updated[existing].stockPieces = itemBuyUnit === "quti" ? newQty * boxQty : newQty;
       setCart(updated);
     } else {
@@ -144,6 +151,7 @@ export default function Purchases() {
     setSelectedProductId("");
     setItemQty("1");
     setItemCost("");
+    setItemBoxQty("");
     setItemBuyUnit("dona");
   };
 
@@ -352,54 +360,79 @@ export default function Purchases() {
               )}
 
               {selectedProductId && selectedProduct && (
-                <div className="grid grid-cols-4 gap-2 items-end">
-                  <div>
-                    <label className="text-xs text-muted-foreground">Birlik</label>
-                    <Select value={itemBuyUnit} onValueChange={(v) => {
-                      setItemBuyUnit(v);
-                      if (v === "quti") {
-                        setItemCost(String(Number(selectedProduct.costPrice) * (selectedProduct.boxQuantity || 1)));
-                      } else {
-                        setItemCost(String(selectedProduct.costPrice));
-                      }
-                    }}>
-                      <SelectTrigger data-testid="select-purchase-unit">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={selectedProduct.unit}>{selectedProduct.unit}</SelectItem>
-                        {(selectedProduct.boxQuantity || 1) > 1 && (
-                          <SelectItem value="quti">Quti ({selectedProduct.boxQuantity} {selectedProduct.unit})</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2 items-end">
+                    <div>
+                      <label className="text-xs text-muted-foreground">Birlik</label>
+                      <Select value={itemBuyUnit} onValueChange={(v) => {
+                        setItemBuyUnit(v);
+                        if (v === "quti") {
+                          const bq = itemBoxQty ? parseInt(itemBoxQty) : (selectedProduct.boxQuantity || 1);
+                          setItemCost(String(Number(selectedProduct.costPrice) * bq));
+                        } else {
+                          setItemCost(String(selectedProduct.costPrice));
+                        }
+                      }}>
+                        <SelectTrigger data-testid="select-purchase-unit">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={selectedProduct.unit}>{selectedProduct.unit}</SelectItem>
+                          <SelectItem value="quti">Quti</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {itemBuyUnit === "quti" && (
+                      <div>
+                        <label className="text-xs text-muted-foreground">1 qutida nechta {selectedProduct.unit}?</label>
+                        <Input
+                          type="number"
+                          value={itemBoxQty}
+                          onChange={(e) => {
+                            setItemBoxQty(e.target.value);
+                            const bq = parseInt(e.target.value) || 1;
+                            setItemCost(String(Number(selectedProduct.costPrice) * bq));
+                          }}
+                          placeholder={String(selectedProduct.boxQuantity || 1)}
+                          min="1"
+                          data-testid="input-purchase-box-qty"
+                        />
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">Miqdor</label>
-                    <Input
-                      type="number"
-                      value={itemQty}
-                      onChange={(e) => setItemQty(e.target.value)}
-                      placeholder="1"
-                      min="1"
-                      data-testid="input-purchase-qty"
-                    />
+                  {itemBuyUnit === "quti" && itemBoxQty && parseInt(itemBoxQty) > 0 && (
+                    <div className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1">
+                      1 quti = {itemBoxQty} {selectedProduct.unit}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-3 gap-2 items-end">
+                    <div>
+                      <label className="text-xs text-muted-foreground">Miqdor ({itemBuyUnit})</label>
+                      <Input
+                        type="number"
+                        value={itemQty}
+                        onChange={(e) => setItemQty(e.target.value)}
+                        placeholder="1"
+                        min="1"
+                        data-testid="input-purchase-qty"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">
+                        Narx (1 {itemBuyUnit})
+                      </label>
+                      <Input
+                        type="number"
+                        value={itemCost}
+                        onChange={(e) => setItemCost(e.target.value)}
+                        placeholder="Tan narxi"
+                        data-testid="input-purchase-cost"
+                      />
+                    </div>
+                    <Button onClick={addToCart} variant="secondary" data-testid="button-add-to-cart">
+                      <Plus className="h-4 w-4 mr-1" /> Qo'shish
+                    </Button>
                   </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground">
-                      Narx (1 {itemBuyUnit})
-                    </label>
-                    <Input
-                      type="number"
-                      value={itemCost}
-                      onChange={(e) => setItemCost(e.target.value)}
-                      placeholder="Tan narxi"
-                      data-testid="input-purchase-cost"
-                    />
-                  </div>
-                  <Button onClick={addToCart} variant="secondary" data-testid="button-add-to-cart">
-                    <Plus className="h-4 w-4 mr-1" /> Qo'shish
-                  </Button>
                 </div>
               )}
 
@@ -430,7 +463,7 @@ export default function Purchases() {
                           <span className="font-medium">{item.productName}</span>
                         </TableCell>
                         <TableCell className="text-right">
-                          {item.quantity} {item.buyUnit}
+                          {item.quantity} {item.buyUnit}{item.buyUnit === "quti" ? ` (${item.boxQuantity} ${item.productUnit})` : ""}
                         </TableCell>
                         <TableCell className="text-right">{formatCurrency(item.costPrice)}</TableCell>
                         <TableCell className="text-right font-medium">{formatCurrency(item.quantity * item.costPrice)}</TableCell>
