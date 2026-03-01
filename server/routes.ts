@@ -13,7 +13,12 @@ import {
 import { createHash } from "crypto";
 import multer from "multer";
 import path from "path";
+import fs from "fs";
 import { seedTenantData } from "./seed";
+
+if (!fs.existsSync("uploads")) {
+  fs.mkdirSync("uploads", { recursive: true });
+}
 
 const uploadStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, "uploads/"),
@@ -134,33 +139,43 @@ export async function registerRoutes(
       }
 
       if (botToken && channelId) {
-        const fs = await import("fs");
-        const FormData = (await import("form-data")).default;
-        const formData = new FormData();
-        formData.append("chat_id", channelId);
-        formData.append("photo", fs.createReadStream(req.file.path), req.file.originalname);
+        console.log(`[Image Upload] Sending to Telegram channel=${channelId}, file=${req.file.path}`);
+        
+        if (!fs.existsSync(req.file.path)) {
+          console.error(`[Image Upload] File not found at path: ${req.file.path}`);
+        } else {
+          const FormData = (await import("form-data")).default;
+          const formData = new FormData();
+          formData.append("chat_id", channelId);
+          formData.append("photo", fs.createReadStream(req.file.path), req.file.originalname);
 
-        const tgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
-          method: "POST",
-          body: formData as any,
-          headers: formData.getHeaders(),
-        });
-        const tgData = await tgRes.json() as any;
-        console.log(`[Image Upload] Telegram response ok=${tgData.ok}, desc=${tgData.description || "none"}`);
+          const tgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+            method: "POST",
+            body: formData as any,
+            headers: formData.getHeaders(),
+          });
+          const tgData = await tgRes.json() as any;
+          console.log(`[Image Upload] Telegram response ok=${tgData.ok}, desc=${tgData.description || "none"}`);
 
-        if (tgData.ok && tgData.result?.photo) {
-          const photo = tgData.result.photo;
-          const largest = photo[photo.length - 1];
-          const fileId = largest.file_id;
+          if (tgData.ok && tgData.result?.photo) {
+            const photo = tgData.result.photo;
+            const largest = photo[photo.length - 1];
+            const fileId = largest.file_id;
 
-          try { fs.unlinkSync(req.file.path); } catch {}
+            try { fs.unlinkSync(req.file.path); } catch {}
 
-          const usedGlobal = botToken === (await getGlobalBotToken());
-          return res.json({ url: `/api/tg-image/${usedGlobal ? "__global__" : tenantId}/${fileId}` });
+            const usedGlobal = botToken === (await getGlobalBotToken());
+            console.log(`[Image Upload] Success! Saved as tg-image, usedGlobal=${usedGlobal}`);
+            return res.json({ url: `/api/tg-image/${usedGlobal ? "__global__" : tenantId}/${fileId}` });
+          } else {
+            console.error(`[Image Upload] Telegram sendPhoto failed:`, JSON.stringify(tgData));
+          }
         }
+      } else {
+        console.log(`[Image Upload] No bot/channel configured, skipping Telegram`);
       }
-    } catch (err) {
-      console.error("[Image Upload] Telegram upload error:", err);
+    } catch (err: any) {
+      console.error("[Image Upload] Telegram upload error:", err?.message || err);
     }
 
     console.log(`[Image Upload] Falling back to local file: /uploads/${req.file.filename}`);
