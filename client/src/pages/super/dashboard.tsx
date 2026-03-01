@@ -234,7 +234,7 @@ function PlansManager() {
   const { data: plansList = [], isLoading } = useQuery({ queryKey: ["/api/super/plans"] });
   const [editPlan, setEditPlan] = useState<any>(null);
   const [newPlan, setNewPlan] = useState(false);
-  const [form, setForm] = useState({ name: "", slug: "", price: "0", maxProducts: "100", maxEmployees: "3", features: "", sortOrder: "0" });
+  const [form, setForm] = useState({ name: "", slug: "", price: "0", maxProducts: "100", maxEmployees: "3", features: "", sortOrder: "0", trialDays: "0", allowedModules: [] as string[] });
 
   const createMut = useMutation({
     mutationFn: async (data: any) => {
@@ -244,7 +244,7 @@ function PlansManager() {
       queryClient.invalidateQueries({ queryKey: ["/api/super/plans"] });
       queryClient.invalidateQueries({ queryKey: ["/api/super/stats"] });
       setNewPlan(false);
-      setForm({ name: "", slug: "", price: "0", maxProducts: "100", maxEmployees: "3", features: "", sortOrder: "0" });
+      setForm({ name: "", slug: "", price: "0", maxProducts: "100", maxEmployees: "3", features: "", sortOrder: "0", trialDays: "0", allowedModules: [] });
       toast({ title: "Reja yaratildi" });
     },
     onError: (e: any) => toast({ title: "Xatolik", description: e.message, variant: "destructive" }),
@@ -284,6 +284,8 @@ function PlansManager() {
       maxEmployees: String(p.maxEmployees),
       features: Array.isArray(p.features) ? p.features.join(", ") : "",
       sortOrder: String(p.sortOrder),
+      trialDays: String(p.trialDays || 0),
+      allowedModules: Array.isArray(p.allowedModules) ? p.allowedModules : [],
     });
   };
 
@@ -295,6 +297,8 @@ function PlansManager() {
       maxProducts: parseInt(form.maxProducts) || 100,
       maxEmployees: parseInt(form.maxEmployees) || 3,
       features: form.features.split(",").map(f => f.trim()).filter(Boolean),
+      allowedModules: form.allowedModules,
+      trialDays: parseInt(form.trialDays) || 0,
       sortOrder: parseInt(form.sortOrder) || 0,
       active: true,
     };
@@ -305,8 +309,37 @@ function PlansManager() {
     }
   };
 
+  const allModulesList = [
+    { key: "pos", label: "Sotuv (POS)" },
+    { key: "warehouse", label: "Ombor" },
+    { key: "categories", label: "Kategoriyalar" },
+    { key: "products", label: "Mahsulotlar" },
+    { key: "customers", label: "Mijozlar" },
+    { key: "deliveries", label: "Yetkazib berish" },
+    { key: "suppliers", label: "Ta'minotchilar" },
+    { key: "purchases", label: "Kirim (Xaridlar)" },
+    { key: "orders", label: "Buyurtmalar" },
+    { key: "dealers", label: "Dillerlar" },
+    { key: "roles", label: "Rollar" },
+    { key: "employees", label: "Xodimlar" },
+    { key: "settings", label: "Sozlamalar" },
+  ];
+
+  const toggleModule = (key: string) => {
+    setForm(f => ({
+      ...f,
+      allowedModules: f.allowedModules.includes(key)
+        ? f.allowedModules.filter(m => m !== key)
+        : [...f.allowedModules, key]
+    }));
+  };
+
+  const selectAllModules = () => {
+    setForm(f => ({ ...f, allowedModules: allModulesList.map(m => m.key) }));
+  };
+
   const planForm = (
-    <div className="space-y-3">
+    <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label className="text-white/70 text-xs">Reja nomi</Label>
@@ -336,6 +369,19 @@ function PlansManager() {
             className="bg-white/5 border-white/10 text-white text-sm" data-testid="input-plan-max-employees" />
         </div>
       </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="text-white/70 text-xs">Sinov muddati (kun)</Label>
+          <Input value={form.trialDays} onChange={(e) => setForm(f => ({ ...f, trialDays: e.target.value }))}
+            placeholder="0"
+            className="bg-white/5 border-white/10 text-white text-sm" data-testid="input-plan-trial-days" />
+        </div>
+        <div>
+          <Label className="text-white/70 text-xs">Tartib raqami</Label>
+          <Input value={form.sortOrder} onChange={(e) => setForm(f => ({ ...f, sortOrder: e.target.value }))}
+            className="bg-white/5 border-white/10 text-white text-sm" />
+        </div>
+      </div>
       <div>
         <Label className="text-white/70 text-xs">Xususiyatlar (vergul bilan)</Label>
         <Input value={form.features} onChange={(e) => setForm(f => ({ ...f, features: e.target.value }))}
@@ -343,9 +389,34 @@ function PlansManager() {
           className="bg-white/5 border-white/10 text-white text-sm" data-testid="input-plan-features" />
       </div>
       <div>
-        <Label className="text-white/70 text-xs">Tartib raqami</Label>
-        <Input value={form.sortOrder} onChange={(e) => setForm(f => ({ ...f, sortOrder: e.target.value }))}
-          className="bg-white/5 border-white/10 text-white text-sm w-20" />
+        <div className="flex items-center justify-between mb-2">
+          <Label className="text-white/70 text-xs">Ruxsat berilgan modullar</Label>
+          <Button type="button" size="sm" variant="ghost" className="text-xs text-blue-400 hover:text-blue-300 h-6 px-2"
+            onClick={selectAllModules} data-testid="button-select-all-modules">
+            Barchasini tanlash
+          </Button>
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {allModulesList.map((m) => (
+            <label
+              key={m.key}
+              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-md cursor-pointer border text-xs transition-colors ${
+                form.allowedModules.includes(m.key)
+                  ? "bg-blue-500/20 border-blue-500/40 text-blue-200"
+                  : "bg-white/5 border-white/10 text-white/50 hover:bg-white/10"
+              }`}
+              data-testid={`toggle-module-${m.key}`}
+            >
+              <input
+                type="checkbox"
+                checked={form.allowedModules.includes(m.key)}
+                onChange={() => toggleModule(m.key)}
+                className="rounded border-white/30 bg-white/10 text-blue-500 focus:ring-blue-500/30 h-3.5 w-3.5"
+              />
+              {m.label}
+            </label>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -361,7 +432,7 @@ function PlansManager() {
         </CardTitle>
         <Dialog open={newPlan} onOpenChange={(open) => {
           setNewPlan(open);
-          if (open) setForm({ name: "", slug: "", price: "0", maxProducts: "100", maxEmployees: "3", features: "", sortOrder: "0" });
+          if (open) setForm({ name: "", slug: "", price: "0", maxProducts: "100", maxEmployees: "3", features: "", sortOrder: "0", trialDays: "0", allowedModules: [] });
         }}>
           <DialogTrigger asChild>
             <Button size="sm" className="bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 border-0" data-testid="button-add-plan">
@@ -419,9 +490,20 @@ function PlansManager() {
                 <div className="text-2xl font-bold text-white mb-1">
                   {Number(p.price).toLocaleString()} <span className="text-sm text-white/50 font-normal">UZS/oy</span>
                 </div>
-                <div className="text-white/40 text-xs mb-3">
+                <div className="text-white/40 text-xs mb-2">
                   Max: {p.maxProducts >= 999999 ? "∞" : p.maxProducts} mahsulot, {p.maxEmployees >= 999999 ? "∞" : p.maxEmployees} xodim
+                  {p.trialDays > 0 && <span className="ml-2 text-yellow-400">| {p.trialDays} kun sinov</span>}
                 </div>
+                {Array.isArray(p.allowedModules) && p.allowedModules.length > 0 && (
+                  <div className="mb-2">
+                    <p className="text-[10px] text-white/30 mb-1">Modullar ({p.allowedModules.length}/13):</p>
+                    <div className="flex flex-wrap gap-1">
+                      {p.allowedModules.map((m: string, i: number) => (
+                        <Badge key={i} variant="outline" className="text-[9px] border-blue-500/20 text-blue-300/70 px-1.5 py-0">{m}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-1">
                   {Array.isArray(p.features) && p.features.map((f: string, i: number) => (
                     <Badge key={i} variant="outline" className="text-[10px] border-white/10 text-white/50">{f}</Badge>

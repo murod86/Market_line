@@ -3,6 +3,22 @@ import { pgTable, text, varchar, integer, decimal, numeric, boolean, timestamp, 
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const ALL_MODULES = [
+  { key: "pos", label: "Sotuv (POS)" },
+  { key: "warehouse", label: "Ombor" },
+  { key: "categories", label: "Kategoriyalar" },
+  { key: "products", label: "Mahsulotlar" },
+  { key: "customers", label: "Mijozlar" },
+  { key: "deliveries", label: "Yetkazib berish" },
+  { key: "suppliers", label: "Ta'minotchilar" },
+  { key: "purchases", label: "Kirim (Xaridlar)" },
+  { key: "orders", label: "Buyurtmalar" },
+  { key: "dealers", label: "Dillerlar" },
+  { key: "roles", label: "Rollar" },
+  { key: "employees", label: "Xodimlar" },
+  { key: "settings", label: "Sozlamalar" },
+] as const;
+
 export const plans = pgTable("plans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
@@ -11,6 +27,8 @@ export const plans = pgTable("plans", {
   maxProducts: integer("max_products").notNull().default(100),
   maxEmployees: integer("max_employees").notNull().default(3),
   features: jsonb("features").notNull().default(sql`'[]'::jsonb`),
+  allowedModules: jsonb("allowed_modules").notNull().default(sql`'[]'::jsonb`),
+  trialDays: integer("trial_days").notNull().default(0),
   active: boolean("active").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
 });
@@ -26,6 +44,7 @@ export const tenants = pgTable("tenants", {
   phone: text("phone").notNull().unique(),
   password: text("password").notNull(),
   plan: text("plan").notNull().default("free"),
+  trialEndsAt: timestamp("trial_ends_at"),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

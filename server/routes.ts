@@ -103,12 +103,15 @@ export async function registerRoutes(
       if (existing) {
         return res.status(400).json({ message: "Bu telefon raqam allaqachon ro'yxatdan o'tgan" });
       }
+      const trialEnd = new Date();
+      trialEnd.setDate(trialEnd.getDate() + 14);
       const tenant = await storage.createTenant({
         name,
         ownerName,
         phone,
         password: hashPassword(password),
         plan: "free",
+        trialEndsAt: trialEnd,
         active: true,
       });
       await storage.upsertSetting("company_name", name, tenant.id);
@@ -167,7 +170,32 @@ export async function registerRoutes(
       return res.status(401).json({ message: "Do'kon topilmadi" });
     }
     const { password: _, ...safe } = tenant;
-    res.json(safe);
+
+    const allPlans = await storage.getPlans();
+    const currentPlan = allPlans.find(p => p.slug === tenant.plan);
+
+    const isTrialActive = tenant.plan === "free" && tenant.trialEndsAt && new Date(tenant.trialEndsAt) > new Date();
+    const trialExpired = tenant.plan === "free" && tenant.trialEndsAt && new Date(tenant.trialEndsAt) <= new Date();
+
+    const allModuleKeys = ["pos","warehouse","categories","products","customers","deliveries","suppliers","purchases","orders","dealers","roles","employees","settings"];
+    let allowedModules: string[] = [];
+    if (isTrialActive) {
+      allowedModules = allModuleKeys;
+    } else if (currentPlan) {
+      const planModules = currentPlan.allowedModules as string[];
+      allowedModules = planModules && planModules.length > 0 ? planModules : ["dashboard"];
+    } else {
+      allowedModules = ["dashboard"];
+    }
+
+    res.json({
+      ...safe,
+      planDetails: currentPlan ? { name: currentPlan.name, price: currentPlan.price, maxProducts: currentPlan.maxProducts, maxEmployees: currentPlan.maxEmployees } : null,
+      allowedModules,
+      isTrialActive: !!isTrialActive,
+      trialExpired: !!trialExpired,
+      trialDaysLeft: isTrialActive && tenant.trialEndsAt ? Math.ceil((new Date(tenant.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0,
+    });
   });
 
   app.post("/api/auth/logout", (req, res) => {
