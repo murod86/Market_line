@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Search, Edit, Phone, MapPin, Lock, QrCode, Download, Banknote, History } from "lucide-react";
 import { format } from "date-fns";
 import { QRCodeSVG } from "qrcode.react";
-import logoImg from "@assets/marketline_final_v1.png";
+import logoImg from "@assets/marketline_pro_logo_1.png";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";

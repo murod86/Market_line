@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Phone, Lock, ArrowLeft, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import logoImg from "@assets/marketline_final_v1.png";
+import logoImg from "@assets/marketline_pro_logo_1.png";
 
 export default function OwnerLogin() {
   const [, setLocation] = useLocation();

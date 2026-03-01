@@ -20,7 +20,7 @@ import {
   Clock,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import logoImg from "@assets/marketline_final_v1.png";
+import logoImg from "@assets/marketline_pro_logo_1.png";
 import {
   Sidebar,
   SidebarContent,

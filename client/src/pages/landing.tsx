@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShoppingCart, Package, Users, Truck, BarChart3, Shield, Smartphone, Zap, Star, ArrowRight, CheckCircle2 } from "lucide-react";
-import logoImg from "@assets/marketline_final_v1.png";
+import logoImg from "@assets/marketline_pro_logo_1.png";
 
 const features = [
   { icon: ShoppingCart, title: "POS Kassa", desc: "58mm chek chiqarish, chegirma, qarzga sotish", color: "text-blue-500 bg-blue-500/10" },

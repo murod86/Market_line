@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Store, Phone, Lock, Truck } from "lucide-react";
-import logoImg from "@assets/marketline_final_v1.png";
+import logoImg from "@assets/marketline_pro_logo_1.png";
 
 interface DealerLoginProps {
   onLogin: () => void;

@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import logoImg from "@assets/marketline_final_v1.png";
+import logoImg from "@assets/marketline_pro_logo_1.png";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Customer, Product } from "@shared/schema";
 import PortalCatalog, { type CartItem } from "./catalog";
