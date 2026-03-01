@@ -32,7 +32,7 @@ interface CartItem {
   price: number;
   stock: number;
   quantity: number;
-  buyUnit: "dona" | "quti";
+  buyUnit: string;
   boxQuantity: number;
   stockPieces: number;
 }
@@ -255,7 +255,7 @@ export default function Dealers() {
         price: Number(product.price),
         stock: product.stock,
         quantity: 1,
-        buyUnit: "dona",
+        buyUnit: product.unit,
         boxQuantity: product.boxQuantity || 1,
         stockPieces: 1,
       }]);
@@ -282,7 +282,7 @@ export default function Dealers() {
         price: Number(item.productPrice),
         stock: item.quantity,
         quantity: 1,
-        buyUnit: "dona",
+        buyUnit: item.productUnit,
         boxQuantity: item.boxQuantity || 1,
         stockPieces: 1,
       }]);
@@ -303,14 +303,24 @@ export default function Dealers() {
     }
   };
 
-  const toggleCartUnit = (productId: string) => {
+  const getUnitOptions = (item: CartItem) => {
+    const units: string[] = [item.unit];
+    if (item.boxQuantity > 1 && !units.includes("quti")) units.push("quti");
+    return units;
+  };
+
+  const changeCartUnit = (productId: string, newUnit: string) => {
     setCart(cart.map((i) => {
-      if (i.productId !== productId || i.boxQuantity <= 1) return i;
-      const newUnit = i.buyUnit === "dona" ? "quti" : "dona";
-      const newQty = newUnit === "quti" ? Math.max(1, Math.floor(i.quantity / i.boxQuantity)) : i.quantity * i.boxQuantity;
+      if (i.productId !== productId) return i;
+      let newQty = i.quantity;
+      if (newUnit === "quti" && i.buyUnit !== "quti") {
+        newQty = Math.max(1, Math.floor(i.quantity / i.boxQuantity));
+      } else if (i.buyUnit === "quti" && newUnit !== "quti") {
+        newQty = i.quantity * i.boxQuantity;
+      }
       const newPieces = newUnit === "quti" ? newQty * i.boxQuantity : newQty;
       if (newPieces > i.stock) return i;
-      return { ...i, buyUnit: newUnit as "dona" | "quti", quantity: newQty, stockPieces: newPieces };
+      return { ...i, buyUnit: newUnit, quantity: newQty, stockPieces: newPieces };
     }));
   };
 
@@ -755,16 +765,20 @@ export default function Dealers() {
                         )}
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        {item.boxQuantity > 1 && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-[10px] px-1.5 h-7"
-                            onClick={() => toggleCartUnit(item.productId)}
-                            data-testid={`button-cart-unit-${item.productId}`}
+                        {getUnitOptions(item).length > 1 && (
+                          <Select
+                            value={item.buyUnit}
+                            onValueChange={(val) => changeCartUnit(item.productId, val)}
                           >
-                            {item.buyUnit === "dona" ? item.unit : "quti"}
-                          </Button>
+                            <SelectTrigger className="h-7 w-16 text-[10px] px-1.5" data-testid={`select-cart-unit-${item.productId}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getUnitOptions(item).map((u) => (
+                                <SelectItem key={u} value={u}>{u}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         )}
                         <Button
                           size="sm"
