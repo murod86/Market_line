@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Store, Users, CreditCard, Shield, LogOut, Plus, Pencil, Trash2,
-  BarChart3, Building2, Loader2, AlertTriangle, Key,
+  BarChart3, Building2, Loader2, AlertTriangle, Key, ImageIcon,
 } from "lucide-react";
 import { DialogFooter } from "@/components/ui/dialog";
 
@@ -618,6 +618,71 @@ function PlansManager() {
   );
 }
 
+function GlobalSettings() {
+  const { toast } = useToast();
+  const { data: globalSettings } = useQuery<any>({ queryKey: ["/api/super/global-settings"] });
+  const [channelId, setChannelId] = useState("");
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (globalSettings && !loaded) {
+      setChannelId(globalSettings.globalImageChannel || "");
+      setLoaded(true);
+    }
+  }, [globalSettings, loaded]);
+
+  const saveMut = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/super/global-settings", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/super/global-settings"] });
+      toast({ title: "Sozlamalar saqlandi" });
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <Card className="bg-white/5 border-white/10 mt-8">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-white flex items-center gap-2 text-base">
+          <ImageIcon className="w-5 h-5 text-blue-400" />
+          Umumiy rasm kanali sozlamalari
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-white/50 text-xs mb-3">
+          Agar do'konning o'z Telegram kanali sozlanmagan bo'lsa, rasmlar shu umumiy kanalga saqlanadi.
+          Bot sifatida SUPER_ADMIN_TELEGRAM_BOT_TOKEN ishlatiladi.
+        </p>
+        <div className="flex items-end gap-3">
+          <div className="flex-1 max-w-md">
+            <Label className="text-white/70 text-xs">Umumiy rasm kanali ID</Label>
+            <Input
+              value={channelId}
+              onChange={(e) => setChannelId(e.target.value)}
+              placeholder="Masalan: -1001234567890"
+              className="bg-white/5 border-white/10 text-white text-sm"
+              data-testid="input-global-image-channel"
+            />
+          </div>
+          <Button
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={() => saveMut.mutate({ globalImageChannel: channelId })}
+            disabled={saveMut.isPending}
+            data-testid="button-save-global-settings"
+          >
+            {saveMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+            Saqlash
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function PasswordChange() {
   const [open, setOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -752,6 +817,7 @@ export default function SuperDashboard({ onLogout }: { onLogout: () => void }) {
         <StatsCards />
         <TenantsTable />
         <PlansManager />
+        <GlobalSettings />
         <PasswordChange />
       </main>
     </div>

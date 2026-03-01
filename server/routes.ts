@@ -49,7 +49,17 @@ function generateOTP(): string {
 
 async function getTelegramBotToken(tenantId: string): Promise<string | null> {
   const setting = await storage.getSetting("telegram_bot_token", tenantId);
-  return setting?.value && setting.value.trim() !== "" ? setting.value.trim() : null;
+  if (setting?.value && setting.value.trim() !== "") return setting.value.trim();
+  return null;
+}
+
+async function getGlobalBotToken(): Promise<string | null> {
+  return process.env.SUPER_ADMIN_TELEGRAM_BOT_TOKEN?.trim() || null;
+}
+
+async function getGlobalImageChannel(): Promise<string | null> {
+  const setting = await storage.getGlobalSetting("global_image_channel");
+  return setting?.value?.trim() || null;
 }
 
 async function sendTelegramMessage(chatId: string, text: string, token: string): Promise<boolean> {
@@ -96,9 +106,18 @@ export async function registerRoutes(
     }
 
     try {
-      const botToken = await getTelegramBotToken(tenantId);
+      let botToken = await getTelegramBotToken(tenantId);
       const channelSetting = await storage.getSetting("telegram_image_channel", tenantId);
-      const channelId = channelSetting?.value?.trim();
+      let channelId = channelSetting?.value?.trim() || "";
+
+      if (!botToken || !channelId) {
+        const globalBot = await getGlobalBotToken();
+        const globalChannel = await getGlobalImageChannel();
+        if (globalBot && globalChannel) {
+          botToken = globalBot;
+          channelId = globalChannel;
+        }
+      }
 
       if (botToken && channelId) {
         const fs = await import("fs");
@@ -121,7 +140,8 @@ export async function registerRoutes(
 
           try { fs.unlinkSync(req.file.path); } catch {}
 
-          return res.json({ url: `/api/tg-image/${tenantId}/${fileId}` });
+          const usedGlobal = botToken === (await getGlobalBotToken());
+          return res.json({ url: `/api/tg-image/${usedGlobal ? "__global__" : tenantId}/${fileId}` });
         }
       }
     } catch (err) {
@@ -134,7 +154,13 @@ export async function registerRoutes(
   app.get("/api/tg-image/:tenantId/:fileId", async (req, res) => {
     try {
       const { tenantId, fileId } = req.params;
-      const botToken = await getTelegramBotToken(tenantId);
+      let botToken: string | null = null;
+      if (tenantId === "__global__") {
+        botToken = await getGlobalBotToken();
+      } else {
+        botToken = await getTelegramBotToken(tenantId);
+        if (!botToken) botToken = await getGlobalBotToken();
+      }
       if (!botToken) return res.status(404).send("Bot token topilmadi");
 
       const fileRes = await fetch(`https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`);
@@ -2204,6 +2230,21 @@ export async function registerRoutes(
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
+  });
+
+  app.get("/api/super/global-settings", requireSuperAdmin, async (_req, res) => {
+    const channelSetting = await storage.getGlobalSetting("global_image_channel");
+    res.json({
+      globalImageChannel: channelSetting?.value || "",
+    });
+  });
+
+  app.post("/api/super/global-settings", requireSuperAdmin, async (req, res) => {
+    const { globalImageChannel } = req.body;
+    if (globalImageChannel !== undefined) {
+      await storage.upsertGlobalSetting("global_image_channel", globalImageChannel || "");
+    }
+    res.json({ success: true });
   });
 
   app.post("/api/super/logout", (req, res) => {

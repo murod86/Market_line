@@ -98,6 +98,8 @@ export interface IStorage {
   getSettings(tenantId: string): Promise<Setting[]>;
   getSetting(key: string, tenantId: string): Promise<Setting | undefined>;
   upsertSetting(key: string, value: string, tenantId: string): Promise<Setting>;
+  getGlobalSetting(key: string): Promise<Setting | undefined>;
+  upsertGlobalSetting(key: string, value: string): Promise<Setting>;
 
   updateSale(id: string, data: Partial<InsertSale>): Promise<Sale | undefined>;
   deleteTenant(id: string): Promise<void>;
@@ -352,6 +354,23 @@ export class DatabaseStorage implements IStorage {
       and(eq(settings.key, key), eq(settings.tenantId, tenantId))
     );
     return setting;
+  }
+
+  async getGlobalSetting(key: string): Promise<Setting | undefined> {
+    const [setting] = await db.select().from(settings).where(
+      and(eq(settings.key, key), eq(settings.tenantId, "__global__"))
+    );
+    return setting;
+  }
+
+  async upsertGlobalSetting(key: string, value: string): Promise<Setting> {
+    const existing = await this.getGlobalSetting(key);
+    if (existing) {
+      const [updated] = await db.update(settings).set({ value }).where(eq(settings.id, existing.id)).returning();
+      return updated;
+    }
+    const [created] = await db.insert(settings).values({ key, value, tenantId: "__global__" }).returning();
+    return created;
   }
 
   async upsertSetting(key: string, value: string, tenantId: string): Promise<Setting> {
