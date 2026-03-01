@@ -44,6 +44,7 @@ export default function Purchases() {
   const [notes, setNotes] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [productSearch, setProductSearch] = useState("");
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
   const [itemQty, setItemQty] = useState("1");
   const [itemCost, setItemCost] = useState("");
   const [itemBuyUnit, setItemBuyUnit] = useState("dona");
@@ -100,6 +101,7 @@ export default function Purchases() {
     setItemBuyUnit(product.unit);
     setItemBoxQty(String(product.boxQuantity || 1));
     setProductSearch("");
+    setProductPickerOpen(false);
   };
 
   const addToCart = () => {
@@ -313,51 +315,36 @@ export default function Purchases() {
             <div>
               <h3 className="font-medium mb-3">Mahsulot qo'shish</h3>
 
-              <div className="relative mb-3">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Mahsulot nomi yoki SKU bo'yicha qidirish..."
-                  value={selectedProductId ? (selectedProduct?.name || "") : productSearch}
-                  onChange={(e) => {
-                    setProductSearch(e.target.value);
-                    setSelectedProductId("");
-                  }}
-                  className="pl-10"
-                  data-testid="input-purchase-product-search"
-                />
-              </div>
-
-              {productSearch && !selectedProductId && filteredProducts && filteredProducts.length > 0 && (
-                <div className="border rounded-md max-h-48 overflow-y-auto mb-3 bg-background shadow-lg">
-                  {filteredProducts.map((p) => (
-                    <div
-                      key={p.id}
-                      className="flex items-center gap-3 p-2 hover:bg-muted cursor-pointer border-b last:border-0"
-                      onClick={() => selectProduct(p)}
-                      data-testid={`search-result-${p.id}`}
-                    >
-                      {p.imageUrl ? (
-                        <img src={p.imageUrl} alt="" className="h-8 w-8 rounded object-cover" />
-                      ) : (
-                        <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
-                          <Package className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{p.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          SKU: {p.sku} | Stok: {p.stock} {p.unit}
-                          {p.boxQuantity > 1 && ` | 1 quti = ${p.boxQuantity} ${p.unit}`}
-                        </p>
+              <div className="flex items-center gap-2 mb-3">
+                {selectedProductId && selectedProduct ? (
+                  <div className="flex-1 flex items-center gap-2 border rounded-md p-2 bg-muted/30">
+                    {selectedProduct.imageUrl ? (
+                      <img src={selectedProduct.imageUrl} alt="" className="h-9 w-9 rounded object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                    ) : (
+                      <div className="h-9 w-9 rounded bg-muted flex items-center justify-center shrink-0">
+                        <Package className="h-4 w-4 text-muted-foreground" />
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-xs font-medium">{formatCurrency(Number(p.costPrice))}</p>
-                        <p className="text-[10px] text-muted-foreground">tan narxi</p>
-                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{selectedProduct.name}</p>
+                      <p className="text-xs text-muted-foreground">SKU: {selectedProduct.sku} | Stok: {selectedProduct.stock} {selectedProduct.unit}</p>
                     </div>
-                  ))}
-                </div>
-              )}
+                    <Button variant="ghost" size="sm" onClick={() => { setSelectedProductId(""); setItemCost(""); setItemBuyUnit("dona"); setItemBoxQty(""); }} data-testid="button-clear-product">
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-2 text-muted-foreground"
+                    onClick={() => { setProductSearch(""); setProductPickerOpen(true); }}
+                    data-testid="button-open-product-picker"
+                  >
+                    <Search className="h-4 w-4" />
+                    Mahsulot tanlash...
+                  </Button>
+                )}
+              </div>
 
               {selectedProductId && selectedProduct && (
                 <div className="space-y-3">
@@ -574,6 +561,60 @@ export default function Purchases() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={productPickerOpen} onOpenChange={setProductPickerOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Mahsulot tanlash</DialogTitle>
+          </DialogHeader>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Ism, SKU bo'yicha qidirish..."
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              className="pl-10"
+              autoFocus
+              data-testid="input-product-picker-search"
+            />
+          </div>
+          <div className="flex-1 overflow-y-auto min-h-0 border rounded-md">
+            {filteredProducts && filteredProducts.length > 0 ? (
+              filteredProducts.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer border-b last:border-0 transition-colors"
+                  onClick={() => selectProduct(p)}
+                  data-testid={`picker-product-${p.id}`}
+                >
+                  {p.imageUrl ? (
+                    <img src={p.imageUrl} alt="" className="h-10 w-10 rounded object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  ) : (
+                    <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0">
+                      <Package className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate">{p.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      SKU: {p.sku} | Stok: {p.stock} {p.unit}
+                      {p.boxQuantity > 1 && ` | 1 quti = ${p.boxQuantity} ${p.unit}`}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold">{formatCurrency(Number(p.costPrice))}</p>
+                    <p className="text-[10px] text-muted-foreground">tan narxi</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="p-8 text-center text-muted-foreground text-sm">
+                <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                {productSearch ? "Mahsulot topilmadi" : "Mahsulotlar yo'q"}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
