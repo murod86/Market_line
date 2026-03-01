@@ -318,6 +318,14 @@ export const insertSettingSchema = createInsertSchema(settings).omit({ id: true 
 export type InsertSetting = z.infer<typeof insertSettingSchema>;
 export type Setting = typeof settings.$inferSelect;
 
+export const globalSettings = pgTable("global_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  value: text("value").notNull(),
+});
+
+export type GlobalSetting = typeof globalSettings.$inferSelect;
+
 export const ALL_PERMISSIONS = [
   "pos.sell",
   "pos.discount",
