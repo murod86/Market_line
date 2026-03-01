@@ -29,7 +29,7 @@ interface CartItem {
   productName: string;
   quantity: number;
   costPrice: number;
-  buyUnit: "dona" | "quti";
+  buyUnit: string;
   productUnit: string;
   boxQuantity: number;
   stockPieces: number;
@@ -46,7 +46,7 @@ export default function Purchases() {
   const [productSearch, setProductSearch] = useState("");
   const [itemQty, setItemQty] = useState("1");
   const [itemCost, setItemCost] = useState("");
-  const [itemBuyUnit, setItemBuyUnit] = useState<"dona" | "quti">("dona");
+  const [itemBuyUnit, setItemBuyUnit] = useState("dona");
   const [selectedProductId, setSelectedProductId] = useState("");
   const { toast } = useToast();
 
@@ -95,7 +95,7 @@ export default function Purchases() {
   const selectProduct = (product: Product) => {
     setSelectedProductId(product.id);
     setItemCost(String(product.costPrice));
-    setItemBuyUnit("dona");
+    setItemBuyUnit(product.unit);
     setProductSearch("");
   };
 
@@ -356,7 +356,7 @@ export default function Purchases() {
                   <div>
                     <label className="text-xs text-muted-foreground">Birlik</label>
                     <Select value={itemBuyUnit} onValueChange={(v) => {
-                      setItemBuyUnit(v as "dona" | "quti");
+                      setItemBuyUnit(v);
                       if (v === "quti") {
                         setItemCost(String(Number(selectedProduct.costPrice) * (selectedProduct.boxQuantity || 1)));
                       } else {
@@ -367,7 +367,7 @@ export default function Purchases() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="dona">{selectedProduct.unit} (dona)</SelectItem>
+                        <SelectItem value={selectedProduct.unit}>{selectedProduct.unit}</SelectItem>
                         {(selectedProduct.boxQuantity || 1) > 1 && (
                           <SelectItem value="quti">Quti ({selectedProduct.boxQuantity} {selectedProduct.unit})</SelectItem>
                         )}
@@ -387,7 +387,7 @@ export default function Purchases() {
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground">
-                      Narx (1 {itemBuyUnit === "quti" ? "quti" : selectedProduct.unit})
+                      Narx (1 {itemBuyUnit})
                     </label>
                     <Input
                       type="number"
@@ -430,7 +430,7 @@ export default function Purchases() {
                           <span className="font-medium">{item.productName}</span>
                         </TableCell>
                         <TableCell className="text-right">
-                          {item.quantity} {item.buyUnit === "quti" ? "quti" : item.productUnit}
+                          {item.quantity} {item.buyUnit}
                         </TableCell>
                         <TableCell className="text-right">{formatCurrency(item.costPrice)}</TableCell>
                         <TableCell className="text-right font-medium">{formatCurrency(item.quantity * item.costPrice)}</TableCell>
