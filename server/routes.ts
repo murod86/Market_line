@@ -85,11 +85,72 @@ export async function registerRoutes(
 
   app.use("/uploads", (await import("express")).default.static("uploads"));
 
-  app.post("/api/upload", upload.single("image"), (req, res) => {
+  app.post("/api/upload", upload.single("image"), async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: "Rasm yuklanmadi" });
     }
+
+    const tenantId = req.session?.tenantId;
+    if (!tenantId) {
+      return res.json({ url: `/uploads/${req.file.filename}` });
+    }
+
+    try {
+      const botToken = await getTelegramBotToken(tenantId);
+      const channelSetting = await storage.getSetting("telegram_image_channel", tenantId);
+      const channelId = channelSetting?.value?.trim();
+
+      if (botToken && channelId) {
+        const fs = await import("fs");
+        const FormData = (await import("form-data")).default;
+        const formData = new FormData();
+        formData.append("chat_id", channelId);
+        formData.append("photo", fs.createReadStream(req.file.path), req.file.originalname);
+
+        const tgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+          method: "POST",
+          body: formData as any,
+          headers: formData.getHeaders(),
+        });
+        const tgData = await tgRes.json() as any;
+
+        if (tgData.ok && tgData.result?.photo) {
+          const photo = tgData.result.photo;
+          const largest = photo[photo.length - 1];
+          const fileId = largest.file_id;
+
+          try { fs.unlinkSync(req.file.path); } catch {}
+
+          return res.json({ url: `/api/tg-image/${tenantId}/${fileId}` });
+        }
+      }
+    } catch (err) {
+      console.error("Telegram upload error:", err);
+    }
+
     res.json({ url: `/uploads/${req.file.filename}` });
+  });
+
+  app.get("/api/tg-image/:tenantId/:fileId", async (req, res) => {
+    try {
+      const { tenantId, fileId } = req.params;
+      const botToken = await getTelegramBotToken(tenantId);
+      if (!botToken) return res.status(404).send("Bot token topilmadi");
+
+      const fileRes = await fetch(`https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`);
+      const fileData = await fileRes.json() as any;
+      if (!fileData.ok) return res.status(404).send("Fayl topilmadi");
+
+      const filePath = fileData.result.file_path;
+      const imageRes = await fetch(`https://api.telegram.org/file/bot${botToken}/${filePath}`);
+
+      res.set("Content-Type", imageRes.headers.get("content-type") || "image/jpeg");
+      res.set("Cache-Control", "public, max-age=86400");
+      const buffer = Buffer.from(await imageRes.arrayBuffer());
+      res.send(buffer);
+    } catch {
+      res.status(500).send("Rasm yuklanmadi");
+    }
   });
 
   // ===== TENANT AUTH =====
@@ -2153,7 +2214,7 @@ export async function registerRoutes(
 
   app.post("/api/super/tenants", requireSuperAdmin, async (req, res) => {
     try {
-      const { name, ownerName, phone, password, plan, telegramChatId } = req.body;
+      const { name, ownerName, phone, password, plan, telegramChatId, telegramImageChannel } = req.body;
       if (!name || !ownerName || !phone || !password) {
         return res.status(400).json({ message: "Barcha maydonlar majburiy" });
       }
@@ -2179,6 +2240,7 @@ export async function registerRoutes(
       await storage.upsertSetting("currency", "UZS", tenant.id);
       await storage.upsertSetting("telegram_bot_token", "", tenant.id);
       await storage.upsertSetting("telegram_chat_id", telegramChatId || "", tenant.id);
+      await storage.upsertSetting("telegram_image_channel", telegramImageChannel || "", tenant.id);
       await seedTenantData(tenant.id);
       const { password: _, ...safe } = tenant;
       res.json(safe);

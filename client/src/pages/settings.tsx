@@ -15,6 +15,7 @@ export default function Settings() {
   const [currency, setCurrency] = useState("");
   const [telegramToken, setTelegramToken] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
+  const [telegramImageChannel, setTelegramImageChannel] = useState("");
   const { toast } = useToast();
 
   const { data: settings, isLoading } = useQuery<Setting[]>({ queryKey: ["/api/settings"] });
@@ -26,6 +27,7 @@ export default function Settings() {
       setCurrency(findVal("currency"));
       setTelegramToken(findVal("telegram_bot_token"));
       setTelegramChatId(findVal("telegram_chat_id"));
+      setTelegramImageChannel(findVal("telegram_image_channel"));
     }
   }, [settings]);
 
@@ -46,6 +48,7 @@ export default function Settings() {
         saveMutation.mutateAsync({ key: "currency", value: currency }),
         saveMutation.mutateAsync({ key: "telegram_bot_token", value: telegramToken }),
         saveMutation.mutateAsync({ key: "telegram_chat_id", value: telegramChatId }),
+        saveMutation.mutateAsync({ key: "telegram_image_channel", value: telegramImageChannel }),
       ]);
       toast({ title: "Sozlamalar saqlandi" });
     } catch (error: any) {
@@ -113,6 +116,14 @@ export default function Settings() {
             <div>
               <label className="text-sm font-medium mb-1 block">Chat ID (xabarnomalar uchun)</label>
               <Input value={telegramChatId} onChange={(e) => setTelegramChatId(e.target.value)} placeholder="-1001234567890" data-testid="input-telegram-chat-id" />
+            </div>
+            <Separator />
+            <div>
+              <label className="text-sm font-medium mb-1 block">Rasm saqlash kanali ID</label>
+              <Input value={telegramImageChannel} onChange={(e) => setTelegramImageChannel(e.target.value)} placeholder="-1001234567890" data-testid="input-telegram-image-channel" />
+              <p className="text-xs text-muted-foreground mt-1">
+                Mahsulot rasmlarini saqlash uchun yopiq Telegram kanal ID. Botni kanalga admin qiling.
+              </p>
             </div>
             <Separator />
             <WebhookSetup />
