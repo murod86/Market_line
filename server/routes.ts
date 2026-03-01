@@ -144,17 +144,21 @@ export async function registerRoutes(
         if (!fs.existsSync(req.file.path)) {
           console.error(`[Image Upload] File not found at path: ${req.file.path}`);
         } else {
-          const FormData = (await import("form-data")).default;
-          const formData = new FormData();
+          const fileBuffer = fs.readFileSync(req.file.path);
+          const mimeType = req.file.mimetype || "image/jpeg";
+          const fileName = req.file.originalname || "photo.jpg";
+          
+          const formData = new globalThis.FormData();
           formData.append("chat_id", channelId);
-          formData.append("photo", fs.createReadStream(req.file.path), req.file.originalname);
+          formData.append("photo", new Blob([fileBuffer], { type: mimeType }), fileName);
 
           const tgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
             method: "POST",
-            body: formData as any,
-            headers: formData.getHeaders(),
+            body: formData,
           });
-          const tgData = await tgRes.json() as any;
+          const tgText = await tgRes.text();
+          let tgData: any;
+          try { tgData = JSON.parse(tgText); } catch { tgData = { ok: false, description: tgText }; }
           console.log(`[Image Upload] Telegram response ok=${tgData.ok}, desc=${tgData.description || "none"}`);
 
           if (tgData.ok && tgData.result?.photo) {
