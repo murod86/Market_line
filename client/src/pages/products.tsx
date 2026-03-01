@@ -175,12 +175,16 @@ export default function Products() {
                     <TableRow key={product.id} data-testid={`row-product-${product.id}`}>
                       <TableCell>
                         {product.imageUrl ? (
-                          <img src={product.imageUrl} alt={product.name} className="h-10 w-10 rounded-md object-cover" />
-                        ) : (
-                          <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
-                            <Package className="h-4 w-4 text-muted-foreground/30" />
-                          </div>
-                        )}
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="h-10 w-10 rounded-md object-cover"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }}
+                          />
+                        ) : null}
+                        <div className={`h-10 w-10 rounded-md bg-muted flex items-center justify-center ${product.imageUrl ? 'hidden' : ''}`}>
+                          <Package className="h-4 w-4 text-muted-foreground/30" />
+                        </div>
                       </TableCell>
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell className="text-muted-foreground">{product.sku}</TableCell>

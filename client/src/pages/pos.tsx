@@ -332,7 +332,12 @@ export default function POS() {
                     <div className="flex items-center gap-2.5 mb-2">
                       <div className="h-12 w-12 shrink-0 rounded-md bg-muted overflow-hidden flex items-center justify-center">
                         {product.imageUrl ? (
-                          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
                         ) : (
                           <Package className="w-5 h-5 text-muted-foreground/40" />
                         )}

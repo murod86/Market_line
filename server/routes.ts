@@ -59,7 +59,9 @@ async function getGlobalBotToken(): Promise<string | null> {
 
 async function getGlobalImageChannel(): Promise<string | null> {
   const setting = await storage.getGlobalSetting("global_image_channel");
-  return setting?.value?.trim() || null;
+  const val = setting?.value?.trim();
+  if (val) return val;
+  return process.env.SUPER_ADMIN_TELEGRAM_CHAT_ID?.trim() || null;
 }
 
 async function sendTelegramMessage(chatId: string, text: string, token: string): Promise<boolean> {
