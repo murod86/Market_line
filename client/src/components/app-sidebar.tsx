@@ -63,6 +63,8 @@ export function AppSidebar() {
   const isTrialActive = me?.isTrialActive;
   const trialExpired = me?.trialExpired;
   const trialDaysLeft = me?.trialDaysLeft || 0;
+  const planDetails = me?.planDetails;
+  const trialEndsAt = me?.trialEndsAt;
 
   const filteredMainItems = mainItems.filter(item =>
     item.moduleKey === "dashboard" || allowedModules.includes(item.moduleKey)
@@ -83,6 +85,26 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent className="glass-sidebar-content">
+        {planDetails && (
+          <div className="mx-3 mt-2 p-2.5 rounded-lg bg-white/5 border border-white/10" data-testid="plan-info-card">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] uppercase tracking-wider text-white/40 font-bold">Joriy tarif</span>
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-white/20 text-white/70" data-testid="badge-plan-name">
+                {planDetails.name}
+              </Badge>
+            </div>
+            {trialEndsAt && (
+              <div className="text-[11px] text-white/50 mt-1" data-testid="text-plan-expiry">
+                Tugash sanasi: <span className="text-white/80 font-medium">{new Date(trialEndsAt).toLocaleDateString("uz-UZ", { year: "numeric", month: "long", day: "numeric" })}</span>
+              </div>
+            )}
+            {planDetails.price > 0 && (
+              <div className="text-[11px] text-white/50 mt-0.5">
+                Narxi: <span className="text-white/80 font-medium">{new Intl.NumberFormat("uz-UZ").format(planDetails.price)} UZS/oy</span>
+              </div>
+            )}
+          </div>
+        )}
         {isTrialActive && (
           <div className="mx-3 mt-2 p-2.5 rounded-lg bg-yellow-500/20 border border-yellow-500/30">
             <div className="flex items-center gap-2 text-yellow-200 text-xs font-medium">

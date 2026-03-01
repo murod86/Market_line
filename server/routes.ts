@@ -314,6 +314,8 @@ export async function registerRoutes(
       isTrialActive: !!isTrialActive,
       trialExpired: !!trialExpired,
       trialDaysLeft: isTrialActive && tenant.trialEndsAt ? Math.ceil((new Date(tenant.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0,
+      trialEndsAt: tenant.trialEndsAt || null,
+      plan: tenant.plan,
     });
   });
 
