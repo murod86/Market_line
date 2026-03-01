@@ -186,18 +186,18 @@
 }
 
 .glass-sidebar-header {
-  background: linear-gradient(180deg, rgba(49, 87, 181, 0.98) 0%, rgba(67, 56, 202, 0.96) 100%) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 2px 12px rgba(49, 46, 129, 0.2);
+  background: linear-gradient(180deg, rgba(71, 110, 200, 0.97) 0%, rgba(85, 80, 210, 0.95) 100%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 2px 12px rgba(71, 110, 200, 0.15);
 }
 
 .glass-sidebar-content {
-  background: linear-gradient(180deg, rgba(39, 55, 120, 0.96) 0%, rgba(30, 32, 80, 0.98) 100%) !important;
+  background: linear-gradient(180deg, rgba(60, 78, 148, 0.95) 0%, rgba(50, 55, 115, 0.96) 100%) !important;
 }
 
 .glass-sidebar-footer {
-  background: rgba(25, 25, 65, 0.97) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(45, 48, 95, 0.96) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .glass-sidebar [data-sidebar="sidebar"],
