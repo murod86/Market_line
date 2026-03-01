@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { z } from "zod";
 import { storage } from "./storage";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { products, customers, sales, saleItems, deliveries, purchases, purchaseItems, tenants } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 import {
@@ -77,9 +77,18 @@ async function sendTelegramMessage(chatId: string, text: string, token: string):
   }
 }
 
-function requireTenant(req: Request, res: Response, next: NextFunction) {
+async function requireTenant(req: Request, res: Response, next: NextFunction) {
   if (!req.session.tenantId || !req.session.ownerId) {
     return res.status(401).json({ message: "Tizimga kirilmagan" });
+  }
+  const tenant = await storage.getTenant(req.session.tenantId);
+  if (!tenant) {
+    req.session.destroy(() => {});
+    return res.status(401).json({ message: "Do'kon o'chirilgan" });
+  }
+  if (!tenant.active) {
+    req.session.destroy(() => {});
+    return res.status(403).json({ message: "Do'kon nofaol holatda" });
   }
   next();
 }
@@ -254,7 +263,12 @@ export async function registerRoutes(
     }
     const tenant = await storage.getTenant(req.session.tenantId);
     if (!tenant) {
-      return res.status(401).json({ message: "Do'kon topilmadi" });
+      req.session.destroy(() => {});
+      return res.status(401).json({ message: "Do'kon o'chirilgan" });
+    }
+    if (!tenant.active) {
+      req.session.destroy(() => {});
+      return res.status(403).json({ message: "Do'kon nofaol holatda" });
     }
     const { password: _, ...safe } = tenant;
 
@@ -2318,10 +2332,30 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/super/tenants/:id", requireSuperAdmin, async (req, res) => {
+    try {
+      const tenant = await storage.getTenant(req.params.id);
+      if (!tenant) return res.status(404).json({ message: "Do'kon topilmadi" });
+      const { active, plan } = req.body;
+      const updateData: any = {};
+      if (typeof active === "boolean") updateData.active = active;
+      if (plan) updateData.plan = plan;
+      const updated = await storage.updateTenant(req.params.id, updateData);
+      if (!updated?.active) {
+        await pool.query(`DELETE FROM "session" WHERE "sess"::text LIKE $1`, [`%"tenantId":"${req.params.id}"%`]);
+      }
+      const { password: _, ...safe } = updated!;
+      res.json(safe);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.delete("/api/super/tenants/:id", requireSuperAdmin, async (req, res) => {
     try {
       const tenant = await storage.getTenant(req.params.id);
       if (!tenant) return res.status(404).json({ message: "Do'kon topilmadi" });
+      await pool.query(`DELETE FROM "session" WHERE "sess"::text LIKE $1`, [`%"tenantId":"${req.params.id}"%`]);
       await storage.deleteTenant(req.params.id);
       res.json({ success: true });
     } catch (error: any) {
