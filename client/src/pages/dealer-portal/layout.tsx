@@ -13,8 +13,10 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Package, ShoppingCart, History, CreditCard, LogOut, Truck,
-  Minus, Plus, Trash2, User, Phone, LayoutDashboard, TrendingUp, TrendingDown, Wallet, ArrowDownToLine, ArrowUpFromLine, Banknote, UserPlus
+  Minus, Plus, Trash2, User, Phone, LayoutDashboard, TrendingUp, TrendingDown, Wallet, ArrowDownToLine, ArrowUpFromLine, Banknote, UserPlus, QrCode, Download
 } from "lucide-react";
+import { useRef, useCallback } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { format } from "date-fns";
 import logoImg from "@assets/marketline_pro_logo_1.png";
 
@@ -742,6 +744,8 @@ function CustomersTab() {
   const [payAmount, setPayAmount] = useState("");
   const [payMethod, setPayMethod] = useState("cash");
   const [payNotes, setPayNotes] = useState("");
+  const [qrCustomer, setQrCustomer] = useState<any>(null);
+  const qrRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const { data: customers, isLoading } = useQuery<any[]>({
@@ -753,7 +757,7 @@ function CustomersTab() {
       const res = await apiRequest("POST", "/api/dealer-portal/customers", data);
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       toast({ title: "Mijoz qo'shildi" });
       queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/customers"] });
       setAddOpen(false);
@@ -761,6 +765,7 @@ function CustomersTab() {
       setNewPhone("");
       setNewPassword("");
       setNewAddress("");
+      setQrCustomer(data);
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -840,18 +845,29 @@ function CustomersTab() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {Number(c.debt) > 0 && (
+                      <div className="flex items-center gap-1">
                         <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-green-600"
-                          onClick={() => { setPayOpen(c); setPayAmount(""); setPayNotes(""); setPayMethod("cash"); }}
-                          data-testid={`button-pay-dealer-customer-${c.id}`}
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          onClick={() => setQrCustomer(c)}
+                          data-testid={`button-qr-dealer-customer-${c.id}`}
                         >
-                          <Banknote className="h-4 w-4 mr-1" />
-                          To'lov olish
+                          <QrCode className="h-4 w-4" />
                         </Button>
-                      )}
+                        {Number(c.debt) > 0 && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-green-600"
+                            onClick={() => { setPayOpen(c); setPayAmount(""); setPayNotes(""); setPayMethod("cash"); }}
+                            data-testid={`button-pay-dealer-customer-${c.id}`}
+                          >
+                            <Banknote className="h-4 w-4 mr-1" />
+                            To'lov olish
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -958,6 +974,89 @@ function CustomersTab() {
               {payMutation.isPending ? "Saqlanmoqda..." : "To'lovni tasdiqlash"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!qrCustomer} onOpenChange={(o) => { if (!o) setQrCustomer(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              Mijoz QR kodi
+            </DialogTitle>
+          </DialogHeader>
+          {qrCustomer && (
+            <div className="flex flex-col items-center gap-4">
+              <div
+                ref={qrRef}
+                className="bg-white p-6 rounded-xl border-2 border-dashed border-muted"
+                data-testid="dealer-qr-code-container"
+              >
+                <div className="flex flex-col items-center gap-3">
+                  <img src={logoImg} alt="MARKET_LINE" className="h-8 w-auto" />
+                  <QRCodeSVG
+                    value={JSON.stringify({
+                      type: "dealer_customer",
+                      id: qrCustomer.id,
+                      name: qrCustomer.name,
+                      phone: qrCustomer.phone || "",
+                      dealerId: qrCustomer.dealerId,
+                    })}
+                    size={200}
+                    level="H"
+                    includeMargin={false}
+                    fgColor="#2563eb"
+                  />
+                  <div className="text-center">
+                    <p className="font-bold text-gray-800 text-sm">{qrCustomer.name}</p>
+                    {qrCustomer.phone && <p className="text-gray-500 text-xs">{qrCustomer.phone}</p>}
+                  </div>
+                  <p className="text-blue-600 text-xs font-medium">Mijoz identifikatsiya QR</p>
+                </div>
+              </div>
+              <Button
+                className="w-full"
+                onClick={() => {
+                  if (!qrRef.current) return;
+                  const svg = qrRef.current.querySelector("svg");
+                  if (!svg) return;
+                  const canvas = document.createElement("canvas");
+                  const ctx = canvas.getContext("2d");
+                  const data = new XMLSerializer().serializeToString(svg);
+                  const img = new Image();
+                  canvas.width = 400;
+                  canvas.height = 500;
+                  img.onload = () => {
+                    if (!ctx) return;
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 100, 40, 200, 200);
+                    ctx.fillStyle = "#1e293b";
+                    ctx.font = "bold 18px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.fillText(qrCustomer.name, 200, 280);
+                    if (qrCustomer.phone) {
+                      ctx.fillStyle = "#64748b";
+                      ctx.font = "14px sans-serif";
+                      ctx.fillText(qrCustomer.phone, 200, 305);
+                    }
+                    ctx.fillStyle = "#2563eb";
+                    ctx.font = "12px sans-serif";
+                    ctx.fillText("MARKET_LINE - Mijoz QR", 200, 340);
+                    const link = document.createElement("a");
+                    link.download = `qr-${qrCustomer.name}.png`;
+                    link.href = canvas.toDataURL("image/png");
+                    link.click();
+                  };
+                  img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(data)));
+                }}
+                data-testid="button-download-dealer-qr"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                QR kodni yuklab olish
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
