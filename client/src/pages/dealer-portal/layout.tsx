@@ -13,7 +13,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Package, ShoppingCart, History, CreditCard, LogOut, Truck,
-  Minus, Plus, Trash2, User, Phone, LayoutDashboard, TrendingUp, TrendingDown, Wallet, ArrowDownToLine, ArrowUpFromLine, Banknote, UserPlus, QrCode, Download, Edit, Search, Printer
+  Minus, Plus, Trash2, User, Phone, LayoutDashboard, TrendingUp, TrendingDown, Wallet, ArrowDownToLine, ArrowUpFromLine, Banknote, UserPlus, QrCode, Download, Edit, Search, Printer, Users, AlertCircle
 } from "lucide-react";
 import { useRef, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
@@ -134,6 +134,9 @@ function DashboardTab({ dealer }: { dealer: any }) {
   const { data: payments, isLoading: payLoading } = useQuery<any[]>({
     queryKey: ["/api/dealer-portal/payments"],
   });
+  const { data: dealerCustomers } = useQuery<any[]>({
+    queryKey: ["/api/dealer-portal/customers"],
+  });
 
   if (invLoading || txLoading || payLoading) return <Skeleton className="h-64 w-full" />;
 
@@ -213,6 +216,52 @@ function DashboardTab({ dealer }: { dealer: any }) {
           </CardContent>
         </Card>
       </div>
+
+      {(() => {
+        const customersWithDebt = (dealerCustomers || []).filter((c: any) => Number(c.debt) > 0);
+        const totalCustomerDebt = customersWithDebt.reduce((s: number, c: any) => s + Number(c.debt), 0);
+        if (customersWithDebt.length === 0) return null;
+        return (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-sm text-muted-foreground flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Mijozlar qarzi
+              </h3>
+              <Badge variant="destructive" data-testid="text-dash-customer-debt-total">
+                Jami: {formatCurrency(totalCustomerDebt)}
+              </Badge>
+            </div>
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Mijoz</TableHead>
+                      <TableHead>Telefon</TableHead>
+                      <TableHead className="text-right">Qarz</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customersWithDebt.map((c: any) => (
+                      <TableRow key={c.id} data-testid={`row-dash-debt-${c.id}`}>
+                        <TableCell className="font-medium">{c.name}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{c.phone || "-"}</TableCell>
+                        <TableCell className="text-right font-bold text-destructive">
+                          <div className="flex items-center justify-end gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            {formatCurrency(Number(c.debt))}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
 
       {sellTxs.length > 0 && (
         <div>
