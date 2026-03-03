@@ -29,6 +29,8 @@ import {
 interface CartItem {
   product: Product;
   quantity: number;
+  buyUnit: string;
+  stockPieces: number;
 }
 
 interface ReceiptData {
@@ -90,7 +92,7 @@ export default function POS() {
     },
     onSuccess: () => {
       const customer = customers?.find((c) => c.id === selectedCustomer);
-      const sub = cart.reduce((sum, item) => sum + item.quantity * Number(item.product.price), 0);
+      const sub = cart.reduce((sum, item) => sum + item.stockPieces * Number(item.product.price), 0);
       const tot = sub - discount;
       const pd = paidAmount ? Number(paidAmount) : tot;
 
@@ -138,18 +140,38 @@ export default function POS() {
     setCart((prev) => {
       const existing = prev.find((item) => item.product.id === product.id);
       if (existing) {
-        if (existing.quantity >= product.stock) {
+        const newQty = existing.quantity + 1;
+        const newPieces = existing.buyUnit === "quti" ? newQty * (product.boxQuantity || 1) : newQty;
+        if (newPieces > product.stock) {
           toast({ title: "Stokda yetarli mahsulot yo'q", variant: "destructive" });
           return prev;
         }
         return prev.map((item) =>
           item.product.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: newQty, stockPieces: newPieces }
             : item
         );
       }
-      return [...prev, { product, quantity: 1 }];
+      return [...prev, { product, quantity: 1, buyUnit: product.unit, stockPieces: 1 }];
     });
+  };
+
+  const changeCartUnit = (productId: string, newUnit: string) => {
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.product.id !== productId) return item;
+        let newQty = item.quantity;
+        const bq = item.product.boxQuantity || 1;
+        if (newUnit === "quti" && item.buyUnit !== "quti") {
+          newQty = Math.max(1, Math.floor(item.quantity / bq));
+        } else if (item.buyUnit === "quti" && newUnit !== "quti") {
+          newQty = item.quantity * bq;
+        }
+        const newPieces = newUnit === "quti" ? newQty * bq : newQty;
+        if (newPieces > item.product.stock) return item;
+        return { ...item, buyUnit: newUnit, quantity: newQty, stockPieces: newPieces };
+      })
+    );
   };
 
   const updateQuantity = (productId: string, delta: number) => {
@@ -159,11 +181,12 @@ export default function POS() {
           if (item.product.id === productId) {
             const newQty = item.quantity + delta;
             if (newQty <= 0) return null;
-            if (newQty > item.product.stock) {
+            const newPieces = item.buyUnit === "quti" ? newQty * (item.product.boxQuantity || 1) : newQty;
+            if (newPieces > item.product.stock) {
               toast({ title: "Stokda yetarli mahsulot yo'q", variant: "destructive" });
               return item;
             }
-            return { ...item, quantity: newQty };
+            return { ...item, quantity: newQty, stockPieces: newPieces };
           }
           return item;
         })
@@ -176,7 +199,7 @@ export default function POS() {
   };
 
   const subtotal = cart.reduce(
-    (sum, item) => sum + item.quantity * Number(item.product.price),
+    (sum, item) => sum + item.stockPieces * Number(item.product.price),
     0
   );
   const total = subtotal - discount;
@@ -194,7 +217,7 @@ export default function POS() {
     saleMutation.mutate({
       items: cart.map((item) => ({
         productId: item.product.id,
-        quantity: item.quantity,
+        quantity: item.stockPieces,
         price: Number(item.product.price),
       })),
       customerId: selectedCustomer || null,
@@ -402,8 +425,27 @@ export default function POS() {
                     <p className="text-xs text-muted-foreground">
                       {formatCurrency(Number(item.product.price))} / {item.product.unit}
                     </p>
+                    {item.buyUnit === "quti" && (item.product.boxQuantity || 1) > 1 && (
+                      <p className="text-[10px] text-blue-600">
+                        {item.quantity} quti × {item.product.boxQuantity} = {item.stockPieces} {item.product.unit}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
+                    {(item.product.boxQuantity || 1) > 1 && (
+                      <Select
+                        value={item.buyUnit}
+                        onValueChange={(val) => changeCartUnit(item.product.id, val)}
+                      >
+                        <SelectTrigger className="h-7 w-16 text-[10px] px-1.5" data-testid={`select-unit-${item.product.id}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={item.product.unit}>{item.product.unit}</SelectItem>
+                          <SelectItem value="quti">quti</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
                     <Button
                       size="icon"
                       variant="outline"
@@ -436,7 +478,7 @@ export default function POS() {
                     </Button>
                   </div>
                   <div className="text-sm font-semibold w-24 text-right">
-                    {formatCurrency(item.quantity * Number(item.product.price))}
+                    {formatCurrency(item.stockPieces * Number(item.product.price))}
                   </div>
                 </div>
               ))}
@@ -630,8 +672,8 @@ export default function POS() {
                         {item.product.name}
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000" }}>
-                        <span>{item.quantity} x {formatCurrencyShort(Number(item.product.price))}</span>
-                        <span style={{ fontWeight: "bold" }}>{formatCurrencyShort(item.quantity * Number(item.product.price))}</span>
+                        <span>{item.buyUnit === "quti" ? `${item.quantity} quti (${item.stockPieces} ${item.product.unit})` : `${item.stockPieces} ${item.product.unit}`} x {formatCurrencyShort(Number(item.product.price))}</span>
+                        <span style={{ fontWeight: "bold" }}>{formatCurrencyShort(item.stockPieces * Number(item.product.price))}</span>
                       </div>
                     </div>
                   ))}

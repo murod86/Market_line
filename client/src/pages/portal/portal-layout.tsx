@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import logoImg from "@assets/marketline_pro_logo_1.png";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -140,18 +141,38 @@ export default function PortalLayout({ onLogout }: PortalLayoutProps) {
     setCart((prev) => {
       const existing = prev.find((item) => item.product.id === product.id);
       if (existing) {
-        if (existing.quantity >= product.stock) {
+        const newQty = existing.quantity + 1;
+        const newPieces = existing.buyUnit === "quti" ? newQty * (product.boxQuantity || 1) : newQty;
+        if (newPieces > product.stock) {
           toast({ title: "Stokda yetarli emas", variant: "destructive" });
           return prev;
         }
         return prev.map((item) =>
           item.product.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: newQty, stockPieces: newPieces }
             : item
         );
       }
-      return [...prev, { product, quantity: 1 }];
+      return [...prev, { product, quantity: 1, buyUnit: product.unit, stockPieces: 1 }];
     });
+  };
+
+  const changeCartUnit = (productId: string, newUnit: string) => {
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.product.id !== productId) return item;
+        let newQty = item.quantity;
+        const bq = item.product.boxQuantity || 1;
+        if (newUnit === "quti" && item.buyUnit !== "quti") {
+          newQty = Math.max(1, Math.floor(item.quantity / bq));
+        } else if (item.buyUnit === "quti" && newUnit !== "quti") {
+          newQty = item.quantity * bq;
+        }
+        const newPieces = newUnit === "quti" ? newQty * bq : newQty;
+        if (newPieces > item.product.stock) return item;
+        return { ...item, buyUnit: newUnit, quantity: newQty, stockPieces: newPieces };
+      })
+    );
   };
 
   const updateQuantity = (productId: string, delta: number) => {
@@ -161,11 +182,12 @@ export default function PortalLayout({ onLogout }: PortalLayoutProps) {
           if (item.product.id === productId) {
             const newQty = item.quantity + delta;
             if (newQty <= 0) return null;
-            if (newQty > item.product.stock) {
+            const newPieces = item.buyUnit === "quti" ? newQty * (item.product.boxQuantity || 1) : newQty;
+            if (newPieces > item.product.stock) {
               toast({ title: "Stokda yetarli emas", variant: "destructive" });
               return item;
             }
-            return { ...item, quantity: newQty };
+            return { ...item, quantity: newQty, stockPieces: newPieces };
           }
           return item;
         })
@@ -178,7 +200,7 @@ export default function PortalLayout({ onLogout }: PortalLayoutProps) {
   };
 
   const total = cart.reduce(
-    (sum, item) => sum + item.quantity * Number(item.product.price),
+    (sum, item) => sum + item.stockPieces * Number(item.product.price),
     0
   );
 
@@ -187,7 +209,7 @@ export default function PortalLayout({ onLogout }: PortalLayoutProps) {
     orderMutation.mutate({
       items: cart.map((item) => ({
         productId: item.product.id,
-        quantity: item.quantity,
+        quantity: item.stockPieces,
       })),
       address: address || customer?.address || "",
       notes: notes || undefined,
@@ -337,10 +359,29 @@ export default function PortalLayout({ onLogout }: PortalLayoutProps) {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{item.product.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {formatCurrency(Number(item.product.price))} x {item.quantity}
+                          {formatCurrency(Number(item.product.price))} x {item.stockPieces} {item.product.unit}
                         </p>
+                        {item.buyUnit === "quti" && (item.product.boxQuantity || 1) > 1 && (
+                          <p className="text-[10px] text-blue-600">
+                            {item.quantity} quti × {item.product.boxQuantity} = {item.stockPieces} {item.product.unit}
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-1">
+                        {(item.product.boxQuantity || 1) > 1 && (
+                          <Select
+                            value={item.buyUnit}
+                            onValueChange={(val) => changeCartUnit(item.product.id, val)}
+                          >
+                            <SelectTrigger className="h-7 w-16 text-[10px] px-1.5">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={item.product.unit}>{item.product.unit}</SelectItem>
+                              <SelectItem value="quti">quti</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
                         <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, -1)}>
                           <Minus className="h-3 w-3" />
                         </Button>
@@ -353,7 +394,7 @@ export default function PortalLayout({ onLogout }: PortalLayoutProps) {
                         </Button>
                       </div>
                       <span className="text-sm font-medium w-24 text-right">
-                        {formatCurrency(item.quantity * Number(item.product.price))}
+                        {formatCurrency(item.stockPieces * Number(item.product.price))}
                       </span>
                     </div>
                   ))}
@@ -405,8 +446,10 @@ export default function PortalLayout({ onLogout }: PortalLayoutProps) {
             <div className="space-y-2">
               {cart.map((item) => (
                 <div key={item.product.id} className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{item.product.name} x{item.quantity}</span>
-                  <span>{formatCurrency(item.quantity * Number(item.product.price))}</span>
+                  <span className="text-muted-foreground">
+                    {item.product.name} x{item.buyUnit === "quti" ? `${item.quantity} quti (${item.stockPieces} ${item.product.unit})` : `${item.stockPieces} ${item.product.unit}`}
+                  </span>
+                  <span>{formatCurrency(item.stockPieces * Number(item.product.price))}</span>
                 </div>
               ))}
               <Separator />

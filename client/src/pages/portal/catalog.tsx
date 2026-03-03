@@ -16,6 +16,8 @@ function formatCurrency(amount: number) {
 export interface CartItem {
   product: Product;
   quantity: number;
+  buyUnit: string;
+  stockPieces: number;
 }
 
 interface CatalogProps {
@@ -117,9 +119,14 @@ export default function PortalCatalog({ cart, onAddToCart, onUpdateQuantity }: C
                       <span className="font-bold text-sm text-primary">
                         {formatCurrency(Number(product.price))}
                       </span>
-                      <span className="text-xs text-muted-foreground">
-                        {product.stock} {product.unit}
-                      </span>
+                      <div className="text-right">
+                        <span className="text-xs text-muted-foreground">
+                          {product.stock} {product.unit}
+                        </span>
+                        {(product.boxQuantity || 1) > 1 && (
+                          <p className="text-[10px] text-blue-600">1 quti = {product.boxQuantity} {product.unit}</p>
+                        )}
+                      </div>
                     </div>
                     {cartQty === 0 ? (
                       <Button
