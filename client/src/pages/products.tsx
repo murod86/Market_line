@@ -11,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Product, Category } from "@shared/schema";
-import { Plus, Search, Package, Edit, X, Image as ImageIcon, Link } from "lucide-react";
+import { Plus, Search, Package, Edit, X, Image as ImageIcon, Link, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -44,6 +45,19 @@ export default function Products() {
       setDialogOpen(false);
       setEditing(null);
       resetForm();
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Xatolik", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/products/${id}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Mahsulot o'chirildi" });
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
     },
     onError: (error: Error) => {
@@ -182,9 +196,36 @@ export default function Products() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Button size="icon" variant="ghost" onClick={() => openEdit(product)} data-testid={`button-edit-product-${product.id}`}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button size="icon" variant="ghost" onClick={() => openEdit(product)} data-testid={`button-edit-product-${product.id}`}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" data-testid={`button-delete-product-${product.id}`}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Mahsulotni o'chirish</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  "{product.name}" mahsulotini o'chirishni tasdiqlaysizmi? Bu amalni qaytarib bo'lmaydi.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel data-testid="button-cancel-delete">Bekor qilish</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteMutation.mutate(product.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  data-testid="button-confirm-delete"
+                                >
+                                  O'chirish
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

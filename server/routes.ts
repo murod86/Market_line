@@ -471,6 +471,13 @@ export async function registerRoutes(
     res.json(product);
   });
 
+  app.delete("/api/products/:id", requireTenant, async (req, res) => {
+    const existing = await storage.getProduct(req.params.id);
+    if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Product not found" });
+    await storage.deleteProduct(req.params.id);
+    res.json({ success: true });
+  });
+
   // ===== CUSTOMERS =====
   app.get("/api/customers", requireTenant, async (req, res) => {
     const data = await storage.getCustomers(req.session.tenantId!);
