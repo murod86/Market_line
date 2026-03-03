@@ -20,6 +20,7 @@ function formatCurrency(amount: number) {
 
 export default function Products() {
   const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState({
@@ -110,8 +111,9 @@ export default function Products() {
 
   const filtered = products?.filter(
     (p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.sku.toLowerCase().includes(search.toLowerCase())
+      (selectedCategory === "all" || p.categoryId === selectedCategory) &&
+      (p.name.toLowerCase().includes(search.toLowerCase()) ||
+        p.sku.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (
@@ -127,15 +129,38 @@ export default function Products() {
         </Button>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Qidirish..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10"
-          data-testid="input-products-search"
-        />
+      <div className="flex flex-col gap-3">
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Qidirish..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10"
+            data-testid="input-products-search"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant={selectedCategory === "all" ? "default" : "outline"}
+            onClick={() => setSelectedCategory("all")}
+            data-testid="button-category-all"
+          >
+            Hammasi
+          </Button>
+          {categories?.map((cat) => (
+            <Button
+              key={cat.id}
+              size="sm"
+              variant={selectedCategory === cat.id ? "default" : "outline"}
+              onClick={() => setSelectedCategory(cat.id)}
+              data-testid={`button-category-${cat.id}`}
+            >
+              {cat.name}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {isLoading ? (
