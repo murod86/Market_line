@@ -123,9 +123,7 @@ export default function PortalCatalog({ cart, onAddToCart, onUpdateQuantity }: C
                         <span className="text-xs text-muted-foreground">
                           {product.stock} {product.unit}
                         </span>
-                        {(product.boxQuantity || 1) > 1 && (
-                          <p className="text-[10px] text-blue-600">1 quti = {product.boxQuantity} {product.unit}</p>
-                        )}
+                        <p className="text-[10px] text-blue-600">1 quti = {product.boxQuantity || 1} {product.unit}</p>
                       </div>
                     </div>
                     {cartQty === 0 ? (
