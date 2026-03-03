@@ -1564,6 +1564,31 @@ export async function registerRoutes(
           if (sale && sale.status === "delivering") {
             await storage.updateSale(sale.id, { status: "shipped" } as any);
           }
+          if (sale && delivery.customerId) {
+            const customer = await storage.getCustomer(delivery.customerId);
+            if (customer) {
+              const existingDC = await pool.query(
+                `SELECT id, debt FROM dealer_customers WHERE dealer_id = $1 AND phone = $2`,
+                [dealerId, customer.phone]
+              );
+              const totalAmount = Number(sale.totalAmount) - Number(sale.discount || 0);
+              if (existingDC.rows.length > 0) {
+                const dc = existingDC.rows[0];
+                const newDebt = Number(dc.debt) + totalAmount;
+                await storage.updateDealerCustomer(dc.id, { debt: newDebt.toFixed(2) } as any);
+              } else {
+                await storage.createDealerCustomer({
+                  dealerId,
+                  tenantId,
+                  name: customer.fullName || delivery.customerName || "Noma'lum",
+                  phone: customer.phone || delivery.customerPhone || null,
+                  address: customer.address || delivery.address || null,
+                  password: null,
+                  debt: totalAmount.toFixed(2),
+                });
+              }
+            }
+          }
         }
         return res.json(updated);
       }
@@ -1622,6 +1647,32 @@ export async function registerRoutes(
             return res.status(400).json({ message: "Bu holatdan o'tkazish mumkin emas" });
           }
           await storage.updateSale(sale.id, { status: "shipped" } as any);
+
+          if (sale.customer_id) {
+            const customer = await storage.getCustomer(sale.customer_id);
+            if (customer) {
+              const existingDC = await pool.query(
+                `SELECT id, debt FROM dealer_customers WHERE dealer_id = $1 AND phone = $2`,
+                [dealerId, customer.phone]
+              );
+              const totalAmount = Number(sale.total_amount) - Number(sale.discount || 0);
+              if (existingDC.rows.length > 0) {
+                const dc = existingDC.rows[0];
+                const newDebt = Number(dc.debt) + totalAmount;
+                await storage.updateDealerCustomer(dc.id, { debt: newDebt.toFixed(2) } as any);
+              } else {
+                await storage.createDealerCustomer({
+                  dealerId,
+                  tenantId,
+                  name: customer.fullName || "Noma'lum",
+                  phone: customer.phone || null,
+                  address: customer.address || null,
+                  password: null,
+                  debt: totalAmount.toFixed(2),
+                });
+              }
+            }
+          }
 
           const existingDelivery = await pool.query(
             `SELECT id FROM deliveries WHERE sale_id = $1 AND dealer_id = $2`,

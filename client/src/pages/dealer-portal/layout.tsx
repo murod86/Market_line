@@ -13,7 +13,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Package, ShoppingCart, History, CreditCard, LogOut, Truck,
-  Minus, Plus, Trash2, User, Phone, LayoutDashboard, TrendingUp, TrendingDown, Wallet, ArrowDownToLine, ArrowUpFromLine, Banknote, UserPlus, QrCode, Download, Edit, Search
+  Minus, Plus, Trash2, User, Phone, LayoutDashboard, TrendingUp, TrendingDown, Wallet, ArrowDownToLine, ArrowUpFromLine, Banknote, UserPlus, QrCode, Download, Edit, Search, Printer
 } from "lucide-react";
 import { useRef, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
@@ -341,12 +341,62 @@ function SellTab() {
     queryKey: ["/api/dealer-portal/customers"],
   });
 
+  const printSaleReceipt = (items: SellCartItem[], totalAmt: number, custName: string, custPhone: string, pType: string, paidAmt: number) => {
+    const now = new Date();
+    const dateStr = format(now, "dd.MM.yyyy HH:mm");
+    const debtAmt = pType === "debt" ? totalAmt : pType === "partial" ? Math.max(0, totalAmt - paidAmt) : 0;
+
+    const itemsHtml = items.map(item =>
+      `<tr>
+        <td style="padding:4px 0;font-size:11px;border-bottom:1px dashed #ccc">${item.name}</td>
+        <td style="padding:4px 0;font-size:11px;text-align:center;border-bottom:1px dashed #ccc">${item.buyUnit === "quti" ? `${item.quantity} quti` : `${item.stockPieces} ${item.unit}`}</td>
+        <td style="padding:4px 0;font-size:11px;text-align:right;border-bottom:1px dashed #ccc">${(item.price * item.stockPieces).toLocaleString()} UZS</td>
+      </tr>`
+    ).join("");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+      <style>
+        @page { size: 58mm auto; margin: 2mm; }
+        body { font-family: 'Courier New', monospace; font-size: 11px; margin: 0; padding: 4px; width: 54mm; }
+        .center { text-align: center; }
+        .bold { font-weight: bold; }
+        .divider { border-top: 1px dashed #000; margin: 6px 0; }
+        table { width: 100%; border-collapse: collapse; }
+      </style></head><body>
+      <div class="center bold" style="font-size:14px;margin-bottom:4px">MARKET_LINE</div>
+      <div class="center" style="font-size:10px;margin-bottom:6px">Sotuv cheki</div>
+      <div class="divider"></div>
+      ${custName ? `<div style="font-size:10px;margin-bottom:2px"><b>Mijoz:</b> ${custName}</div>` : ""}
+      ${custPhone ? `<div style="font-size:10px;margin-bottom:2px"><b>Tel:</b> ${custPhone}</div>` : ""}
+      <div style="font-size:10px;margin-bottom:4px"><b>Sana:</b> ${dateStr}</div>
+      <div class="divider"></div>
+      <table>
+        <tr><th style="text-align:left;font-size:10px">Nomi</th><th style="text-align:center;font-size:10px">Soni</th><th style="text-align:right;font-size:10px">Summa</th></tr>
+        ${itemsHtml}
+      </table>
+      <div class="divider"></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px" class="bold">
+        <span>JAMI:</span><span>${totalAmt.toLocaleString()} UZS</span>
+      </div>
+      ${pType === "cash" ? `<div style="font-size:10px;margin-top:4px"><b>To'lov:</b> Naqd</div>` : ""}
+      ${pType === "debt" ? `<div style="font-size:10px;margin-top:4px;color:red"><b>Qarz:</b> ${totalAmt.toLocaleString()} UZS</div>` : ""}
+      ${pType === "partial" ? `<div style="font-size:10px;margin-top:4px"><b>To'langan:</b> ${paidAmt.toLocaleString()} UZS</div><div style="font-size:10px;color:red"><b>Qarz:</b> ${debtAmt.toLocaleString()} UZS</div>` : ""}
+      <div class="divider"></div>
+      <div class="center" style="font-size:9px;margin-top:8px;color:#888">MARKET_LINE - Diller sotuv xizmati</div>
+      <script>window.onload=function(){window.print();setTimeout(function(){window.close()},5000)}</script>
+    </body></html>`;
+
+    const w = window.open("", "_blank", "width=300,height=600");
+    if (w) { w.document.write(html); w.document.close(); }
+  };
+
   const sellMutation = useMutation({
     mutationFn: async (data: any) => {
       const res = await apiRequest("POST", "/api/dealer-portal/sell", data);
       return res.json();
     },
     onSuccess: () => {
+      printSaleReceipt(cart, total, customerName, customerPhone, paymentType, Number(paidAmount) || 0);
       toast({ title: "Sotish muvaffaqiyatli amalga oshirildi" });
       queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/transactions"] });
@@ -1080,6 +1130,7 @@ function DeliveryTab() {
       toast({ title: "Yetkazish holati yangilandi" });
       queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/deliveries"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/customers"] });
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -1150,6 +1201,58 @@ function DeliveryTab() {
   };
 
   const editTotal = editItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+
+  const printDeliveryReceipt = (d: any) => {
+    const items = d.items || [];
+    const total = Number(d.totalAmount || 0);
+    const now = new Date();
+    const dateStr = format(now, "dd.MM.yyyy HH:mm");
+
+    const itemsHtml = items.map((item: any) =>
+      `<tr>
+        <td style="padding:4px 0;font-size:11px;border-bottom:1px dashed #ccc">${item.productName}</td>
+        <td style="padding:4px 0;font-size:11px;text-align:center;border-bottom:1px dashed #ccc">${item.quantity} ${item.productUnit || "dona"}</td>
+        <td style="padding:4px 0;font-size:11px;text-align:right;border-bottom:1px dashed #ccc">${Number(item.total || item.price * item.quantity).toLocaleString()} UZS</td>
+      </tr>`
+    ).join("");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+      <style>
+        @page { size: 58mm auto; margin: 2mm; }
+        body { font-family: 'Courier New', monospace; font-size: 11px; margin: 0; padding: 4px; width: 54mm; }
+        .center { text-align: center; }
+        .bold { font-weight: bold; }
+        .divider { border-top: 1px dashed #000; margin: 6px 0; }
+        table { width: 100%; border-collapse: collapse; }
+      </style></head><body>
+      <div class="center bold" style="font-size:14px;margin-bottom:4px">MARKET_LINE</div>
+      <div class="center" style="font-size:10px;margin-bottom:6px">Yetkazib berish cheki</div>
+      <div class="divider"></div>
+      <div style="font-size:10px;margin-bottom:2px"><b>Mijoz:</b> ${d.customerName || "-"}</div>
+      ${d.customerPhone ? `<div style="font-size:10px;margin-bottom:2px"><b>Tel:</b> ${d.customerPhone}</div>` : ""}
+      ${d.address ? `<div style="font-size:10px;margin-bottom:2px"><b>Manzil:</b> ${d.address}</div>` : ""}
+      <div style="font-size:10px;margin-bottom:4px"><b>Sana:</b> ${dateStr}</div>
+      <div class="divider"></div>
+      <table>
+        <tr><th style="text-align:left;font-size:10px">Nomi</th><th style="text-align:center;font-size:10px">Soni</th><th style="text-align:right;font-size:10px">Summa</th></tr>
+        ${itemsHtml}
+      </table>
+      <div class="divider"></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px" class="bold">
+        <span>JAMI:</span><span>${total.toLocaleString()} UZS</span>
+      </div>
+      <div class="divider"></div>
+      <div class="center" style="font-size:10px;margin-top:4px">Qarzga yetkazildi</div>
+      <div class="center" style="font-size:9px;margin-top:8px;color:#888">MARKET_LINE - Yetkazib berish xizmati</div>
+      <script>window.onload=function(){window.print();setTimeout(function(){window.close()},5000)}</script>
+    </body></html>`;
+
+    const w = window.open("", "_blank", "width=300,height=600");
+    if (w) {
+      w.document.write(html);
+      w.document.close();
+    }
+  };
 
   const availableProducts = inventory?.filter(inv => {
     const matchSearch = !productSearch || inv.productName?.toLowerCase().includes(productSearch.toLowerCase());
@@ -1248,6 +1351,15 @@ function DeliveryTab() {
                         Topshirdim
                       </Button>
                     )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => printDeliveryReceipt(d)}
+                      data-testid={`button-print-delivery-${d.id}`}
+                    >
+                      <Printer className="h-3.5 w-3.5 mr-1" />
+                      Chek
+                    </Button>
                   </div>
 
                   <p className="text-xs text-muted-foreground">{format(new Date(d.createdAt), "dd.MM.yyyy HH:mm")}</p>
@@ -1278,9 +1390,25 @@ function DeliveryTab() {
                 <CardContent className="p-3 flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium">{d.customerName}</p>
-                    <p className="text-xs text-muted-foreground">{format(new Date(d.createdAt), "dd.MM.yyyy HH:mm")}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(d.createdAt), "dd.MM.yyyy HH:mm")}
+                      {d.totalAmount ? ` • ${formatCurrency(Number(d.totalAmount))}` : ""}
+                    </p>
                   </div>
-                  <Badge className={`${st.color} border-0`}>{st.label}</Badge>
+                  <div className="flex items-center gap-2">
+                    {d.status === "delivered" && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        onClick={() => printDeliveryReceipt(d)}
+                        data-testid={`button-print-done-${d.id}`}
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    <Badge className={`${st.color} border-0`}>{st.label}</Badge>
+                  </div>
                 </CardContent>
               </Card>
             );

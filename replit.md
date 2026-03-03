@@ -58,10 +58,12 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 - Debt Tracking with payment history
 
 ## Dealer Portal (/dealer-portal)
-- Login with store selector + phone + password (password set by admin)
+- Login with store selector + phone + password (password set by admin); QR scan auto-fills store+phone and locks store selector
+- Separate PWA: `/dealer-manifest.json` + `/dealer-sw.js` — installs as "ML Diller" (blue theme), separate from customer portal "ML Portal" (purple theme)
 - Inventory view: see all products loaded by admin with quantities and values
-- Sell: select products from inventory, enter customer info, choose payment type (naqd/qarzga/qisman to'lov), confirm sale (decreases dealer inventory, tracks debt)
-- Delivery: view deliveries assigned by admin, update status (yo'lga chiqish → topshirdim), auto-updates portal order status; **edit order items** (remove/change qty/add products from own inventory) while status is "pending" via PUT `/api/dealer-portal/deliveries/:id/items` — server validates inventory limits
+- Sell: select products from inventory, enter customer info, choose payment type (naqd/qarzga/qisman to'lov), confirm sale (decreases dealer inventory, tracks debt), **auto prints 58mm receipt** after successful sale
+- Delivery: view deliveries assigned by admin, update status (yo'lga chiqish → topshirdim), auto-updates portal order status; **edit order items** (remove/change qty/add products from own inventory) while status is "pending" via PUT `/api/dealer-portal/deliveries/:id/items`; **print receipt** button on every order (active + completed); **auto-saves customer to dealer_customers and writes debt** when delivery is marked as "delivered"
+- Customers: manage dealer's own customers, **accept payments** (to'lov olish button with amount/method), QR code generation
 - History: view all transactions (load/sell/return) with details
 - Debt & Payments: view current debt and payment history
 - API: `/api/dealer-portal/login`, `/api/dealer-portal/me`, `/api/dealer-portal/logout`, `/api/dealer-portal/inventory`, `/api/dealer-portal/transactions`, `/api/dealer-portal/payments`, `/api/dealer-portal/sell`, `/api/dealer-portal/deliveries` (GET/PATCH)
