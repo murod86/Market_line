@@ -2099,28 +2099,24 @@ export async function registerRoutes(
           });
 
           if (assignedDealerId) {
-            const saleItems = await storage.getSaleItems(sale.id);
-            for (const item of saleItems) {
+            const orderItems = await storage.getSaleItems(sale.id);
+            for (const item of orderItems) {
               const product = await storage.getProduct(item.productId);
               if (!product) continue;
               const inv = await storage.getDealerInventoryItem(assignedDealerId, item.productId);
               const currentQty = inv?.quantity || 0;
-              await storage.upsertDealerInventory(assignedDealerId, item.productId, currentQty + item.quantity, tenantId);
+              const newQty = Math.max(0, currentQty - item.quantity);
+              await storage.upsertDealerInventory(assignedDealerId, item.productId, newQty, tenantId);
               await storage.createDealerTransaction({
                 tenantId,
                 dealerId: assignedDealerId,
-                type: "load",
+                type: "sell",
                 productId: item.productId,
                 quantity: item.quantity,
                 price: product.price,
                 total: (Number(product.price) * item.quantity).toFixed(2),
                 notes: `Portal buyurtma #${sale.id.slice(0, 8)}`,
               });
-            }
-            const dealer = await storage.getDealer(assignedDealerId);
-            if (dealer) {
-              const newDebt = Number(dealer.debt) + Number(sale.totalAmount);
-              await storage.updateDealer(assignedDealerId, { debt: newDebt.toFixed(2) });
             }
           }
         }
