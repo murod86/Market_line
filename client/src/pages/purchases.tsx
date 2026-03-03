@@ -268,7 +268,7 @@ export default function Purchases() {
         </CardContent>
       </Card>
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen} modal={false}>
+      <Dialog open={createOpen} onOpenChange={(o) => { if (!productPickerOpen) setCreateOpen(o); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Yangi kirim</DialogTitle>
@@ -364,7 +364,11 @@ export default function Purchases() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={selectedProduct.unit}>{selectedProduct.unit}</SelectItem>
+                          <SelectItem value="dona">dona</SelectItem>
+                          <SelectItem value="kg">kg</SelectItem>
+                          <SelectItem value="gram">gram</SelectItem>
+                          <SelectItem value="litr">litr</SelectItem>
+                          <SelectItem value="metr">metr</SelectItem>
                           <SelectItem value="quti">Quti</SelectItem>
                         </SelectContent>
                       </Select>

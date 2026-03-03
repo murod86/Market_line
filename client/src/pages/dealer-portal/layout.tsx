@@ -391,7 +391,11 @@ function SellTab() {
   };
 
   const getUnitOptions = (item: SellCartItem) => {
+    const allUnits = ["dona", "kg", "gram", "litr", "metr"];
     const units: string[] = [item.unit];
+    for (const u of allUnits) {
+      if (!units.includes(u)) units.push(u);
+    }
     if (item.boxQuantity > 1 && !units.includes("quti")) units.push("quti");
     return units;
   };
