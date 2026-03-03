@@ -61,7 +61,7 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 - Login with store selector + phone + password (password set by admin)
 - Inventory view: see all products loaded by admin with quantities and values
 - Sell: select products from inventory, enter customer info, choose payment type (naqd/qarzga/qisman to'lov), confirm sale (decreases dealer inventory, tracks debt)
-- Delivery: view deliveries assigned by admin, update status (yo'lga chiqish → topshirdim), auto-updates portal order status
+- Delivery: view deliveries assigned by admin, update status (yo'lga chiqish → topshirdim), auto-updates portal order status; **edit order items** (remove/change qty/add products from own inventory) while status is "pending" via PUT `/api/dealer-portal/deliveries/:id/items` — server validates inventory limits
 - History: view all transactions (load/sell/return) with details
 - Debt & Payments: view current debt and payment history
 - API: `/api/dealer-portal/login`, `/api/dealer-portal/me`, `/api/dealer-portal/logout`, `/api/dealer-portal/inventory`, `/api/dealer-portal/transactions`, `/api/dealer-portal/payments`, `/api/dealer-portal/sell`, `/api/dealer-portal/deliveries` (GET/PATCH)

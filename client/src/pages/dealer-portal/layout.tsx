@@ -13,7 +13,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Package, ShoppingCart, History, CreditCard, LogOut, Truck,
-  Minus, Plus, Trash2, User, Phone, LayoutDashboard, TrendingUp, TrendingDown, Wallet, ArrowDownToLine, ArrowUpFromLine, Banknote, UserPlus, QrCode, Download
+  Minus, Plus, Trash2, User, Phone, LayoutDashboard, TrendingUp, TrendingDown, Wallet, ArrowDownToLine, ArrowUpFromLine, Banknote, UserPlus, QrCode, Download, Edit, Search
 } from "lucide-react";
 import { useRef, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
@@ -1062,7 +1062,14 @@ function DeliveryTab() {
   const { data: deliveries, isLoading } = useQuery<any[]>({
     queryKey: ["/api/dealer-portal/deliveries"],
   });
+  const { data: inventory } = useQuery<any[]>({
+    queryKey: ["/api/dealer-portal/inventory"],
+  });
   const { toast } = useToast();
+  const [editOrder, setEditOrder] = useState<any>(null);
+  const [editItems, setEditItems] = useState<any[]>([]);
+  const [addProductOpen, setAddProductOpen] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
 
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -1072,9 +1079,82 @@ function DeliveryTab() {
     onSuccess: () => {
       toast({ title: "Yetkazish holati yangilandi" });
       queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/deliveries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/inventory"] });
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
+
+  const editMutation = useMutation({
+    mutationFn: async ({ id, items }: { id: string; items: any[] }) => {
+      const res = await apiRequest("PUT", `/api/dealer-portal/deliveries/${id}/items`, {
+        items: items.map(i => ({ productId: i.productId, quantity: i.quantity })),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Buyurtma tahrirlandi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/deliveries"] });
+      setEditOrder(null);
+      setEditItems([]);
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const openEdit = (order: any) => {
+    setEditOrder(order);
+    setEditItems(
+      (order.items || []).map((item: any) => ({
+        productId: item.productId,
+        productName: item.productName,
+        productUnit: item.productUnit || "dona",
+        quantity: item.quantity,
+        price: Number(item.price),
+      }))
+    );
+  };
+
+  const updateItemQty = (productId: string, delta: number) => {
+    setEditItems(prev =>
+      prev.map(i => {
+        if (i.productId !== productId) return i;
+        const inv = inventory?.find(inv => inv.productId === productId);
+        const maxQty = inv?.quantity || 999;
+        const newQty = Math.max(1, Math.min(maxQty, i.quantity + delta));
+        return { ...i, quantity: newQty };
+      })
+    );
+  };
+
+  const removeItem = (productId: string) => {
+    setEditItems(prev => prev.filter(i => i.productId !== productId));
+  };
+
+  const addProduct = (product: any) => {
+    const exists = editItems.find(i => i.productId === product.productId);
+    if (exists) {
+      updateItemQty(product.productId, 1);
+    } else {
+      setEditItems(prev => [
+        ...prev,
+        {
+          productId: product.productId,
+          productName: product.productName,
+          productUnit: product.productUnit || "dona",
+          quantity: 1,
+          price: Number(product.productPrice || product.price || 0),
+        },
+      ]);
+    }
+    setAddProductOpen(false);
+    setProductSearch("");
+  };
+
+  const editTotal = editItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+
+  const availableProducts = inventory?.filter(inv => {
+    const matchSearch = !productSearch || inv.productName?.toLowerCase().includes(productSearch.toLowerCase());
+    return matchSearch && inv.quantity > 0;
+  }) || [];
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
 
@@ -1120,24 +1200,41 @@ function DeliveryTab() {
                     <div className="border rounded-lg p-2 space-y-1">
                       {d.items.map((item: any, idx: number) => (
                         <div key={idx} className="flex justify-between text-sm">
-                          <span>{item.productName} × {item.quantity} {item.productUnit}</span>
+                          <span>{item.productName} x {item.quantity} {item.productUnit}</span>
                           <span className="font-medium">{formatCurrency(Number(item.total))}</span>
                         </div>
                       ))}
+                      {d.totalAmount && (
+                        <div className="flex justify-between text-sm font-bold border-t pt-1 mt-1">
+                          <span>Jami:</span>
+                          <span>{formatCurrency(Number(d.totalAmount))}</span>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     {d.status === "pending" && (
-                      <Button
-                        size="sm"
-                        onClick={() => statusMutation.mutate({ id: d.id, status: "in_transit" })}
-                        disabled={statusMutation.isPending}
-                        data-testid={`button-start-delivery-${d.id}`}
-                      >
-                        <Truck className="h-3.5 w-3.5 mr-1" />
-                        Yo'lga chiqish
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openEdit(d)}
+                          data-testid={`button-edit-delivery-${d.id}`}
+                        >
+                          <Edit className="h-3.5 w-3.5 mr-1" />
+                          Tahrirlash
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => statusMutation.mutate({ id: d.id, status: "in_transit" })}
+                          disabled={statusMutation.isPending}
+                          data-testid={`button-start-delivery-${d.id}`}
+                        >
+                          <Truck className="h-3.5 w-3.5 mr-1" />
+                          Yo'lga chiqish
+                        </Button>
+                      </>
                     )}
                     {d.status === "in_transit" && (
                       <Button
@@ -1190,6 +1287,167 @@ function DeliveryTab() {
           })}
         </div>
       )}
+
+      <Dialog open={!!editOrder} onOpenChange={(o) => { if (!o) { setEditOrder(null); setEditItems([]); } }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5" />
+              Buyurtmani tahrirlash
+            </DialogTitle>
+          </DialogHeader>
+          {editOrder && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/50 text-sm">
+                <p><strong>Mijoz:</strong> {editOrder.customerName}</p>
+                {editOrder.customerPhone && <p className="text-muted-foreground">{editOrder.customerPhone}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Mahsulotlar</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => { setAddProductOpen(true); setProductSearch(""); }}
+                    data-testid="button-add-product-to-order"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    Qo'shish
+                  </Button>
+                </div>
+
+                {editItems.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Mahsulotlar yo'q. Kamida 1 ta qo'shing.
+                  </p>
+                ) : (
+                  <div className="border rounded-lg divide-y">
+                    {editItems.map((item) => (
+                      <div key={item.productId} className="p-3 flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{item.productName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatCurrency(item.price)} / {item.productUnit}
+                            {(() => { const inv = inventory?.find(i => i.productId === item.productId); return inv ? ` • omborda: ${inv.quantity}` : ""; })()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-7 w-7"
+                            onClick={() => updateItemQty(item.productId, -1)}
+                            disabled={item.quantity <= 1}
+                            data-testid={`button-dec-qty-${item.productId}`}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className="w-8 text-center text-sm font-bold">{item.quantity}</span>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-7 w-7"
+                            onClick={() => updateItemQty(item.productId, 1)}
+                            disabled={(() => { const inv = inventory?.find(i => i.productId === item.productId); return item.quantity >= (inv?.quantity || 0); })()}
+                            data-testid={`button-inc-qty-${item.productId}`}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <p className="text-sm font-medium w-24 text-right">
+                          {formatCurrency(item.price * item.quantity)}
+                        </p>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => removeItem(item.productId)}
+                          data-testid={`button-remove-item-${item.productId}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center text-base font-bold pt-2 border-t">
+                  <span>Jami:</span>
+                  <span data-testid="text-edit-total">{formatCurrency(editTotal)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditOrder(null); setEditItems([]); }}>
+              Bekor qilish
+            </Button>
+            <Button
+              onClick={() => {
+                if (editItems.length === 0) {
+                  toast({ title: "Kamida 1 ta mahsulot bo'lishi kerak", variant: "destructive" });
+                  return;
+                }
+                editMutation.mutate({ id: editOrder.id, items: editItems });
+              }}
+              disabled={editMutation.isPending || editItems.length === 0}
+              data-testid="button-save-edit-order"
+            >
+              {editMutation.isPending ? "Saqlanmoqda..." : "Saqlash"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addProductOpen} onOpenChange={(o) => { if (!o) { setAddProductOpen(false); setProductSearch(""); } }}>
+        <DialogContent className="max-w-sm max-h-[70vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              Mahsulot qo'shish
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Mahsulot qidirish..."
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                className="pl-9"
+                data-testid="input-search-add-product"
+              />
+            </div>
+            {availableProducts.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Omboringizda mahsulot topilmadi
+              </p>
+            ) : (
+              <div className="border rounded-lg divide-y max-h-[40vh] overflow-y-auto">
+                {availableProducts.map((p: any) => (
+                  <button
+                    key={p.productId}
+                    className="w-full text-left p-3 hover:bg-muted/50 transition-colors"
+                    onClick={() => addProduct(p)}
+                    data-testid={`button-select-product-${p.productId}`}
+                  >
+                    <p className="text-sm font-medium">{p.productName}</p>
+                    <div className="flex items-center justify-between mt-0.5">
+                      <span className="text-xs text-muted-foreground">
+                        Omborda: {p.quantity} {p.productUnit || "dona"}
+                      </span>
+                      <span className="text-xs font-medium">
+                        {formatCurrency(Number(p.productPrice || 0))}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

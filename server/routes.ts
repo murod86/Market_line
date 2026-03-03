@@ -1643,6 +1643,121 @@ export async function registerRoutes(
     }
   });
 
+  app.put("/api/dealer-portal/deliveries/:id/items", requireDealer, async (req, res) => {
+    try {
+      const dealerId = req.session.dealerId!;
+      const tenantId = req.session.tenantId!;
+      const { items } = req.body;
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: "Kamida 1 ta mahsulot bo'lishi kerak" });
+      }
+
+      let saleId: string | null = null;
+      let customerId: string | null = null;
+
+      const delivery = await storage.getDelivery(req.params.id);
+      if (delivery && delivery.dealerId === dealerId && delivery.tenantId === tenantId) {
+        if (delivery.status !== "pending") {
+          return res.status(400).json({ message: "Faqat kutilayotgan buyurtmani tahrirlash mumkin" });
+        }
+        saleId = delivery.saleId;
+        customerId = delivery.customerId;
+      } else {
+        const saleCheck = await pool.query(
+          `SELECT s.id, s.status, s.customer_id FROM sales s
+           JOIN deliveries d ON d.sale_id = s.id AND d.dealer_id = $2
+           WHERE s.id = $1 AND s.tenant_id = $3`,
+          [req.params.id, dealerId, tenantId]
+        );
+        if (saleCheck.rows.length > 0) {
+          const row = saleCheck.rows[0];
+          if (row.status !== "pending" && row.status !== "delivering") {
+            return res.status(400).json({ message: "Faqat kutilayotgan buyurtmani tahrirlash mumkin" });
+          }
+          saleId = row.id;
+          customerId = row.customer_id;
+        }
+      }
+
+      if (!saleId) {
+        return res.status(404).json({ message: "Buyurtma topilmadi" });
+      }
+
+      const allProducts = await storage.getProducts(tenantId);
+      const dealerInventory = await storage.getDealerInventory(dealerId);
+
+      const validatedItems: { productId: string; quantity: number; price: number; name: string; unit: string }[] = [];
+      for (const item of items) {
+        const quantity = Math.floor(Number(item.quantity));
+        if (!item.productId || !quantity || quantity < 1) {
+          return res.status(400).json({ message: "Noto'g'ri mahsulot yoki miqdor" });
+        }
+        const product = allProducts.find(p => p.id === item.productId);
+        if (!product) {
+          return res.status(400).json({ message: `Mahsulot topilmadi: ${item.productId}` });
+        }
+        const inv = dealerInventory.find(i => i.productId === item.productId);
+        const available = inv?.quantity || 0;
+        if (quantity > available) {
+          return res.status(400).json({
+            message: `${product.name} — omboringizda yetarli emas (mavjud: ${available}, kerak: ${quantity})`
+          });
+        }
+        validatedItems.push({
+          productId: item.productId,
+          quantity,
+          price: Number(product.price),
+          name: product.name,
+          unit: product.unit || "dona",
+        });
+      }
+
+      const oldItems = await storage.getSaleItems(saleId);
+      const oldTotal = oldItems.reduce((sum, i) => sum + Number(i.total), 0);
+
+      for (const oi of oldItems) {
+        await storage.deleteSaleItem(oi.id);
+      }
+
+      let newTotal = 0;
+      const createdItems: any[] = [];
+      for (const vi of validatedItems) {
+        const total = vi.price * vi.quantity;
+        newTotal += total;
+        const created = await storage.createSaleItem({
+          saleId: saleId!,
+          productId: vi.productId,
+          quantity: vi.quantity,
+          price: vi.price.toFixed(2),
+          total: total.toFixed(2),
+        });
+        createdItems.push({
+          ...created,
+          productName: vi.name,
+          productUnit: vi.unit,
+        });
+      }
+
+      await storage.updateSale(saleId, { totalAmount: newTotal.toFixed(2) } as any);
+
+      if (customerId) {
+        const customer = await storage.getCustomer(customerId);
+        if (customer) {
+          const debtDiff = newTotal - oldTotal;
+          if (debtDiff !== 0) {
+            const newDebt = Math.max(0, Number(customer.debt) + debtDiff);
+            await storage.updateCustomer(customer.id, { debt: newDebt.toFixed(2) } as any);
+          }
+        }
+      }
+
+      res.json({ items: createdItems, totalAmount: newTotal.toFixed(2) });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // ===== DEALER PORTAL - CUSTOMER MANAGEMENT =====
   app.get("/api/dealer-portal/customers", requireDealer, async (req, res) => {
     try {

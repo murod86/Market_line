@@ -77,6 +77,8 @@ export interface IStorage {
 
   getSaleItems(saleId: string): Promise<SaleItem[]>;
   createSaleItem(item: InsertSaleItem): Promise<SaleItem>;
+  updateSaleItem(id: string, data: Partial<InsertSaleItem>): Promise<SaleItem>;
+  deleteSaleItem(id: string): Promise<void>;
 
   getDeliveries(tenantId: string): Promise<Delivery[]>;
   getDelivery(id: string): Promise<Delivery | undefined>;
@@ -323,6 +325,15 @@ export class DatabaseStorage implements IStorage {
   async createSaleItem(item: InsertSaleItem): Promise<SaleItem> {
     const [created] = await db.insert(saleItems).values(item).returning();
     return created;
+  }
+
+  async updateSaleItem(id: string, data: Partial<InsertSaleItem>): Promise<SaleItem> {
+    const [updated] = await db.update(saleItems).set(data).where(eq(saleItems.id, id)).returning();
+    return updated;
+  }
+
+  async deleteSaleItem(id: string): Promise<void> {
+    await db.delete(saleItems).where(eq(saleItems.id, id));
   }
 
   async getDeliveries(tenantId: string): Promise<Delivery[]> {
