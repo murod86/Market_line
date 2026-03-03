@@ -18,6 +18,7 @@ export default function DealerLogin({ onLogin }: DealerLoginProps) {
   const [loginPhone, setLoginPhone] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [selectedTenantId, setSelectedTenantId] = useState("");
+  const [fromQR, setFromQR] = useState(false);
   const { toast } = useToast();
 
   const { data: tenantsList, isLoading: tenantsLoading } = useQuery<{ id: string; name: string }[]>({
@@ -28,7 +29,10 @@ export default function DealerLogin({ onLogin }: DealerLoginProps) {
     const params = new URLSearchParams(window.location.search);
     const storeParam = params.get("store");
     const phoneParam = params.get("phone");
-    if (storeParam && !selectedTenantId) setSelectedTenantId(storeParam);
+    if (storeParam) {
+      setSelectedTenantId(storeParam);
+      setFromQR(true);
+    }
     if (phoneParam && !loginPhone) setLoginPhone(decodeURIComponent(phoneParam));
   }, []);
 
@@ -81,10 +85,15 @@ export default function DealerLogin({ onLogin }: DealerLoginProps) {
             <div>
               <label className="text-white/70 text-sm mb-1 block">
                 <Store className="h-3.5 w-3.5 inline mr-1" />
-                Do'konni tanlang
+                Do'kon
               </label>
               {tenantsLoading ? (
                 <Skeleton className="h-10 w-full bg-white/10" />
+              ) : fromQR ? (
+                <div className="h-10 flex items-center px-3 rounded-md bg-white/5 border border-white/20 text-white/80 text-sm" data-testid="display-dealer-tenant-locked">
+                  <Store className="h-4 w-4 mr-2 text-blue-400" />
+                  {tenantsList?.find(t => t.id === selectedTenantId)?.name || "Do'kon tanlangan"}
+                </div>
               ) : (
                 <Select value={selectedTenantId} onValueChange={setSelectedTenantId}>
                   <SelectTrigger className="bg-white/5 border-white/20 text-white" data-testid="select-dealer-tenant">
