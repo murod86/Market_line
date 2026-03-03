@@ -1399,25 +1399,32 @@ export async function registerRoutes(
         notes: z.string().optional().nullable(),
         paymentType: z.enum(["cash", "debt", "partial"]).default("cash"),
         paidAmount: z.number().min(0).default(0),
+        discount: z.number().min(0).default(0),
       });
-      const { items, customerName, customerPhone, dealerCustomerId, notes, paymentType, paidAmount } = sellSchema.parse(req.body);
+      const { items, customerName, customerPhone, dealerCustomerId, notes, paymentType, paidAmount, discount } = sellSchema.parse(req.body);
 
-      let totalAmount = 0;
+      let subtotal = 0;
       for (const item of items) {
         const inv = await storage.getDealerInventoryItem(dealerId, item.productId);
         if (!inv || inv.quantity < item.quantity) {
           return res.status(400).json({ message: "Omborda yetarli mahsulot yo'q" });
         }
-        totalAmount += item.price * item.quantity;
+        subtotal += item.price * item.quantity;
       }
+
+      if (discount > subtotal) {
+        return res.status(400).json({ message: "Chegirma jami summadan oshib ketdi" });
+      }
+      const totalAmount = Math.max(0, subtotal - discount);
 
       if (paymentType === "partial") {
         if (paidAmount <= 0) return res.status(400).json({ message: "Qisman to'lovda summa kiritilishi shart" });
         if (paidAmount >= totalAmount) return res.status(400).json({ message: "Qisman to'lov jami summadan kam bo'lishi kerak" });
       }
 
+      const discountNote = discount > 0 ? ` | Chegirma: ${discount} UZS` : "";
       const paymentLabel = paymentType === "cash" ? "Naqd" : paymentType === "debt" ? "Qarzga" : `Qisman (${paidAmount} UZS)`;
-      const noteText = `${paymentLabel} | Mijoz: ${customerName || "Noma'lum"}${customerPhone ? ` (${customerPhone})` : ""}${notes ? ` | ${notes}` : ""}`;
+      const noteText = `${paymentLabel}${discountNote} | Mijoz: ${customerName || "Noma'lum"}${customerPhone ? ` (${customerPhone})` : ""}${notes ? ` | ${notes}` : ""}`;
 
       for (const item of items) {
         const inv = await storage.getDealerInventoryItem(dealerId, item.productId);
@@ -1467,6 +1474,8 @@ export async function registerRoutes(
       for (const d of dealerDeliveries) {
         const customer = d.customerId ? await storage.getCustomer(d.customerId) : null;
         let items: any[] = [];
+        let saleDiscount = "0";
+        let saleTotalAmount = null;
         if (d.saleId) {
           addedSaleIds.add(d.saleId);
           const si = await storage.getSaleItems(d.saleId);
@@ -1474,6 +1483,11 @@ export async function registerRoutes(
             const product = allProducts.find(p => p.id === s.productId);
             return { ...s, productName: product?.name || "Noma'lum", productUnit: product?.unit || "dona" };
           });
+          const saleRow = await pool.query(`SELECT discount, total_amount FROM sales WHERE id = $1`, [d.saleId]);
+          if (saleRow.rows.length > 0) {
+            saleDiscount = saleRow.rows[0].discount || "0";
+            saleTotalAmount = saleRow.rows[0].total_amount;
+          }
         }
         result.push({
           ...d,
@@ -1481,6 +1495,8 @@ export async function registerRoutes(
           customerName: customer?.fullName || d.customerName || "Noma'lum",
           customerPhone: customer?.phone || d.customerPhone || "",
           customerAddress: customer?.address || d.address || "",
+          totalAmount: saleTotalAmount || d.totalAmount,
+          discount: saleDiscount,
           items,
         });
       }
@@ -1510,6 +1526,7 @@ export async function registerRoutes(
           address: row.customer_address || "",
           createdAt: row.created_at,
           totalAmount: row.total_amount,
+          discount: row.discount || "0",
           items,
         });
       }
@@ -1698,7 +1715,8 @@ export async function registerRoutes(
     try {
       const dealerId = req.session.dealerId!;
       const tenantId = req.session.tenantId!;
-      const { items } = req.body;
+      const { items, discount: editDiscount } = req.body;
+      const discountVal = Number(editDiscount) || 0;
 
       if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ message: "Kamida 1 ta mahsulot bo'lishi kerak" });
@@ -1784,11 +1802,11 @@ export async function registerRoutes(
         await storage.deleteSaleItem(oi.id);
       }
 
-      let newTotal = 0;
+      let itemsTotal = 0;
       const createdItems: any[] = [];
       for (const vi of validatedItems) {
         const total = vi.price * vi.quantity;
-        newTotal += total;
+        itemsTotal += total;
         const created = await storage.createSaleItem({
           saleId: saleId!,
           productId: vi.productId,
@@ -1803,7 +1821,14 @@ export async function registerRoutes(
         });
       }
 
-      await storage.updateSale(saleId, { totalAmount: newTotal.toFixed(2) } as any);
+      if (discountVal < 0) {
+        return res.status(400).json({ message: "Chegirma manfiy bo'lishi mumkin emas" });
+      }
+      if (discountVal > itemsTotal) {
+        return res.status(400).json({ message: "Chegirma jami summadan oshib ketdi" });
+      }
+      const newTotal = Math.max(0, itemsTotal - discountVal);
+      await storage.updateSale(saleId, { totalAmount: newTotal.toFixed(2), discount: discountVal.toFixed(2) } as any);
 
       if (customerId) {
         const customer = await storage.getCustomer(customerId);

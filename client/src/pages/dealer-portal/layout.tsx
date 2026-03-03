@@ -331,6 +331,7 @@ function SellTab() {
   const [notes, setNotes] = useState("");
   const [paymentType, setPaymentType] = useState<"cash" | "debt" | "partial">("cash");
   const [paidAmount, setPaidAmount] = useState("");
+  const [discount, setDiscount] = useState("");
   const { toast } = useToast();
 
   const { data: inventory } = useQuery<any[]>({
@@ -341,7 +342,7 @@ function SellTab() {
     queryKey: ["/api/dealer-portal/customers"],
   });
 
-  const printSaleReceipt = (items: SellCartItem[], totalAmt: number, custName: string, custPhone: string, pType: string, paidAmt: number) => {
+  const printSaleReceipt = (items: SellCartItem[], subtotalAmt: number, discAmt: number, totalAmt: number, custName: string, custPhone: string, pType: string, paidAmt: number) => {
     const now = new Date();
     const dateStr = format(now, "dd.MM.yyyy HH:mm");
     const debtAmt = pType === "debt" ? totalAmt : pType === "partial" ? Math.max(0, totalAmt - paidAmt) : 0;
@@ -375,6 +376,14 @@ function SellTab() {
         ${itemsHtml}
       </table>
       <div class="divider"></div>
+      ${discAmt > 0 ? `
+        <div style="display:flex;justify-content:space-between;font-size:10px">
+          <span>Summa:</span><span>${subtotalAmt.toLocaleString()} UZS</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:red">
+          <span>Chegirma:</span><span>-${discAmt.toLocaleString()} UZS</span>
+        </div>
+      ` : ""}
       <div style="display:flex;justify-content:space-between;font-size:13px" class="bold">
         <span>JAMI:</span><span>${totalAmt.toLocaleString()} UZS</span>
       </div>
@@ -396,7 +405,7 @@ function SellTab() {
       return res.json();
     },
     onSuccess: () => {
-      printSaleReceipt(cart, total, customerName, customerPhone, paymentType, Number(paidAmount) || 0);
+      printSaleReceipt(cart, subtotal, discountAmount, total, customerName, customerPhone, paymentType, Number(paidAmount) || 0);
       toast({ title: "Sotish muvaffaqiyatli amalga oshirildi" });
       queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/transactions"] });
@@ -410,6 +419,7 @@ function SellTab() {
       setNotes("");
       setPaymentType("cash");
       setPaidAmount("");
+      setDiscount("");
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -485,10 +495,16 @@ function SellTab() {
     setCart((prev) => prev.filter((c) => c.productId !== productId));
   };
 
-  const total = cart.reduce((s, c) => s + c.price * c.stockPieces, 0);
+  const subtotal = cart.reduce((s, c) => s + c.price * c.stockPieces, 0);
+  const discountAmount = Number(discount) || 0;
+  const total = Math.max(0, subtotal - discountAmount);
 
   const handleSell = () => {
     if (cart.length === 0) return;
+    if (discountAmount > subtotal) {
+      toast({ title: "Chegirma jami summadan oshib ketdi", variant: "destructive" });
+      return;
+    }
     sellMutation.mutate({
       items: cart.map((c) => ({
         productId: c.productId,
@@ -501,6 +517,7 @@ function SellTab() {
       notes: notes || null,
       paymentType,
       paidAmount: paymentType === "partial" ? Number(paidAmount) || 0 : 0,
+      discount: discountAmount,
     });
   };
 
@@ -608,7 +625,17 @@ function SellTab() {
                     ))}
                   </div>
 
-                  <div className="pt-2 border-t">
+                  <div className="pt-2 border-t space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Summa:</span>
+                      <span>{formatCurrency(subtotal)}</span>
+                    </div>
+                    {discountAmount > 0 && (
+                      <div className="flex items-center justify-between text-sm text-red-600">
+                        <span>Chegirma:</span>
+                        <span>-{formatCurrency(discountAmount)}</span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="font-semibold">Jami:</span>
                       <span className="text-lg font-bold text-primary" data-testid="text-cart-total">{formatCurrency(total)}</span>
@@ -702,6 +729,22 @@ function SellTab() {
             )}
 
             <div>
+              <Label>Chegirma (UZS)</Label>
+              <Input
+                type="number"
+                value={discount}
+                onChange={(e) => setDiscount(e.target.value)}
+                placeholder="0"
+                data-testid="input-sell-discount"
+              />
+              {discountAmount > 0 && (
+                <p className="text-xs text-red-600 mt-1">
+                  {formatCurrency(subtotal)} - {formatCurrency(discountAmount)} = {formatCurrency(total)}
+                </p>
+              )}
+            </div>
+
+            <div>
               <Label className="mb-2 block">To'lov turi</Label>
               <div className="flex gap-2">
                 {([
@@ -762,9 +805,23 @@ function SellTab() {
                     </div>
                   ))}
                 </div>
-                <div className="border-t mt-2 pt-2 flex justify-between font-bold">
-                  <span>Jami:</span>
-                  <span className="text-primary">{formatCurrency(total)}</span>
+                <div className="border-t mt-2 pt-2 space-y-1">
+                  {discountAmount > 0 && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Summa:</span>
+                        <span>{formatCurrency(subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-red-600">
+                        <span>Chegirma:</span>
+                        <span>-{formatCurrency(discountAmount)}</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between font-bold">
+                    <span>Jami:</span>
+                    <span className="text-primary">{formatCurrency(total)}</span>
+                  </div>
                 </div>
                 {paymentType === "debt" && (
                   <p className="text-xs text-destructive mt-1">To'liq qarzga: {formatCurrency(total)}</p>
@@ -1236,6 +1293,7 @@ function DeliveryTab() {
   const { toast } = useToast();
   const [editOrder, setEditOrder] = useState<any>(null);
   const [editItems, setEditItems] = useState<any[]>([]);
+  const [editDiscount, setEditDiscount] = useState("");
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [productSearch, setProductSearch] = useState("");
 
@@ -1254,9 +1312,10 @@ function DeliveryTab() {
   });
 
   const editMutation = useMutation({
-    mutationFn: async ({ id, items }: { id: string; items: any[] }) => {
+    mutationFn: async ({ id, items, discount }: { id: string; items: any[]; discount?: number }) => {
       const res = await apiRequest("PUT", `/api/dealer-portal/deliveries/${id}/items`, {
         items: items.map(i => ({ productId: i.productId, quantity: i.quantity })),
+        discount: discount || 0,
       });
       return res.json();
     },
@@ -1265,6 +1324,7 @@ function DeliveryTab() {
       queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/deliveries"] });
       setEditOrder(null);
       setEditItems([]);
+      setEditDiscount("");
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -1280,6 +1340,7 @@ function DeliveryTab() {
         price: Number(item.price),
       }))
     );
+    setEditDiscount(Number(order.discount) > 0 ? String(Number(order.discount)) : "");
   };
 
   const updateItemQty = (productId: string, delta: number) => {
@@ -1318,7 +1379,9 @@ function DeliveryTab() {
     setProductSearch("");
   };
 
-  const editTotal = editItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const editSubtotal = editItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const editDiscountAmount = Number(editDiscount) || 0;
+  const editTotal = Math.max(0, editSubtotal - editDiscountAmount);
 
   const printDeliveryReceipt = (d: any) => {
     const items = d.items || [];
@@ -1425,8 +1488,14 @@ function DeliveryTab() {
                           <span className="font-medium">{formatCurrency(Number(item.total))}</span>
                         </div>
                       ))}
+                      {Number(d.discount) > 0 && (
+                        <div className="flex justify-between text-sm text-red-600 border-t pt-1 mt-1">
+                          <span>Chegirma:</span>
+                          <span>-{formatCurrency(Number(d.discount))}</span>
+                        </div>
+                      )}
                       {d.totalAmount && (
-                        <div className="flex justify-between text-sm font-bold border-t pt-1 mt-1">
+                        <div className={`flex justify-between text-sm font-bold ${Number(d.discount) > 0 ? '' : 'border-t pt-1 mt-1'}`}>
                           <span>Jami:</span>
                           <span>{formatCurrency(Number(d.totalAmount))}</span>
                         </div>
@@ -1618,15 +1687,39 @@ function DeliveryTab() {
                   </div>
                 )}
 
-                <div className="flex justify-between items-center text-base font-bold pt-2 border-t">
-                  <span>Jami:</span>
-                  <span data-testid="text-edit-total">{formatCurrency(editTotal)}</span>
+                <div className="pt-2 border-t space-y-2">
+                  <div>
+                    <Label className="text-sm">Chegirma (UZS)</Label>
+                    <Input
+                      type="number"
+                      value={editDiscount}
+                      onChange={(e) => setEditDiscount(e.target.value)}
+                      placeholder="0"
+                      data-testid="input-edit-discount"
+                    />
+                  </div>
+                  {editDiscountAmount > 0 && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Summa:</span>
+                        <span>{formatCurrency(editSubtotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-red-600">
+                        <span>Chegirma:</span>
+                        <span>-{formatCurrency(editDiscountAmount)}</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between items-center text-base font-bold">
+                    <span>Jami:</span>
+                    <span data-testid="text-edit-total">{formatCurrency(editTotal)}</span>
+                  </div>
                 </div>
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setEditOrder(null); setEditItems([]); }}>
+            <Button variant="outline" onClick={() => { setEditOrder(null); setEditItems([]); setEditDiscount(""); }}>
               Bekor qilish
             </Button>
             <Button
@@ -1635,7 +1728,11 @@ function DeliveryTab() {
                   toast({ title: "Kamida 1 ta mahsulot bo'lishi kerak", variant: "destructive" });
                   return;
                 }
-                editMutation.mutate({ id: editOrder.id, items: editItems });
+                if (editDiscountAmount > editSubtotal) {
+                  toast({ title: "Chegirma summadan oshib ketdi", variant: "destructive" });
+                  return;
+                }
+                editMutation.mutate({ id: editOrder.id, items: editItems, discount: editDiscountAmount });
               }}
               disabled={editMutation.isPending || editItems.length === 0}
               data-testid="button-save-edit-order"
