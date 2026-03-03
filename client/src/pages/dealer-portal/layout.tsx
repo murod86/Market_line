@@ -786,6 +786,8 @@ function SellTab() {
 
 function CustomersTab() {
   const [addOpen, setAddOpen] = useState(false);
+  const [editCustomer, setEditCustomer] = useState<any>(null);
+  const [deleteCustomer, setDeleteCustomer] = useState<any>(null);
   const [payOpen, setPayOpen] = useState<any>(null);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
@@ -836,6 +838,39 @@ function CustomersTab() {
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
+
+  const editMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await apiRequest("PATCH", `/api/dealer-portal/customers/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Mijoz tahrirlandi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/customers"] });
+      setEditCustomer(null);
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/dealer-portal/customers/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Mijoz o'chirildi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/customers"] });
+      setDeleteCustomer(null);
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const openEdit = (c: any) => {
+    setEditCustomer(c);
+    setNewName(c.name);
+    setNewPhone(c.phone || "");
+    setNewAddress(c.address || "");
+  };
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
 
@@ -896,7 +931,25 @@ function CustomersTab() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          onClick={() => openEdit(c)}
+                          data-testid={`button-edit-dealer-customer-${c.id}`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => setDeleteCustomer(c)}
+                          data-testid={`button-delete-dealer-customer-${c.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                         <Button
                           size="icon"
                           variant="ghost"
@@ -1102,6 +1155,71 @@ function CustomersTab() {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editCustomer} onOpenChange={(o) => { if (!o) setEditCustomer(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Mijozni tahrirlash</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div>
+              <Label>Ism *</Label>
+              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Mijoz ismi" data-testid="input-edit-dealer-customer-name" />
+            </div>
+            <div>
+              <Label>Telefon</Label>
+              <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+998..." data-testid="input-edit-dealer-customer-phone" />
+            </div>
+            <div>
+              <Label>Manzil</Label>
+              <Input value={newAddress} onChange={(e) => setNewAddress(e.target.value)} placeholder="Mijoz manzili" data-testid="input-edit-dealer-customer-address" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditCustomer(null)}>Bekor qilish</Button>
+            <Button
+              onClick={() => {
+                if (!newName.trim()) return;
+                editMutation.mutate({
+                  id: editCustomer.id,
+                  data: { name: newName.trim(), phone: newPhone.trim() || null, address: newAddress.trim() || null },
+                });
+              }}
+              disabled={editMutation.isPending}
+              data-testid="button-save-edit-dealer-customer"
+            >
+              {editMutation.isPending ? "Saqlanmoqda..." : "Saqlash"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteCustomer} onOpenChange={(o) => { if (!o) setDeleteCustomer(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Mijozni o'chirish</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            <strong>{deleteCustomer?.name}</strong> mijozini o'chirmoqchimisiz?
+          </p>
+          {Number(deleteCustomer?.debt) > 0 && (
+            <p className="text-sm text-destructive">
+              Bu mijozning {formatCurrency(Number(deleteCustomer?.debt))} qarzi bor. Qarzdor mijozni o'chirib bo'lmaydi.
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteCustomer(null)}>Bekor qilish</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteMutation.mutate(deleteCustomer.id)}
+              disabled={deleteMutation.isPending || Number(deleteCustomer?.debt) > 0}
+              data-testid="button-confirm-delete-dealer-customer"
+            >
+              {deleteMutation.isPending ? "O'chirilmoqda..." : "O'chirish"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

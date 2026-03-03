@@ -129,6 +129,7 @@ export interface IStorage {
   getDealerCustomer(id: string): Promise<DealerCustomer | undefined>;
   createDealerCustomer(dc: InsertDealerCustomer): Promise<DealerCustomer>;
   updateDealerCustomer(id: string, data: Partial<InsertDealerCustomer>): Promise<DealerCustomer | undefined>;
+  deleteDealerCustomer(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -591,6 +592,10 @@ export class DatabaseStorage implements IStorage {
   async updateDealerCustomer(id: string, data: Partial<InsertDealerCustomer>): Promise<DealerCustomer | undefined> {
     const [updated] = await db.update(dealerCustomers).set(data).where(eq(dealerCustomers.id, id)).returning();
     return updated;
+  }
+
+  async deleteDealerCustomer(id: string): Promise<void> {
+    await db.delete(dealerCustomers).where(eq(dealerCustomers.id, id));
   }
 }
 

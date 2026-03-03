@@ -1888,6 +1888,19 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/dealer-portal/customers/:id", requireDealer, async (req, res) => {
+    try {
+      const dealerId = req.session.dealerId!;
+      const dc = await storage.getDealerCustomer(req.params.id);
+      if (!dc || dc.dealerId !== dealerId) return res.status(404).json({ message: "Mijoz topilmadi" });
+      if (Number(dc.debt) > 0) return res.status(400).json({ message: "Qarzdor mijozni o'chirib bo'lmaydi" });
+      await storage.deleteDealerCustomer(dc.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/dealer-portal/customers/:id/payment", requireDealer, async (req, res) => {
     try {
       const dealerId = req.session.dealerId!;
