@@ -193,15 +193,15 @@ export default function Products() {
                           <img
                             src={product.imageUrl}
                             alt={product.name}
-                            className="h-10 w-10 rounded-md object-cover"
+                            className="h-16 w-16 rounded-lg object-cover"
                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }}
                           />
                         ) : null}
-                        <div className={`h-10 w-10 rounded-md bg-muted flex items-center justify-center ${product.imageUrl ? 'hidden' : ''}`}>
-                          <Package className="h-4 w-4 text-muted-foreground/30" />
+                        <div className={`h-16 w-16 rounded-lg bg-muted flex items-center justify-center ${product.imageUrl ? 'hidden' : ''}`}>
+                          <Package className="h-6 w-6 text-muted-foreground/30" />
                         </div>
                       </TableCell>
-                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell className="font-medium text-sm">{product.name}</TableCell>
                       <TableCell className="text-muted-foreground">{product.sku}</TableCell>
                       <TableCell>
                         {category ? <Badge variant="secondary">{category.name}</Badge> : "-"}
@@ -317,6 +317,7 @@ export default function Products() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="dona">Dona</SelectItem>
+                    <SelectItem value="quti">Quti</SelectItem>
                     <SelectItem value="kg">Kg</SelectItem>
                     <SelectItem value="gram">Gram</SelectItem>
                     <SelectItem value="litr">Litr</SelectItem>

@@ -2792,17 +2792,6 @@ export async function registerRoutes(
     res.json(data.map(({ password: _, ...t }) => t));
   });
 
-  app.patch("/api/super/tenants/:id", requireSuperAdmin, async (req, res) => {
-    const { plan, active } = req.body;
-    const updateData: any = {};
-    if (plan !== undefined) updateData.plan = plan;
-    if (active !== undefined) updateData.active = active;
-    const tenant = await storage.updateTenant(req.params.id, updateData);
-    if (!tenant) return res.status(404).json({ message: "Do'kon topilmadi" });
-    const { password: _, ...safe } = tenant;
-    res.json(safe);
-  });
-
   app.post("/api/super/tenants", requireSuperAdmin, async (req, res) => {
     try {
       const { name, ownerName, phone, password, plan, telegramChatId, telegramImageChannel } = req.body;

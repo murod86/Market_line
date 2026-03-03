@@ -105,12 +105,12 @@ export default function PortalCatalog({ cart, onAddToCart, onUpdateQuantity, onC
                 className="overflow-hidden border rounded-xl transition-all hover:shadow-md group"
                 data-testid={`card-catalog-${product.id}`}
               >
-                <div className="relative aspect-square bg-muted/30 overflow-hidden">
+                <div className="relative aspect-[4/5] bg-muted/30 overflow-hidden">
                   {product.imageUrl ? (
                     <img
                       src={product.imageUrl}
                       alt={product.name}
-                      className="w-full h-full object-contain p-2"
+                      className="w-full h-full object-cover"
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = "none";
                         (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
@@ -118,7 +118,7 @@ export default function PortalCatalog({ cart, onAddToCart, onUpdateQuantity, onC
                     />
                   ) : null}
                   <div className={`absolute inset-0 flex items-center justify-center ${product.imageUrl ? "hidden" : ""}`}>
-                    <Package className="h-12 w-12 text-muted-foreground/20" />
+                    <Package className="h-14 w-14 text-muted-foreground/20" />
                   </div>
                   {category && (
                     <Badge variant="secondary" className="absolute top-2 left-2 text-[10px] px-1.5 py-0.5 opacity-90">
@@ -132,41 +132,43 @@ export default function PortalCatalog({ cart, onAddToCart, onUpdateQuantity, onC
                   )}
                 </div>
 
-                <div className="p-3 space-y-2">
-                  <h3 className="font-semibold text-sm leading-tight line-clamp-2 min-h-[2.5rem]">{product.name}</h3>
+                <div className="p-2 space-y-1.5">
+                  <h3 className="font-semibold text-xs leading-tight line-clamp-2 min-h-[2rem]">{product.name}</h3>
 
                   <div className="flex items-baseline justify-between gap-1">
-                    <span className="font-bold text-base text-primary">{formatCurrency(Number(product.price))}</span>
-                    <span className="text-[11px] text-muted-foreground">{product.stock} {product.unit}</span>
+                    <span className="font-bold text-sm text-primary">{formatCurrency(Number(product.price))}</span>
+                    <span className="text-[10px] text-muted-foreground">{product.stock} {product.unit}</span>
                   </div>
 
                   {product.stock > 0 && (
                     <>
                       {cartQty === 0 ? (
                         <Button
-                          className="w-full h-9"
+                          className="w-full h-8 text-xs"
                           size="sm"
                           onClick={() => onAddToCart(product)}
                           data-testid={`button-add-catalog-${product.id}`}
                         >
-                          <ShoppingCart className="h-3.5 w-3.5 mr-1.5" />
+                          <ShoppingCart className="h-3 w-3 mr-1" />
                           Savatga
                         </Button>
                       ) : (
-                        <div className="space-y-1.5">
+                        <div className="space-y-1">
                           <div className="flex items-center gap-1">
                             <Select
                               value={cartUnit}
                               onValueChange={(val) => onChangeUnit(product.id, val)}
                             >
-                              <SelectTrigger className="h-8 text-xs flex-1" data-testid={`select-catalog-unit-${product.id}`}>
+                              <SelectTrigger className="h-7 text-[10px] flex-1" data-testid={`select-catalog-unit-${product.id}`}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="dona">dona</SelectItem>
                                 <SelectItem value="quti">quti</SelectItem>
-                                <SelectItem value="litr">litr</SelectItem>
                                 <SelectItem value="kg">kg</SelectItem>
+                                <SelectItem value="gram">gram</SelectItem>
+                                <SelectItem value="litr">litr</SelectItem>
+                                <SelectItem value="metr">metr</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -174,27 +176,27 @@ export default function PortalCatalog({ cart, onAddToCart, onUpdateQuantity, onC
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-9 w-9 rounded-r-none"
+                              className="h-8 w-8 rounded-r-none"
                               onClick={() => onUpdateQuantity(product.id, -1)}
                               data-testid={`button-catalog-minus-${product.id}`}
                             >
-                              <Minus className="h-4 w-4" />
+                              <Minus className="h-3.5 w-3.5" />
                             </Button>
-                            <span className="font-bold text-base min-w-[2rem] text-center" data-testid={`text-catalog-qty-${product.id}`}>
+                            <span className="font-bold text-sm min-w-[1.5rem] text-center" data-testid={`text-catalog-qty-${product.id}`}>
                               {cartQty}
                             </span>
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-9 w-9 rounded-l-none"
+                              className="h-8 w-8 rounded-l-none"
                               onClick={() => onUpdateQuantity(product.id, 1)}
                               data-testid={`button-catalog-plus-${product.id}`}
                             >
-                              <Plus className="h-4 w-4" />
+                              <Plus className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                           {cartUnit === "quti" && (product.boxQuantity || 1) > 1 && (
-                            <p className="text-[10px] text-center text-muted-foreground">
+                            <p className="text-[9px] text-center text-muted-foreground">
                               {cartQty} quti = {cartQty * (product.boxQuantity || 1)} {product.unit}
                             </p>
                           )}

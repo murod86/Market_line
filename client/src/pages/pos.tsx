@@ -442,8 +442,10 @@ export default function POS() {
                       <SelectContent>
                         <SelectItem value="dona">dona</SelectItem>
                         <SelectItem value="quti">quti</SelectItem>
-                        <SelectItem value="litr">litr</SelectItem>
                         <SelectItem value="kg">kg</SelectItem>
+                        <SelectItem value="gram">gram</SelectItem>
+                        <SelectItem value="litr">litr</SelectItem>
+                        <SelectItem value="metr">metr</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button

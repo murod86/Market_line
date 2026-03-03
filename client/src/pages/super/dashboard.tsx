@@ -342,6 +342,7 @@ function PlansManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/super/plans"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/plans/public"] });
       queryClient.invalidateQueries({ queryKey: ["/api/super/stats"] });
       setNewPlan(false);
       setForm({ name: "", slug: "", price: "0", maxProducts: "100", maxEmployees: "3", features: "", sortOrder: "0", trialDays: "0", allowedModules: [] });
@@ -356,6 +357,8 @@ function PlansManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/super/plans"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/plans/public"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/super/stats"] });
       setEditPlan(null);
       toast({ title: "Reja yangilandi" });
     },
@@ -368,6 +371,7 @@ function PlansManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/super/plans"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/plans/public"] });
       queryClient.invalidateQueries({ queryKey: ["/api/super/stats"] });
       toast({ title: "Reja o'chirildi" });
     },
