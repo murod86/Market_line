@@ -1660,6 +1660,28 @@ export async function registerRoutes(
       const tenantId = req.session.tenantId!;
       const { name, phone, password, address } = req.body;
       if (!name) return res.status(400).json({ message: "Ism majburiy" });
+
+      if (phone) {
+        const existingCustomer = await storage.getCustomerByPhone(phone, tenantId);
+        if (!existingCustomer) {
+          await storage.createCustomer({
+            fullName: name,
+            phone,
+            password: password ? hashPassword(password) : null,
+            address: address || null,
+            telegramId: null,
+            tenantId,
+            dealerId,
+            active: true,
+          });
+        } else if (!existingCustomer.dealerId) {
+          await storage.updateCustomer(existingCustomer.id, { dealerId } as any);
+          if (password && !existingCustomer.password) {
+            await storage.updateCustomer(existingCustomer.id, { password: hashPassword(password) } as any);
+          }
+        }
+      }
+
       const customer = await storage.createDealerCustomer({
         dealerId,
         tenantId,

@@ -747,6 +747,7 @@ function CustomersTab() {
   const [qrCustomer, setQrCustomer] = useState<any>(null);
   const qrRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { data: dealer } = useQuery<any>({ queryKey: ["/api/dealer-portal/me"] });
 
   const { data: customers, isLoading } = useQuery<any[]>({
     queryKey: ["/api/dealer-portal/customers"],
@@ -995,13 +996,7 @@ function CustomersTab() {
                 <div className="flex flex-col items-center gap-3">
                   <img src={logoImg} alt="MARKET_LINE" className="h-8 w-auto" />
                   <QRCodeSVG
-                    value={JSON.stringify({
-                      type: "dealer_customer",
-                      id: qrCustomer.id,
-                      name: qrCustomer.name,
-                      phone: qrCustomer.phone || "",
-                      dealerId: qrCustomer.dealerId,
-                    })}
+                    value={`${window.location.origin}/portal?store=${qrCustomer.tenantId || dealer?.tenantId || ""}&phone=${encodeURIComponent(qrCustomer.phone || "")}`}
                     size={200}
                     level="H"
                     includeMargin={false}
@@ -1011,7 +1006,7 @@ function CustomersTab() {
                     <p className="font-bold text-gray-800 text-sm">{qrCustomer.name}</p>
                     {qrCustomer.phone && <p className="text-gray-500 text-xs">{qrCustomer.phone}</p>}
                   </div>
-                  <p className="text-blue-600 text-xs font-medium">Mijoz identifikatsiya QR</p>
+                  <p className="text-blue-600 text-xs font-medium">Portalga kirish uchun skanerlang</p>
                 </div>
               </div>
               <Button
