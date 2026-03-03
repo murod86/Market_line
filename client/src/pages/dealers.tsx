@@ -634,6 +634,73 @@ export default function Dealers() {
           "Qaytarish",
           false,
         )}
+
+        <Dialog open={payOpen} onOpenChange={setPayOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Diller to'lovi</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Diller: <strong>{detailDealer.name}</strong></p>
+                <p className="text-sm text-muted-foreground mt-1">Joriy qarz:</p>
+                <p className="text-2xl font-bold text-destructive">{formatCurrency(Number(detailDealer.debt))}</p>
+              </div>
+              <div>
+                <Label>To'lov summasi (UZS)</Label>
+                <Input
+                  type="number"
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(e.target.value)}
+                  placeholder="Summani kiriting"
+                  data-testid="input-dealer-pay-amount"
+                />
+              </div>
+              <div>
+                <Label>To'lov turi</Label>
+                <div className="flex gap-2 mt-1">
+                  {[
+                    { value: "cash", label: "Naqd" },
+                    { value: "card", label: "Karta" },
+                    { value: "transfer", label: "O'tkazma" },
+                  ].map((opt) => (
+                    <Button
+                      key={opt.value}
+                      type="button"
+                      variant={payMethod === opt.value ? "default" : "outline"}
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => setPayMethod(opt.value)}
+                      data-testid={`button-dealer-pay-method-${opt.value}`}
+                    >
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label>Izoh (ixtiyoriy)</Label>
+                <Input
+                  value={payNotes}
+                  onChange={(e) => setPayNotes(e.target.value)}
+                  placeholder="Izoh..."
+                  data-testid="input-dealer-pay-notes"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPayOpen(false)}>Bekor qilish</Button>
+              <Button
+                onClick={submitDealerPayment}
+                disabled={paymentMutation.isPending}
+                className="bg-green-600 hover:bg-green-700"
+                data-testid="button-confirm-dealer-payment"
+              >
+                {paymentMutation.isPending ? "Yuklanmoqda..." : "To'lovni tasdiqlash"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -1208,74 +1275,6 @@ export default function Dealers() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={payOpen} onOpenChange={setPayOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Diller to'lovi</DialogTitle>
-          </DialogHeader>
-          {detailDealer && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Diller: <strong>{detailDealer.name}</strong></p>
-                <p className="text-sm text-muted-foreground mt-1">Joriy qarz:</p>
-                <p className="text-2xl font-bold text-destructive">{formatCurrency(Number(detailDealer.debt))}</p>
-              </div>
-              <div>
-                <Label>To'lov summasi (UZS)</Label>
-                <Input
-                  type="number"
-                  value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)}
-                  placeholder="Summani kiriting"
-                  data-testid="input-dealer-pay-amount"
-                />
-              </div>
-              <div>
-                <Label>To'lov turi</Label>
-                <div className="flex gap-2 mt-1">
-                  {[
-                    { value: "cash", label: "Naqd" },
-                    { value: "card", label: "Karta" },
-                    { value: "transfer", label: "O'tkazma" },
-                  ].map((opt) => (
-                    <Button
-                      key={opt.value}
-                      type="button"
-                      variant={payMethod === opt.value ? "default" : "outline"}
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => setPayMethod(opt.value)}
-                      data-testid={`button-dealer-pay-method-${opt.value}`}
-                    >
-                      {opt.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <Label>Izoh (ixtiyoriy)</Label>
-                <Input
-                  value={payNotes}
-                  onChange={(e) => setPayNotes(e.target.value)}
-                  placeholder="Izoh..."
-                  data-testid="input-dealer-pay-notes"
-                />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPayOpen(false)}>Bekor qilish</Button>
-            <Button
-              onClick={submitDealerPayment}
-              disabled={paymentMutation.isPending}
-              className="bg-green-600 hover:bg-green-700"
-              data-testid="button-confirm-dealer-payment"
-            >
-              {paymentMutation.isPending ? "Yuklanmoqda..." : "To'lovni tasdiqlash"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
