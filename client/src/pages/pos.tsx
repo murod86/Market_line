@@ -353,7 +353,7 @@ export default function POS() {
                 >
                   <CardContent className="p-3">
                     <div className="flex items-center gap-2.5 mb-2">
-                      <div className="h-12 w-12 shrink-0 rounded-md bg-muted overflow-hidden flex items-center justify-center">
+                      <div className="h-20 w-20 shrink-0 rounded-md bg-muted overflow-hidden flex items-center justify-center">
                         {product.imageUrl ? (
                           <img
                             src={product.imageUrl}

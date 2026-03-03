@@ -737,6 +737,8 @@ function CustomersTab() {
   const [payOpen, setPayOpen] = useState<any>(null);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newAddress, setNewAddress] = useState("");
   const [payAmount, setPayAmount] = useState("");
   const [payMethod, setPayMethod] = useState("cash");
   const [payNotes, setPayNotes] = useState("");
@@ -757,6 +759,8 @@ function CustomersTab() {
       setAddOpen(false);
       setNewName("");
       setNewPhone("");
+      setNewPassword("");
+      setNewAddress("");
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -879,11 +883,19 @@ function CustomersTab() {
               <Label>Telefon</Label>
               <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+998..." data-testid="input-dealer-customer-phone" />
             </div>
+            <div>
+              <Label>Parol</Label>
+              <Input value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Parol" data-testid="input-dealer-customer-password" />
+            </div>
+            <div>
+              <Label>Manzil</Label>
+              <Input value={newAddress} onChange={(e) => setNewAddress(e.target.value)} placeholder="Mijoz manzili" data-testid="input-dealer-customer-address" />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>Bekor qilish</Button>
             <Button
-              onClick={() => { if (!newName.trim()) { return; } addMutation.mutate({ name: newName.trim(), phone: newPhone.trim() || null }); }}
+              onClick={() => { if (!newName.trim()) { return; } addMutation.mutate({ name: newName.trim(), phone: newPhone.trim() || null, password: newPassword.trim() || null, address: newAddress.trim() || null }); }}
               disabled={addMutation.isPending}
               data-testid="button-save-dealer-customer"
             >

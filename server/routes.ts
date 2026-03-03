@@ -1439,13 +1439,15 @@ export async function registerRoutes(
     try {
       const dealerId = req.session.dealerId!;
       const tenantId = req.session.tenantId!;
-      const { name, phone } = req.body;
+      const { name, phone, password, address } = req.body;
       if (!name) return res.status(400).json({ message: "Ism majburiy" });
       const customer = await storage.createDealerCustomer({
         dealerId,
         tenantId,
         name,
         phone: phone || null,
+        password: password || null,
+        address: address || null,
         debt: "0",
       });
       res.json(customer);

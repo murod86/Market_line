@@ -258,6 +258,8 @@ export const dealerCustomers = pgTable("dealer_customers", {
   dealerId: varchar("dealer_id").references(() => dealers.id).notNull(),
   name: text("name").notNull(),
   phone: text("phone"),
+  password: text("password"),
+  address: text("address"),
   debt: decimal("debt", { precision: 12, scale: 2 }).notNull().default("0"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
