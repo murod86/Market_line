@@ -4,7 +4,14 @@ import "./index.css";
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    const path = window.location.pathname;
+    if (path.startsWith('/dealer-portal')) {
+      navigator.serviceWorker.register('/dealer-sw.js', { scope: '/dealer-portal' }).catch(() => {});
+    } else if (path.startsWith('/portal')) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/portal' }).catch(() => {});
+    } else {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
   });
 }
 

@@ -1,12 +1,12 @@
 {
-  "name": "MARKET_LINE - Mijoz Portali",
-  "short_name": "ML Portal",
-  "description": "Mahsulotlar katalogi, buyurtma berish va qarz ko'rish",
-  "start_url": "/portal",
-  "scope": "/portal",
+  "name": "MARKET_LINE - Diller Portali",
+  "short_name": "ML Diller",
+  "description": "Diller portali - Buyurtmalar, ombor va yetkazib berish",
+  "start_url": "/dealer-portal",
+  "scope": "/dealer-portal",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#4F46E5",
+  "background_color": "#0f172a",
+  "theme_color": "#3B82F6",
   "orientation": "any",
   "icons": [
     {

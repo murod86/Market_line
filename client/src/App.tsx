@@ -105,6 +105,22 @@ function PortalApp() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [checking, setChecking] = useState(true);
 
+  useEffect(() => {
+    const link = document.querySelector('link[rel="manifest"]');
+    if (link) {
+      link.setAttribute("href", "/manifest.json");
+    }
+    const themeColor = document.querySelector('meta[name="theme-color"]');
+    if (themeColor) {
+      themeColor.setAttribute("content", "#4F46E5");
+    }
+    const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    if (appleTitle) {
+      appleTitle.setAttribute("content", "ML Portal");
+    }
+    document.title = "MARKET_LINE - Mijoz Portali";
+  }, []);
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["/api/portal/me"],
     retry: false,
@@ -135,6 +151,22 @@ function PortalApp() {
 function DealerPortalApp() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    const link = document.querySelector('link[rel="manifest"]');
+    if (link) {
+      link.setAttribute("href", "/dealer-manifest.json");
+    }
+    const themeColor = document.querySelector('meta[name="theme-color"]');
+    if (themeColor) {
+      themeColor.setAttribute("content", "#3B82F6");
+    }
+    const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    if (appleTitle) {
+      appleTitle.setAttribute("content", "ML Diller");
+    }
+    document.title = "MARKET_LINE - Diller Portali";
+  }, []);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["/api/dealer-portal/me"],
