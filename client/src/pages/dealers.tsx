@@ -303,10 +303,8 @@ export default function Dealers() {
     }
   };
 
-  const getUnitOptions = (item: CartItem) => {
-    const units: string[] = [item.unit];
-    if (item.boxQuantity > 1 && !units.includes("quti")) units.push("quti");
-    return units;
+  const getUnitOptions = (_item: CartItem) => {
+    return ["dona", "quti", "litr", "kg"];
   };
 
   const changeCartUnit = (productId: string, newUnit: string) => {

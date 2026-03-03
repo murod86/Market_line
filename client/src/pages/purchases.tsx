@@ -364,10 +364,10 @@ export default function Purchases() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={selectedProduct.unit}>{selectedProduct.unit}</SelectItem>
-                          {(selectedProduct.boxQuantity || 1) > 1 && selectedProduct.unit !== "quti" && (
-                            <SelectItem value="quti">Quti</SelectItem>
-                          )}
+                          <SelectItem value="dona">dona</SelectItem>
+                          <SelectItem value="quti">quti</SelectItem>
+                          <SelectItem value="litr">litr</SelectItem>
+                          <SelectItem value="kg">kg</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
