@@ -1,0 +1,24 @@
+tedAt":"2026-03-01T09:55:43.361Z","productName":"12","productUnit":"dona"},{"id":"729a6cc6-466e-45e5-9f85-29ddece65270","tenantId":"5975c9aa-8d16-49fa-9ba6-c768fd3a83df","dealerId":"9ada482e-1cde-4098-a7db-a0558607b829","type":"load","productId":"c422c33a-9697-4a6e-b63b-fb1458cdeaa6","quantity":6,"price":"100.00","total":"600.00","customerName":null,"customerPhone":null,"notes":null,"createdAt":"2026-03-01T09:55:43.337Z","productName":"56","productUnit":"dona"},{"id":"8a4de0fb-d2e4-482c-8179-6e15523c37c9","tenantId":"5975c9aa-8d16-49fa-9ba6-c768fd3a83df","dealerId":"9ada482e-1cde-4098-a7db-a0558607b829","type":"load","productId":"1da0fea0-3e76-4ac8-b35a-7de4516740db","quantity":4,"price":"10.00","total":"40.00","customerName":null,"customerPhone":null,"notes":null,"createdAt":"2026-03-01T09:55:43.312Z","productName":"1","productUnit":"kg"}]
+9:46:58 AM [express] GET /api/portal-orders 500 in 18ms :: {"message":"column \"dealer_id\" does not exist"}
+9:47:02 AM [express] GET /api/payments/dealer/27fc7df1-110a-41f9-aaa4-470e045a297a 304 in 6ms
+9:47:31 AM [express] POST /api/portal/orders 500 in 17ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:31 AM [express] POST /api/portal/orders 500 in 16ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:32 AM [express] POST /api/portal/orders 500 in 17ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:32 AM [express] POST /api/portal/orders 500 in 17ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:33 AM [express] POST /api/portal/orders 500 in 17ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:33 AM [express] POST /api/portal/orders 500 in 17ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:34 AM [express] POST /api/portal/orders 500 in 24ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:34 AM [express] POST /api/portal/orders 500 in 16ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:35 AM [express] POST /api/portal/orders 500 in 16ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:35 AM [express] POST /api/portal/orders 500 in 19ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:36 AM [express] POST /api/portal/orders 500 in 16ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:36 AM [express] POST /api/portal/orders 500 in 16ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:37 AM [express] POST /api/portal/orders 500 in 16ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:37 AM [express] POST /api/portal/orders 500 in 16ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:37 AM [express] POST /api/portal/orders 500 in 16ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:38 AM [express] POST /api/portal/orders 500 in 19ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:39 AM [express] POST /api/portal/orders 500 in 16ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:39 AM [express] POST /api/portal/orders 500 in 16ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:39 AM [express] POST /api/portal/orders 500 in 16ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:40 AM [express] POST /api/portal/orders 500 in 16ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:47:41 AM [express] POST /api/portal/orders 500 in 16ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}

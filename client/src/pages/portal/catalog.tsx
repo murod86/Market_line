@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -87,101 +87,122 @@ export default function PortalCatalog({ cart, onAddToCart, onUpdateQuantity, onC
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-52" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <Skeleton key={i} className="aspect-[3/4] rounded-xl" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {filtered?.map((product) => {
             const category = categories?.find((c) => c.id === product.categoryId);
-            const cartQty = getCartQty(product.id);
+            const cartItem = getCartItem(product.id);
+            const cartQty = cartItem?.quantity || 0;
+            const cartUnit = cartItem?.buyUnit || product.unit;
             return (
-              <Card key={product.id} className="hover-elevate transition-all" data-testid={`card-catalog-${product.id}`}>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="flex items-center justify-center h-40 w-40 shrink-0 rounded-xl bg-muted overflow-hidden">
-                      {product.imageUrl ? (
-                        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <Package className="h-6 w-6 text-muted-foreground/30" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-sm leading-tight">{product.name}</h3>
-                    </div>
+              <Card
+                key={product.id}
+                className="overflow-hidden border rounded-xl transition-all hover:shadow-md group"
+                data-testid={`card-catalog-${product.id}`}
+              >
+                <div className="relative aspect-square bg-muted/30 overflow-hidden">
+                  {product.imageUrl ? (
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="w-full h-full object-contain p-2"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                        (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+                      }}
+                    />
+                  ) : null}
+                  <div className={`absolute inset-0 flex items-center justify-center ${product.imageUrl ? "hidden" : ""}`}>
+                    <Package className="h-12 w-12 text-muted-foreground/20" />
                   </div>
-                  <div className="space-y-2">
-                    {product.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">{product.description}</p>
-                    )}
-                    {category && (
-                      <Badge variant="secondary" className="text-xs">{category.name}</Badge>
-                    )}
-                    <div className="flex items-center justify-between gap-1 pt-1">
-                      <span className="font-bold text-sm text-primary">
-                        {formatCurrency(Number(product.price))}
-                      </span>
-                      <div className="text-right">
-                        <span className="text-xs text-muted-foreground">
-                          {product.stock} {product.unit}
-                        </span>
-                        <p className="text-[10px] text-blue-600">1 quti = {product.boxQuantity || 1} {product.unit}</p>
-                      </div>
+                  {category && (
+                    <Badge variant="secondary" className="absolute top-2 left-2 text-[10px] px-1.5 py-0.5 opacity-90">
+                      {category.name}
+                    </Badge>
+                  )}
+                  {product.stock <= 0 && (
+                    <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
+                      <Badge variant="destructive">Tugagan</Badge>
                     </div>
-                    {cartQty === 0 ? (
-                      <Button
-                        className="w-full"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onAddToCart(product)}
-                        data-testid={`button-add-catalog-${product.id}`}
-                      >
-                        <ShoppingCart className="h-3 w-3 mr-2" />
-                        Savatga qo'shish
-                      </Button>
-                    ) : (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-center gap-2">
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-8 w-8"
-                            onClick={() => onUpdateQuantity(product.id, -1)}
-                            data-testid={`button-catalog-minus-${product.id}`}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-8 text-center font-medium text-sm">{cartQty}</span>
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-8 w-8"
-                            onClick={() => onUpdateQuantity(product.id, 1)}
-                            data-testid={`button-catalog-plus-${product.id}`}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <Select
-                          value={getCartItem(product.id)?.buyUnit || product.unit}
-                          onValueChange={(val) => onChangeUnit(product.id, val)}
+                  )}
+                </div>
+
+                <div className="p-3 space-y-2">
+                  <h3 className="font-semibold text-sm leading-tight line-clamp-2 min-h-[2.5rem]">{product.name}</h3>
+
+                  <div className="flex items-baseline justify-between gap-1">
+                    <span className="font-bold text-base text-primary">{formatCurrency(Number(product.price))}</span>
+                    <span className="text-[11px] text-muted-foreground">{product.stock} {product.unit}</span>
+                  </div>
+
+                  {product.stock > 0 && (
+                    <>
+                      {cartQty === 0 ? (
+                        <Button
+                          className="w-full h-9"
+                          size="sm"
+                          onClick={() => onAddToCart(product)}
+                          data-testid={`button-add-catalog-${product.id}`}
                         >
-                          <SelectTrigger className="h-7 text-xs" data-testid={`select-catalog-unit-${product.id}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="dona">dona</SelectItem>
-                            <SelectItem value="quti">quti</SelectItem>
-                            <SelectItem value="litr">litr</SelectItem>
-                            <SelectItem value="kg">kg</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
+                          <ShoppingCart className="h-3.5 w-3.5 mr-1.5" />
+                          Savatga
+                        </Button>
+                      ) : (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-1">
+                            <Select
+                              value={cartUnit}
+                              onValueChange={(val) => onChangeUnit(product.id, val)}
+                            >
+                              <SelectTrigger className="h-8 text-xs flex-1" data-testid={`select-catalog-unit-${product.id}`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="dona">dona</SelectItem>
+                                <SelectItem value="quti">quti</SelectItem>
+                                <SelectItem value="litr">litr</SelectItem>
+                                <SelectItem value="kg">kg</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex items-center justify-between rounded-lg border bg-background">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-9 w-9 rounded-r-none"
+                              onClick={() => onUpdateQuantity(product.id, -1)}
+                              data-testid={`button-catalog-minus-${product.id}`}
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                            <span className="font-bold text-base min-w-[2rem] text-center" data-testid={`text-catalog-qty-${product.id}`}>
+                              {cartQty}
+                            </span>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-9 w-9 rounded-l-none"
+                              onClick={() => onUpdateQuantity(product.id, 1)}
+                              data-testid={`button-catalog-plus-${product.id}`}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          {cartUnit === "quti" && (product.boxQuantity || 1) > 1 && (
+                            <p className="text-[10px] text-center text-muted-foreground">
+                              {cartQty} quti = {cartQty * (product.boxQuantity || 1)} {product.unit}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               </Card>
             );
           })}
