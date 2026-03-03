@@ -1947,17 +1947,20 @@ export async function registerRoutes(
           totalAmount += item.quantity * Number(product.price);
         }
 
-        const [sale] = await tx.insert(sales).values({
+        const saleData: any = {
           tenantId,
           customerId: req.session.customerId!,
           employeeId: null,
-          dealerId: dealerId || null,
           totalAmount: totalAmount.toFixed(2),
           discount: "0",
           paidAmount: "0",
           paymentType: "debt",
           status: "pending",
-        }).returning();
+        };
+        if (dealerId) {
+          saleData.dealerId = dealerId;
+        }
+        const [sale] = await tx.insert(sales).values(saleData).returning();
 
         for (const item of items) {
           const [product] = await tx.select().from(products).where(eq(products.id, item.productId));
