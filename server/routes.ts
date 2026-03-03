@@ -885,6 +885,96 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/dealer-transactions/:txId", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const tx = await storage.getDealerTransaction(req.params.txId);
+      if (!tx || tx.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Tranzaksiya topilmadi" });
+      }
+      if (tx.type !== "load") {
+        return res.status(400).json({ message: "Faqat yuklash tranzaksiyalarini tahrirlash mumkin" });
+      }
+
+      const editSchema = z.object({
+        quantity: z.number().int().positive(),
+        notes: z.string().optional().nullable(),
+      });
+      const { quantity, notes } = editSchema.parse(req.body);
+      const oldQuantity = tx.quantity;
+      const diff = quantity - oldQuantity;
+
+      const product = await storage.getProduct(tx.productId);
+      if (!product) return res.status(400).json({ message: "Mahsulot topilmadi" });
+
+      if (diff > 0 && product.stock < diff) {
+        return res.status(400).json({ message: `Omborda yetarli emas (${product.stock} ${product.unit} bor)` });
+      }
+
+      await storage.updateProduct(product.id, { stock: product.stock - diff });
+
+      const inv = await storage.getDealerInventoryItem(tx.dealerId, tx.productId);
+      const currentInvQty = inv?.quantity || 0;
+      await storage.upsertDealerInventory(tx.dealerId, tx.productId, Math.max(0, currentInvQty + diff), tenantId);
+
+      const newTotal = (Number(tx.price) * quantity).toFixed(2);
+      const oldTotal = Number(tx.total);
+      const newTotalNum = Number(newTotal);
+      const debtDiff = newTotalNum - oldTotal;
+
+      const dealer = await storage.getDealer(tx.dealerId);
+      if (dealer) {
+        const newDebt = Math.max(0, Number(dealer.debt) + debtDiff);
+        await storage.updateDealer(tx.dealerId, { debt: newDebt.toFixed(2) });
+      }
+
+      const updated = await storage.updateDealerTransaction(tx.id, {
+        quantity,
+        total: newTotal,
+        notes: notes !== undefined ? notes : tx.notes,
+      });
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/dealer-transactions/:txId", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const tx = await storage.getDealerTransaction(req.params.txId);
+      if (!tx || tx.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Tranzaksiya topilmadi" });
+      }
+      if (tx.type !== "load") {
+        return res.status(400).json({ message: "Faqat yuklash tranzaksiyalarini o'chirish mumkin" });
+      }
+
+      const product = await storage.getProduct(tx.productId);
+      if (product) {
+        await storage.updateProduct(product.id, { stock: product.stock + tx.quantity });
+      }
+
+      const inv = await storage.getDealerInventoryItem(tx.dealerId, tx.productId);
+      if (inv) {
+        const newQty = Math.max(0, inv.quantity - tx.quantity);
+        await storage.upsertDealerInventory(tx.dealerId, tx.productId, newQty, tenantId);
+      }
+
+      const dealer = await storage.getDealer(tx.dealerId);
+      if (dealer) {
+        const newDebt = Math.max(0, Number(dealer.debt) - Number(tx.total));
+        await storage.updateDealer(tx.dealerId, { debt: newDebt.toFixed(2) });
+      }
+
+      await storage.deleteDealerTransaction(tx.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
   app.post("/api/dealers/:id/sell", requireTenant, async (req, res) => {
     try {
       const tenantId = req.session.tenantId!;

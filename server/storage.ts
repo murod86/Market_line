@@ -115,7 +115,10 @@ export interface IStorage {
   getDealerInventoryItem(dealerId: string, productId: string): Promise<DealerInventory | undefined>;
   upsertDealerInventory(dealerId: string, productId: string, quantity: number, tenantId: string): Promise<DealerInventory>;
   getDealerTransactions(dealerId: string): Promise<DealerTransaction[]>;
+  getDealerTransaction(id: string): Promise<DealerTransaction | undefined>;
   createDealerTransaction(tx: InsertDealerTransaction): Promise<DealerTransaction>;
+  updateDealerTransaction(id: string, data: Partial<InsertDealerTransaction>): Promise<DealerTransaction>;
+  deleteDealerTransaction(id: string): Promise<void>;
 
   getPayments(tenantId: string, type?: string, entityId?: string): Promise<Payment[]>;
   createPayment(payment: InsertPayment): Promise<Payment>;
@@ -500,9 +503,23 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(dealerTransactions).where(eq(dealerTransactions.dealerId, dealerId)).orderBy(desc(dealerTransactions.createdAt));
   }
 
+  async getDealerTransaction(id: string): Promise<DealerTransaction | undefined> {
+    const [tx] = await db.select().from(dealerTransactions).where(eq(dealerTransactions.id, id));
+    return tx;
+  }
+
   async createDealerTransaction(tx: InsertDealerTransaction): Promise<DealerTransaction> {
     const [created] = await db.insert(dealerTransactions).values(tx).returning();
     return created;
+  }
+
+  async updateDealerTransaction(id: string, data: Partial<InsertDealerTransaction>): Promise<DealerTransaction> {
+    const [updated] = await db.update(dealerTransactions).set(data).where(eq(dealerTransactions.id, id)).returning();
+    return updated;
+  }
+
+  async deleteDealerTransaction(id: string): Promise<void> {
+    await db.delete(dealerTransactions).where(eq(dealerTransactions.id, id));
   }
 
   async getPayments(tenantId: string, type?: string, entityId?: string): Promise<Payment[]> {

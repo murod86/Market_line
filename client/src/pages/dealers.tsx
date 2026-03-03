@@ -60,6 +60,11 @@ export default function Dealers() {
   const [payMethod, setPayMethod] = useState("cash");
   const [payNotes, setPayNotes] = useState("");
 
+  const [editTx, setEditTx] = useState<any | null>(null);
+  const [editTxQty, setEditTxQty] = useState("");
+  const [editTxNotes, setEditTxNotes] = useState("");
+  const [deleteTx, setDeleteTx] = useState<any | null>(null);
+
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -167,6 +172,37 @@ export default function Dealers() {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       resetCart();
       setReturnOpen(false);
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const editTxMutation = useMutation({
+    mutationFn: async ({ id, quantity, notes }: { id: string; quantity: number; notes?: string }) => {
+      const res = await apiRequest("PATCH", `/api/dealer-transactions/${id}`, { quantity, notes });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Tranzaksiya tahrirlandi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealers", detailDealer?.id, "transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealers", detailDealer?.id, "inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      setEditTx(null);
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const deleteTxMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/dealer-transactions/${id}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Tranzaksiya o'chirildi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealers", detailDealer?.id, "transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealers", detailDealer?.id, "inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      setDeleteTx(null);
     },
     onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -568,6 +604,7 @@ export default function Dealers() {
                         <TableHead>Miqdor</TableHead>
                         <TableHead>Jami</TableHead>
                         <TableHead>Mijoz</TableHead>
+                        <TableHead>Amallar</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -583,6 +620,34 @@ export default function Dealers() {
                           <TableCell>{tx.quantity} {tx.productUnit}</TableCell>
                           <TableCell>{formatCurrency(Number(tx.total))}</TableCell>
                           <TableCell className="text-sm">{tx.customerName || "-"}</TableCell>
+                          <TableCell>
+                            {tx.type === "load" && (
+                              <div className="flex gap-1">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7"
+                                  onClick={() => {
+                                    setEditTx(tx);
+                                    setEditTxQty(String(tx.quantity));
+                                    setEditTxNotes(tx.notes || "");
+                                  }}
+                                  data-testid={`button-edit-tx-${tx.id}`}
+                                >
+                                  <Edit className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-destructive"
+                                  onClick={() => setDeleteTx(tx)}
+                                  data-testid={`button-delete-tx-${tx.id}`}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -1270,6 +1335,103 @@ export default function Dealers() {
               data-testid="button-confirm-delete-dealer"
             >
               {deleteMutation.isPending ? "O'chirilmoqda..." : "O'chirish"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editTx} onOpenChange={() => setEditTx(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Yuklashni tahrirlash</DialogTitle>
+          </DialogHeader>
+          {editTx && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/50">
+                <p className="text-sm font-medium">{editTx.productName}</p>
+                <p className="text-xs text-muted-foreground">
+                  Narxi: {formatCurrency(Number(editTx.price))} / {editTx.productUnit}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Hozirgi miqdor: {editTx.quantity} {editTx.productUnit}
+                </p>
+              </div>
+              <div>
+                <Label>Yangi miqdor</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={editTxQty}
+                  onChange={(e) => setEditTxQty(e.target.value)}
+                  data-testid="input-edit-tx-qty"
+                />
+                {editTxQty && Number(editTxQty) > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Jami: {formatCurrency(Number(editTx.price) * Number(editTxQty))}
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label>Izoh</Label>
+                <Textarea
+                  value={editTxNotes}
+                  onChange={(e) => setEditTxNotes(e.target.value)}
+                  placeholder="Izoh (ixtiyoriy)"
+                  className="resize-none"
+                  data-testid="input-edit-tx-notes"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTx(null)}>Bekor qilish</Button>
+            <Button
+              onClick={() => {
+                if (editTx && Number(editTxQty) > 0) {
+                  editTxMutation.mutate({
+                    id: editTx.id,
+                    quantity: Number(editTxQty),
+                    notes: editTxNotes || undefined,
+                  });
+                }
+              }}
+              disabled={editTxMutation.isPending || !editTxQty || Number(editTxQty) <= 0}
+              data-testid="button-save-edit-tx"
+            >
+              {editTxMutation.isPending ? "Saqlanmoqda..." : "Saqlash"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteTx} onOpenChange={() => setDeleteTx(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Yuklashni o'chirish</DialogTitle>
+          </DialogHeader>
+          {deleteTx && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Bu yuklashni o'chirmoqchimisiz?
+              </p>
+              <div className="p-3 rounded-lg bg-muted/50">
+                <p className="text-sm font-medium">{deleteTx.productName}</p>
+                <p className="text-xs">{deleteTx.quantity} {deleteTx.productUnit} — {formatCurrency(Number(deleteTx.total))}</p>
+              </div>
+              <p className="text-xs text-orange-600">
+                Mahsulotlar omborga qaytariladi va diller qarzidan ayiriladi.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTx(null)}>Bekor qilish</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteTx && deleteTxMutation.mutate(deleteTx.id)}
+              disabled={deleteTxMutation.isPending}
+              data-testid="button-confirm-delete-tx"
+            >
+              {deleteTxMutation.isPending ? "O'chirilmoqda..." : "O'chirish"}
             </Button>
           </DialogFooter>
         </DialogContent>
