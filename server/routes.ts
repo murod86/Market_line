@@ -1664,19 +1664,32 @@ export async function registerRoutes(
         saleId = delivery.saleId;
         customerId = delivery.customerId;
       } else {
-        const saleCheck = await pool.query(
-          `SELECT s.id, s.status, s.customer_id FROM sales s
-           JOIN deliveries d ON d.sale_id = s.id AND d.dealer_id = $2
-           WHERE s.id = $1 AND s.tenant_id = $3`,
+        const deliveryBySale = await pool.query(
+          `SELECT d.id, d.sale_id, d.customer_id, d.status FROM deliveries d
+           WHERE d.sale_id = $1 AND d.dealer_id = $2 AND d.tenant_id = $3`,
           [req.params.id, dealerId, tenantId]
         );
-        if (saleCheck.rows.length > 0) {
-          const row = saleCheck.rows[0];
-          if (row.status !== "pending" && row.status !== "delivering") {
+        if (deliveryBySale.rows.length > 0) {
+          const row = deliveryBySale.rows[0];
+          if (row.status !== "pending") {
             return res.status(400).json({ message: "Faqat kutilayotgan buyurtmani tahrirlash mumkin" });
           }
-          saleId = row.id;
+          saleId = row.sale_id;
           customerId = row.customer_id;
+        } else {
+          const saleCheck = await pool.query(
+            `SELECT id, status, customer_id FROM sales
+             WHERE id = $1 AND dealer_id = $2 AND tenant_id = $3`,
+            [req.params.id, dealerId, tenantId]
+          );
+          if (saleCheck.rows.length > 0) {
+            const row = saleCheck.rows[0];
+            if (row.status !== "pending" && row.status !== "delivering") {
+              return res.status(400).json({ message: "Faqat kutilayotgan buyurtmani tahrirlash mumkin" });
+            }
+            saleId = row.id;
+            customerId = row.customer_id;
+          }
         }
       }
 
