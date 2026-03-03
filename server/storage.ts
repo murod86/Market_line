@@ -1,5 +1,5 @@
 import { eq, desc, and, sql } from "drizzle-orm";
-import { db } from "./db";
+import { db, pool } from "./db";
 import {
   plans, tenants, roles, employees, categories, products, customers,
   sales, saleItems, deliveries, deliveryItems, settings, globalSettings,
@@ -538,47 +538,30 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTenant(id: string): Promise<void> {
-    await db.transaction(async (tx) => {
-      await tx.delete(settings).where(eq(settings.tenantId, id));
-
-      const tenantDeliveries = await tx.select().from(deliveries).where(eq(deliveries.tenantId, id));
-      for (const delivery of tenantDeliveries) {
-        await tx.delete(deliveryItems).where(eq(deliveryItems.deliveryId, delivery.id));
-      }
-      await tx.delete(deliveries).where(eq(deliveries.tenantId, id));
-
-      await tx.delete(payments).where(eq(payments.tenantId, id));
-
-      const tenantSales = await tx.select().from(sales).where(eq(sales.tenantId, id));
-      for (const sale of tenantSales) {
-        await tx.delete(saleItems).where(eq(saleItems.saleId, sale.id));
-      }
-      await tx.delete(sales).where(eq(sales.tenantId, id));
-
-      const tenantPurchases = await tx.select().from(purchases).where(eq(purchases.tenantId, id));
-      for (const purchase of tenantPurchases) {
-        await tx.delete(purchaseItems).where(eq(purchaseItems.purchaseId, purchase.id));
-      }
-      await tx.delete(purchases).where(eq(purchases.tenantId, id));
-
-      await tx.delete(dealerTransactions).where(eq(dealerTransactions.tenantId, id));
-      await tx.delete(dealerInventory).where(eq(dealerInventory.tenantId, id));
-
-      const tenantDealers = await tx.select().from(dealers).where(eq(dealers.tenantId, id));
-      for (const dealer of tenantDealers) {
-        await tx.delete(dealerCustomers).where(eq(dealerCustomers.dealerId, dealer.id));
-      }
-
-      await tx.delete(customers).where(eq(customers.tenantId, id));
-      await tx.delete(dealers).where(eq(dealers.tenantId, id));
-
-      await tx.delete(products).where(eq(products.tenantId, id));
-      await tx.delete(categories).where(eq(categories.tenantId, id));
-      await tx.delete(suppliers).where(eq(suppliers.tenantId, id));
-      await tx.delete(employees).where(eq(employees.tenantId, id));
-      await tx.delete(roles).where(eq(roles.tenantId, id));
-      await tx.delete(tenants).where(eq(tenants.id, id));
-    });
+    const queries = [
+      { text: 'DELETE FROM settings WHERE tenant_id = $1', values: [id] },
+      { text: 'DELETE FROM delivery_items WHERE delivery_id IN (SELECT id FROM deliveries WHERE tenant_id = $1)', values: [id] },
+      { text: 'DELETE FROM deliveries WHERE tenant_id = $1', values: [id] },
+      { text: 'DELETE FROM payments WHERE tenant_id = $1', values: [id] },
+      { text: 'DELETE FROM sale_items WHERE sale_id IN (SELECT id FROM sales WHERE tenant_id = $1)', values: [id] },
+      { text: 'DELETE FROM sales WHERE tenant_id = $1', values: [id] },
+      { text: 'DELETE FROM purchase_items WHERE purchase_id IN (SELECT id FROM purchases WHERE tenant_id = $1)', values: [id] },
+      { text: 'DELETE FROM purchases WHERE tenant_id = $1', values: [id] },
+      { text: 'DELETE FROM dealer_transactions WHERE tenant_id = $1', values: [id] },
+      { text: 'DELETE FROM dealer_inventory WHERE tenant_id = $1', values: [id] },
+      { text: 'DELETE FROM dealer_customers WHERE dealer_id IN (SELECT id FROM dealers WHERE tenant_id = $1)', values: [id] },
+      { text: 'DELETE FROM customers WHERE tenant_id = $1', values: [id] },
+      { text: 'DELETE FROM dealers WHERE tenant_id = $1', values: [id] },
+      { text: 'DELETE FROM products WHERE tenant_id = $1', values: [id] },
+      { text: 'DELETE FROM categories WHERE tenant_id = $1', values: [id] },
+      { text: 'DELETE FROM suppliers WHERE tenant_id = $1', values: [id] },
+      { text: 'DELETE FROM employees WHERE tenant_id = $1', values: [id] },
+      { text: 'DELETE FROM roles WHERE tenant_id = $1', values: [id] },
+      { text: 'DELETE FROM tenants WHERE id = $1', values: [id] },
+    ];
+    for (const q of queries) {
+      await pool.query(q.text, q.values);
+    }
   }
   async getDealerCustomers(dealerId: string): Promise<DealerCustomer[]> {
     return await db.select().from(dealerCustomers).where(eq(dealerCustomers.dealerId, dealerId)).orderBy(desc(dealerCustomers.createdAt));
