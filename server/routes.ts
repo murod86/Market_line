@@ -1457,28 +1457,65 @@ export async function registerRoutes(
     try {
       const dealerId = req.session.dealerId!;
       const tenantId = req.session.tenantId!;
+      const allProducts = await storage.getProducts(tenantId);
+
+      const result: any[] = [];
+      const addedSaleIds = new Set<string>();
+
       const allDeliveries = await storage.getDeliveries(tenantId);
       const dealerDeliveries = allDeliveries.filter(d => d.dealerId === dealerId);
-      const enriched = await Promise.all(dealerDeliveries.map(async (d) => {
+      for (const d of dealerDeliveries) {
         const customer = d.customerId ? await storage.getCustomer(d.customerId) : null;
         let items: any[] = [];
         if (d.saleId) {
-          const saleItems = await storage.getSaleItems(d.saleId);
-          const allProducts = await storage.getProducts(tenantId);
-          items = saleItems.map(si => {
-            const product = allProducts.find(p => p.id === si.productId);
-            return { ...si, productName: product?.name || "Noma'lum", productUnit: product?.unit || "dona" };
+          addedSaleIds.add(d.saleId);
+          const si = await storage.getSaleItems(d.saleId);
+          items = si.map(s => {
+            const product = allProducts.find(p => p.id === s.productId);
+            return { ...s, productName: product?.name || "Noma'lum", productUnit: product?.unit || "dona" };
           });
         }
-        return {
+        result.push({
           ...d,
+          type: "delivery",
           customerName: customer?.fullName || d.customerName || "Noma'lum",
           customerPhone: customer?.phone || d.customerPhone || "",
           customerAddress: customer?.address || d.address || "",
           items,
-        };
-      }));
-      res.json(enriched);
+        });
+      }
+
+      const dealerSalesRows = await pool.query(
+        `SELECT s.*, c.full_name as customer_name, c.phone as customer_phone, c.address as customer_address
+         FROM sales s LEFT JOIN customers c ON s.customer_id = c.id
+         WHERE s.dealer_id = $1 AND s.tenant_id = $2
+         ORDER BY s.created_at DESC`,
+        [dealerId, tenantId]
+      );
+      for (const row of dealerSalesRows.rows) {
+        if (addedSaleIds.has(row.id)) continue;
+        const si = await storage.getSaleItems(row.id);
+        const items = si.map(s => {
+          const product = allProducts.find(p => p.id === s.productId);
+          return { ...s, productName: product?.name || "Noma'lum", productUnit: product?.unit || "dona" };
+        });
+        result.push({
+          id: row.id,
+          saleId: row.id,
+          status: row.status === "pending" ? "pending" : row.status === "delivering" ? "pending" : row.status === "shipped" ? "in_transit" : row.status === "delivered" ? "delivered" : row.status,
+          type: "sale",
+          customerName: row.customer_name || "Noma'lum",
+          customerPhone: row.customer_phone || "",
+          customerAddress: row.customer_address || "",
+          address: row.customer_address || "",
+          createdAt: row.created_at,
+          totalAmount: row.total_amount,
+          items,
+        });
+      }
+
+      result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      res.json(result);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
