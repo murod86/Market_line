@@ -33,6 +33,16 @@ class PgSessionStore extends Store {
         "updated_at" timestamp DEFAULT now()
       );
     `);
+    const migrations = [
+      `ALTER TABLE sales ADD COLUMN IF NOT EXISTS dealer_id varchar REFERENCES dealers(id)`,
+      `ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS dealer_id varchar REFERENCES dealers(id)`,
+      `ALTER TABLE customers ADD COLUMN IF NOT EXISTS dealer_id varchar REFERENCES dealers(id)`,
+      `ALTER TABLE dealer_customers ADD COLUMN IF NOT EXISTS password varchar(255)`,
+      `ALTER TABLE dealer_customers ADD COLUMN IF NOT EXISTS address text`,
+    ];
+    for (const m of migrations) {
+      try { await pool.query(m); } catch {}
+    }
   }
 
   private async pruneSessions() {
