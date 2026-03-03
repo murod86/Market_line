@@ -2097,9 +2097,39 @@ export async function registerRoutes(
             status: assignedDealerId ? "pending" : "in_transit",
             notes: assignedDealerId ? "Dillerga tayinlangan" : null,
           });
+
+          if (assignedDealerId) {
+            const saleItems = await storage.getSaleItems(sale.id);
+            for (const item of saleItems) {
+              const product = await storage.getProduct(item.productId);
+              if (!product) continue;
+              const inv = await storage.getDealerInventoryItem(assignedDealerId, item.productId);
+              const currentQty = inv?.quantity || 0;
+              await storage.upsertDealerInventory(assignedDealerId, item.productId, currentQty + item.quantity, tenantId);
+              await storage.createDealerTransaction({
+                tenantId,
+                dealerId: assignedDealerId,
+                type: "load",
+                productId: item.productId,
+                quantity: item.quantity,
+                price: product.price,
+                total: (Number(product.price) * item.quantity).toFixed(2),
+                notes: `Portal buyurtma #${sale.id.slice(0, 8)}`,
+              });
+            }
+            const dealer = await storage.getDealer(assignedDealerId);
+            if (dealer) {
+              const newDebt = Number(dealer.debt) + Number(sale.totalAmount);
+              await storage.updateDealer(assignedDealerId, { debt: newDebt.toFixed(2) });
+            }
+          }
         }
       }
-      const updated = await storage.updateSale(sale.id, { status } as any);
+      const updateData: any = { status };
+      if (dealerId && status === "delivering") {
+        updateData.dealerId = dealerId;
+      }
+      const updated = await storage.updateSale(sale.id, updateData);
       res.json(updated);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
