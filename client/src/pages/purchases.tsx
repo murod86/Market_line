@@ -11,8 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Product, Supplier, Purchase } from "@shared/schema";
-import { Plus, Trash2, Package, Eye, Search } from "lucide-react";
+import type { Product, Supplier, Purchase, Category } from "@shared/schema";
+import { Plus, Trash2, Package, Eye, Search, ChevronDown, ChevronRight, Layers } from "lucide-react";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -55,6 +55,8 @@ export default function Purchases() {
   const { data: purchases, isLoading } = useQuery<Purchase[]>({ queryKey: ["/api/purchases"] });
   const { data: suppliers } = useQuery<Supplier[]>({ queryKey: ["/api/suppliers"] });
   const { data: products } = useQuery<Product[]>({ queryKey: ["/api/products"] });
+  const { data: categories } = useQuery<Category[]>({ queryKey: ["/api/categories"] });
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const { data: purchaseDetail } = useQuery({
     queryKey: ["/api/purchases", selectedId],
     enabled: !!selectedId,
@@ -582,35 +584,134 @@ export default function Purchases() {
             />
           </div>
           <div className="flex-1 overflow-y-auto min-h-0 border rounded-md">
-            {filteredProducts && filteredProducts.length > 0 ? (
-              filteredProducts.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer border-b last:border-0 transition-colors"
-                  onClick={() => selectProduct(p)}
-                  data-testid={`picker-product-${p.id}`}
-                >
-                  {p.imageUrl ? (
-                    <img src={p.imageUrl} alt="" className="h-10 w-10 rounded object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                  ) : (
-                    <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0">
-                      <Package className="h-5 w-5 text-muted-foreground" />
+            {filteredProducts && filteredProducts.length > 0 ? (() => {
+              const grouped: Record<string, Product[]> = {};
+              const uncategorized: Product[] = [];
+              filteredProducts.forEach((p) => {
+                if (p.categoryId) {
+                  if (!grouped[p.categoryId]) grouped[p.categoryId] = [];
+                  grouped[p.categoryId].push(p);
+                } else {
+                  uncategorized.push(p);
+                }
+              });
+              const categoryOrder = categories?.filter((c) => grouped[c.id]) || [];
+              const toggleCategory = (catId: string) => {
+                setExpandedCategories((prev) => ({ ...prev, [catId]: prev[catId] === false ? true : false }));
+              };
+              const allExpanded = Object.keys(grouped).length > 0 && Object.keys(grouped).every((k) => expandedCategories[k] !== false);
+              return (
+                <div>
+                  {Object.keys(grouped).length > 1 && (
+                    <div className="sticky top-0 z-10 bg-background border-b px-3 py-1.5 flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs h-7"
+                        onClick={() => {
+                          const keys = Object.keys(grouped);
+                          const newVal = !allExpanded;
+                          const next: Record<string, boolean> = {};
+                          keys.forEach((k) => { next[k] = newVal; });
+                          setExpandedCategories(next);
+                        }}
+                        data-testid="button-toggle-all-categories"
+                      >
+                        {allExpanded ? "Hammasini yopish" : "Hammasini ochish"}
+                      </Button>
                     </div>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">{p.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      SKU: {p.sku} | Stok: {p.stock} {p.unit}
-                      {p.boxQuantity > 1 && ` | 1 quti = ${p.boxQuantity} ${p.unit}`}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-bold">{formatCurrency(Number(p.costPrice))}</p>
-                    <p className="text-[10px] text-muted-foreground">tan narxi</p>
-                  </div>
+                  {categoryOrder.map((cat) => {
+                    const catProducts = grouped[cat.id];
+                    const isExpanded = expandedCategories[cat.id] !== false;
+                    return (
+                      <div key={cat.id}>
+                        <div
+                          className="flex items-center gap-2 px-3 py-2 bg-muted/60 border-b cursor-pointer hover:bg-muted transition-colors sticky top-0 z-[5]"
+                          onClick={() => toggleCategory(cat.id)}
+                          data-testid={`category-header-${cat.id}`}
+                        >
+                          {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                          <Layers className="h-4 w-4 text-primary" />
+                          <span className="text-sm font-semibold flex-1">{cat.name}</span>
+                          <Badge variant="secondary" className="text-xs">{catProducts.length}</Badge>
+                        </div>
+                        {isExpanded && catProducts.map((p) => (
+                          <div
+                            key={p.id}
+                            className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer border-b last:border-0 transition-colors pl-6"
+                            onClick={() => selectProduct(p)}
+                            data-testid={`picker-product-${p.id}`}
+                          >
+                            {p.imageUrl ? (
+                              <img src={p.imageUrl} alt="" className="h-10 w-10 rounded object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                            ) : (
+                              <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0">
+                                <Package className="h-5 w-5 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold truncate">{p.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                SKU: {p.sku} | Stok: {p.stock} {p.unit}
+                                {p.boxQuantity > 1 && ` | 1 quti = ${p.boxQuantity} ${p.unit}`}
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-sm font-bold">{formatCurrency(Number(p.costPrice))}</p>
+                              <p className="text-[10px] text-muted-foreground">tan narxi</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                  {uncategorized.length > 0 && (
+                    <div>
+                      {categoryOrder.length > 0 && (
+                        <div
+                          className="flex items-center gap-2 px-3 py-2 bg-muted/60 border-b cursor-pointer hover:bg-muted transition-colors"
+                          onClick={() => toggleCategory("__none__")}
+                          data-testid="category-header-uncategorized"
+                        >
+                          {expandedCategories["__none__"] !== false ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                          <Layers className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-semibold flex-1 text-muted-foreground">Kategoriyasiz</span>
+                          <Badge variant="secondary" className="text-xs">{uncategorized.length}</Badge>
+                        </div>
+                      )}
+                      {(categoryOrder.length === 0 || expandedCategories["__none__"] !== false) && uncategorized.map((p) => (
+                        <div
+                          key={p.id}
+                          className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer border-b last:border-0 transition-colors pl-6"
+                          onClick={() => selectProduct(p)}
+                          data-testid={`picker-product-${p.id}`}
+                        >
+                          {p.imageUrl ? (
+                            <img src={p.imageUrl} alt="" className="h-10 w-10 rounded object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                          ) : (
+                            <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0">
+                              <Package className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate">{p.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              SKU: {p.sku} | Stok: {p.stock} {p.unit}
+                              {p.boxQuantity > 1 && ` | 1 quti = ${p.boxQuantity} ${p.unit}`}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-sm font-bold">{formatCurrency(Number(p.costPrice))}</p>
+                            <p className="text-[10px] text-muted-foreground">tan narxi</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ))
-            ) : (
+              );
+            })() : (
               <div className="p-8 text-center text-muted-foreground text-sm">
                 <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
                 {productSearch ? "Mahsulot topilmadi" : "Mahsulotlar yo'q"}
