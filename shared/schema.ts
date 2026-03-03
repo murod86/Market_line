@@ -133,6 +133,7 @@ export const sales = pgTable("sales", {
   tenantId: varchar("tenant_id").references(() => tenants.id),
   customerId: varchar("customer_id").references(() => customers.id),
   employeeId: varchar("employee_id").references(() => employees.id),
+  dealerId: varchar("dealer_id").references(() => dealers.id),
   totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull(),
   discount: decimal("discount", { precision: 12, scale: 2 }).notNull().default("0"),
   paidAmount: decimal("paid_amount", { precision: 12, scale: 2 }).notNull(),

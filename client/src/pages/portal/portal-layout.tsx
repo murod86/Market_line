@@ -98,11 +98,16 @@ export default function PortalLayout({ onLogout }: PortalLayoutProps) {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
+  const [selectedDealer, setSelectedDealer] = useState("");
   const { toast } = useToast();
   const pwa = usePwaInstall();
 
   const { data: customer } = useQuery<Customer>({
     queryKey: ["/api/portal/me"],
+  });
+
+  const { data: dealers } = useQuery<{ id: string; name: string; phone: string }[]>({
+    queryKey: ["/api/portal/dealers"],
   });
 
   const logoutMutation = useMutation({
@@ -127,6 +132,7 @@ export default function PortalLayout({ onLogout }: PortalLayoutProps) {
       setCheckoutOpen(false);
       setAddress("");
       setNotes("");
+      setSelectedDealer("");
       queryClient.invalidateQueries({ queryKey: ["/api/portal/orders"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portal/me"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portal/catalog"] });
@@ -213,6 +219,7 @@ export default function PortalLayout({ onLogout }: PortalLayoutProps) {
       })),
       address: address || customer?.address || "",
       notes: notes || undefined,
+      dealerId: selectedDealer && selectedDealer !== "none" ? selectedDealer : undefined,
     });
   };
 
@@ -432,6 +439,24 @@ export default function PortalLayout({ onLogout }: PortalLayoutProps) {
                 />
               </div>
             </div>
+            {dealers && dealers.length > 0 && (
+              <div>
+                <label className="text-sm font-medium mb-1 block">Diller tanlash (ixtiyoriy)</label>
+                <Select value={selectedDealer} onValueChange={setSelectedDealer}>
+                  <SelectTrigger data-testid="select-order-dealer">
+                    <SelectValue placeholder="Diller tanlang..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Dillersiz</SelectItem>
+                    {dealers.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.name} {d.phone ? `(${d.phone})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium mb-1 block">Izoh</label>
               <Textarea

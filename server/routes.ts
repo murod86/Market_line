@@ -1875,6 +1875,14 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/portal/dealers", async (req, res) => {
+    const tenantId = req.session.tenantId;
+    if (!tenantId) return res.status(400).json({ message: "Do'kon tanlanmagan" });
+    const allDealers = await storage.getDealers(tenantId);
+    const publicDealers = allDealers.map(d => ({ id: d.id, name: d.name, phone: d.phone }));
+    res.json(publicDealers);
+  });
+
   app.get("/api/portal/catalog", async (req, res) => {
     const tenantId = req.session.tenantId;
     if (!tenantId) return res.status(400).json({ message: "Do'kon tanlanmagan" });
@@ -1923,7 +1931,7 @@ export async function registerRoutes(
       return res.status(401).json({ message: "Tizimga kirilmagan" });
     }
     try {
-      const { items, address, notes } = req.body;
+      const { items, address, notes, dealerId } = req.body;
       const tenantId = req.session.tenantId;
       if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ message: "Mahsulotlar majburiy" });
@@ -1943,6 +1951,7 @@ export async function registerRoutes(
           tenantId,
           customerId: req.session.customerId!,
           employeeId: null,
+          dealerId: dealerId || null,
           totalAmount: totalAmount.toFixed(2),
           discount: "0",
           paidAmount: "0",
