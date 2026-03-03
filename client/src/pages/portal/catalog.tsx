@@ -24,9 +24,10 @@ interface CatalogProps {
   cart: CartItem[];
   onAddToCart: (product: Product) => void;
   onUpdateQuantity: (productId: string, delta: number) => void;
+  onChangeUnit: (productId: string, unit: string) => void;
 }
 
-export default function PortalCatalog({ cart, onAddToCart, onUpdateQuantity }: CatalogProps) {
+export default function PortalCatalog({ cart, onAddToCart, onUpdateQuantity, onChangeUnit }: CatalogProps) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
@@ -47,8 +48,11 @@ export default function PortalCatalog({ cart, onAddToCart, onUpdateQuantity }: C
     return matchesSearch && matchesCategory;
   });
 
+  const getCartItem = (productId: string) => {
+    return cart.find((item) => item.product.id === productId);
+  };
   const getCartQty = (productId: string) => {
-    return cart.find((item) => item.product.id === productId)?.quantity || 0;
+    return getCartItem(productId)?.quantity || 0;
   };
 
   return (
@@ -97,7 +101,7 @@ export default function PortalCatalog({ cart, onAddToCart, onUpdateQuantity }: C
               <Card key={product.id} className="hover-elevate transition-all" data-testid={`card-catalog-${product.id}`}>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="flex items-center justify-center h-32 w-32 shrink-0 rounded-lg bg-muted overflow-hidden">
+                    <div className="flex items-center justify-center h-40 w-40 shrink-0 rounded-xl bg-muted overflow-hidden">
                       {product.imageUrl ? (
                         <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
                       ) : (
@@ -138,26 +142,42 @@ export default function PortalCatalog({ cart, onAddToCart, onUpdateQuantity }: C
                         Savatga qo'shish
                       </Button>
                     ) : (
-                      <div className="flex items-center justify-center gap-2">
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          className="h-8 w-8"
-                          onClick={() => onUpdateQuantity(product.id, -1)}
-                          data-testid={`button-catalog-minus-${product.id}`}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-center gap-2">
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-8 w-8"
+                            onClick={() => onUpdateQuantity(product.id, -1)}
+                            data-testid={`button-catalog-minus-${product.id}`}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className="w-8 text-center font-medium text-sm">{cartQty}</span>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-8 w-8"
+                            onClick={() => onUpdateQuantity(product.id, 1)}
+                            data-testid={`button-catalog-plus-${product.id}`}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <Select
+                          value={getCartItem(product.id)?.buyUnit || product.unit}
+                          onValueChange={(val) => onChangeUnit(product.id, val)}
                         >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="w-8 text-center font-medium text-sm">{cartQty}</span>
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          className="h-8 w-8"
-                          onClick={() => onUpdateQuantity(product.id, 1)}
-                          data-testid={`button-catalog-plus-${product.id}`}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
+                          <SelectTrigger className="h-7 text-xs" data-testid={`select-catalog-unit-${product.id}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="dona">dona</SelectItem>
+                            <SelectItem value="quti">quti</SelectItem>
+                            <SelectItem value="litr">litr</SelectItem>
+                            <SelectItem value="kg">kg</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     )}
                   </div>

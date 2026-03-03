@@ -1,0 +1,34 @@
+9:04:41 AM [express] GET /api/portal/me 304 in 9ms :: {"id":"9216a345-e80e-4859-84ce-6afb7b5dd1ec","tenantId":"5975c9aa-8d16-49fa-9ba6-c768fd3a83df","fullName":"eshshak arava","phone":"+998949109000","address":"oqchangal","telegramId":null,"dealerId":null,"debt":"2885958.00","active":true}
+9:04:41 AM [express] GET /api/portal/dealers 304 in 13ms :: [{"id":"27fc7df1-110a-41f9-aaa4-470e045a297a","name":"eshshak","phone":"+998949109000"},{"id":"9ada482e-1cde-4098-a7db-a0558607b829","name":"kgkhf","phone":";hpio"}]
+9:04:41 AM [express] GET /api/portal/categories 304 in 12ms :: [{"id":"2c3a8908-c171-452e-bef6-ca4df68c3a07","tenantId":"5975c9aa-8d16-49fa-9ba6-c768fd3a83df","name":"fjhcgjh","description":null},{"id":"f6e4b143-75c5-496c-9032-ee6e7290eb37","tenantId":"5975c9aa-8d16-49fa-9ba6-c768fd3a83df","name":"fgithsxgdrtgzf","description":null},{"id":"575e6fc8-a365-4e57-981a-f44ff10359ff","tenantId":"5975c9aa-8d16-49fa-9ba6-c768fd3a83df","name":"chkfjuj","description":null},{"id":"68372996-7de2-4572-a20e-84d7b25142fc","tenantId":"5975c9aa-8d16-49fa-9ba6-c768fd3a83df","name":"jdjhxdkicgk","description":null}]
+9:04:41 AM [express] GET /api/portal/catalog 200 in 9ms :: [{"id":"af6cb5bf-d9ad-45ae-83b1-8c88d2f814a4","tenantId":"5975c9aa-8d16-49fa-9ba6-c768fd3a83df","name":"kukuka","description":"hhhhaaa","sku":"0001141","price":"145000.00","stock":549,"categoryId":"575e6fc8-a365-4e57-981a-f44ff10359ff","imageUrl":"/uploads/1772369504739-zl4q8sfjtx.jpg","unit":"dona","boxQuantity":1,"active":true},{"id":"274890f4-869a-420f-957e-f723c4f1805c","tenantId":"5975c9aa-8d16-49fa-9ba6-c768fd3a83df","name":"yalama","description":"tishla","sku":"4564","price":"150000.00","stock":10,"categoryId":"68372996-7de2-4572-a20e-84d7b25142fc","imageUrl":"https://i.ytimg.com/vi/0UJDa8tl8_g/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-DoACuAiKAgwIABABGFggXShlMA8=&rs=AOn4CLDfo8KlZVenO66wBMiNryOkAQVmmQ","unit":"dona","boxQuantity":30,"active":true},{"id":"d222e94c-e73a-4fac-b8cc-ac60dc08f5df","tenantId":"5975c9aa-8d16-49fa-9ba6-c768fd3a83df","name":"qimmat","description":"judda qimmat","sku":"1","price":"900.00","stock":152,"categoryId":"68372996-7de2-4572-a20e-84d7b25142fc","imageUrl":"/uploads/1772369146148-7wztlkw90vb.jpg","unit":"dona","boxQuantity":50,"active":true},{"id":"1659f265-08b6-4b4d-b55a-2cc213eb14f6","tenantId":"5975c9aa-8d16-49fa-9ba6-c768fd3a83df","name":"yalagich marojna","description":"yalayverasiz tugamaydi","sku":"0012","price":"15000.00","stock":106,"categoryId":"575e6fc8-a365-4e57-981a-f44ff10359ff","imageUrl":"/uploads/1772362773691-h9rgo5j3hda.jpg","unit":"dona","boxQuantity":1,"active":true},{"id":"bc5405ef-2486-4036-83e1-d1afd8fc0807","tenantId":"5975c9aa-8d16-49fa-9ba6-c768fd3a83df","name":"Kakakaka","description":"12243","sku":"5645","price":"1000.00","stock":478,"categoryId":"575e6fc8-a365-4e57-981a-f44ff10359ff","imageUrl":null,"unit":"dona","boxQuantity":20,"active":true},{"id":"c422c33a-9697-4a6e-b63b-fb1458cdeaa6","tenantId":"5975c9aa-8d16-49fa-9ba6-c768fd3a83df","name":"56","description":"658","sku":"55","price":"100.00","stock":475,"categoryId":"f6e4b143-75c5-496c-9032-ee6e7290eb37","imageUrl":"/uploads/1772353581934-2z7e7p7c609.jpg","unit":"dona","boxQuantity":1,"active":true},{"id":"1da0fea0-3e76-4ac8-b35a-7de4516740db","tenantId":"5975c9aa-8d16-49fa-9ba6-c768fd3a83df","name":"1","description":"1","sku":"1","price":"10.00","stock":1544763,"categoryId":"f6e4b143-75c5-496c-9032-ee6e7290eb37","imageUrl":null,"unit":"kg","boxQuantity":1,"active":true},{"id":"36201103-f082-469a-946c-3ea1827d3e75","tenantId":"5975c9aa-8d16-49fa-9ba6-c768fd3a83df","name":"Оцосос","description":null,"sku":"54","price":"594.00","stock":29,"categoryId":"575e6fc8-a365-4e57-981a-f44ff10359ff","imageUrl":null,"unit":"dona","boxQuantity":1,"active":true},{"id":"6cb9a908-2f9c-48fd-9e76-380952d4e958","tenantId":"5975c9aa-8d16-49fa-9ba6-c768fd3a83df","name":"12","description":"hfc","sku":"2","price":"20.00","stock":398193,"categoryId":"575e6fc8-a365-4e57-981a-f44ff10359ff","imageUrl":"/uploads/1772353461952-9k03xjho44.jpg","unit":"dona","boxQuantity":1,"active":true}]
+  hint: undefined,
+  position: '57',
+Internal Server Error: error: column "dealer_id" does not exist
+    at /app/dist/index.cjs:68:13326
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async /app/dist/index.cjs:74:37954
+    at async yg.getCustomerSales (/app/dist/index.cjs:74:58591)
+    at async /app/dist/index.cjs:104:1549 {
+  length: 109,
+  severity: 'ERROR',
+  code: '42703',
+  internalPosition: undefined,
+  detail: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3716',
+  routine: 'errorMissingColumn'
+}
+9:04:49 AM [express] GET /api/portal/orders 500 in 13ms :: {"message":"column \"dealer_id\" does not exist"}
+9:04:56 AM [express] POST /api/portal/orders 500 in 23ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:05:05 AM [express] POST /api/portal/orders 500 in 18ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:05:08 AM [express] POST /api/portal/orders 500 in 19ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:05:11 AM [express] POST /api/portal/orders 500 in 15ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}
+9:05:14 AM [express] POST /api/portal/orders 500 in 33ms :: {"message":"column \"dealer_id\" of relation \"sales\" does not exist"}

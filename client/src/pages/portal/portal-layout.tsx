@@ -338,7 +338,7 @@ export default function PortalLayout({ onLogout }: PortalLayoutProps) {
 
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
         {activeTab === "catalog" && (
-          <PortalCatalog cart={cart} onAddToCart={addToCart} onUpdateQuantity={updateQuantity} />
+          <PortalCatalog cart={cart} onAddToCart={addToCart} onUpdateQuantity={updateQuantity} onChangeUnit={changeCartUnit} />
         )}
         {activeTab === "orders" && <PortalOrders />}
         {activeTab === "debt" && <PortalDebt />}
