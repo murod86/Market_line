@@ -1148,24 +1148,57 @@ function HistoryTab() {
 }
 
 function DebtTab({ dealer }: { dealer: any }) {
+  const { toast } = useToast();
   const { data: payments, isLoading } = useQuery<any[]>({
     queryKey: ["/api/dealer-portal/payments"],
+  });
+  const [payOpen, setPayOpen] = useState(false);
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState("cash");
+  const [payNotes, setPayNotes] = useState("");
+
+  const payMutation = useMutation({
+    mutationFn: async (data: { amount: number; method: string; notes: string | null }) => {
+      const res = await apiRequest("POST", "/api/dealer-portal/payments", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "To'lov muvaffaqiyatli qabul qilindi!" });
+      setPayOpen(false);
+      setPayAmount("");
+      setPayMethod("cash");
+      setPayNotes("");
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/payments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/profile"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Xatolik", description: error.message, variant: "destructive" });
+    },
   });
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
 
   const totalPaid = payments?.reduce((s: number, p: any) => s + Number(p.amount), 0) || 0;
+  const currentDebt = Number(dealer?.debt || 0);
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold" data-testid="text-debt-title">Qarz va to'lovlar</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold" data-testid="text-debt-title">Qarz va to'lovlar</h2>
+        {currentDebt > 0 && (
+          <Button onClick={() => setPayOpen(true)} data-testid="button-make-payment">
+            <CreditCard className="h-4 w-4 mr-2" />
+            To'lov qilish
+          </Button>
+        )}
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Card>
           <CardContent className="p-5 text-center">
             <p className="text-sm text-muted-foreground mb-1">Joriy qarz</p>
             <p className="text-3xl font-bold text-destructive" data-testid="text-dealer-debt">
-              {formatCurrency(Number(dealer?.debt || 0))}
+              {formatCurrency(currentDebt)}
             </p>
           </CardContent>
         </Card>
@@ -1178,6 +1211,78 @@ function DebtTab({ dealer }: { dealer: any }) {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={payOpen} onOpenChange={setPayOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adminga to'lov qilish</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">Joriy qarz:</p>
+              <p className="text-2xl font-bold text-destructive">{formatCurrency(currentDebt)}</p>
+            </div>
+            <div>
+              <Label>To'lov summasi (UZS)</Label>
+              <Input
+                type="number"
+                value={payAmount}
+                onChange={(e) => setPayAmount(e.target.value)}
+                placeholder="Summani kiriting"
+                data-testid="input-pay-amount"
+              />
+            </div>
+            <div>
+              <Label>To'lov turi</Label>
+              <div className="flex gap-2 mt-1">
+                {[
+                  { value: "cash", label: "Naqd", color: "text-green-600" },
+                  { value: "card", label: "Karta", color: "text-blue-600" },
+                  { value: "transfer", label: "O'tkazma", color: "text-purple-600" },
+                ].map((opt) => (
+                  <Button
+                    key={opt.value}
+                    type="button"
+                    variant={payMethod === opt.value ? "default" : "outline"}
+                    size="sm"
+                    className={`flex-1 ${payMethod === opt.value ? opt.color : ""}`}
+                    onClick={() => setPayMethod(opt.value)}
+                    data-testid={`button-pay-method-${opt.value}`}
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label>Izoh (ixtiyoriy)</Label>
+              <Input
+                value={payNotes}
+                onChange={(e) => setPayNotes(e.target.value)}
+                placeholder="Izoh..."
+                data-testid="input-pay-notes"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPayOpen(false)}>Bekor qilish</Button>
+            <Button
+              onClick={() => {
+                const amount = Number(payAmount);
+                if (!amount || amount <= 0) {
+                  toast({ title: "Summani kiriting", variant: "destructive" });
+                  return;
+                }
+                payMutation.mutate({ amount, method: payMethod, notes: payNotes || null });
+              }}
+              disabled={payMutation.isPending}
+              data-testid="button-confirm-payment"
+            >
+              {payMutation.isPending ? "Yuklanmoqda..." : "To'lovni tasdiqlash"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <h3 className="font-semibold text-sm text-muted-foreground">To'lovlar tarixi</h3>
       {payments && payments.length > 0 ? (

@@ -1290,6 +1290,43 @@ export async function registerRoutes(
     res.json(dealerPayments);
   });
 
+  app.post("/api/dealer-portal/payments", requireDealer, async (req, res) => {
+    try {
+      const dealerId = req.session.dealerId!;
+      const tenantId = req.session.tenantId!;
+      const dealer = await storage.getDealer(dealerId);
+      if (!dealer) return res.status(404).json({ message: "Diller topilmadi" });
+
+      const paySchema = z.object({
+        amount: z.number().positive("Summa musbat bo'lishi kerak"),
+        method: z.string().default("cash"),
+        notes: z.string().optional().nullable(),
+      });
+      const { amount, method, notes } = paySchema.parse(req.body);
+
+      const currentDebt = Number(dealer.debt);
+      if (amount > currentDebt) {
+        return res.status(400).json({ message: `Sizning qarzingiz ${currentDebt.toFixed(0)} UZS. Bundan ko'p to'lab bo'lmaydi` });
+      }
+
+      const newDebt = (currentDebt - amount).toFixed(2);
+      await storage.updateDealer(dealerId, { debt: newDebt });
+      const payment = await storage.createPayment({
+        tenantId,
+        type: "dealer",
+        customerId: null,
+        dealerId,
+        amount: amount.toFixed(2),
+        method,
+        notes: notes || null,
+      });
+
+      res.json({ payment, newDebt });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
   app.post("/api/dealer-portal/sell", requireDealer, async (req, res) => {
     try {
       const dealerId = req.session.dealerId!;
