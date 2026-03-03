@@ -25,6 +25,14 @@ export default function DealerLogin({ onLogin }: DealerLoginProps) {
   });
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const storeParam = params.get("store");
+    const phoneParam = params.get("phone");
+    if (storeParam && !selectedTenantId) setSelectedTenantId(storeParam);
+    if (phoneParam && !loginPhone) setLoginPhone(decodeURIComponent(phoneParam));
+  }, []);
+
+  useEffect(() => {
     if (tenantsList && !selectedTenantId && tenantsList.length === 1) {
       setSelectedTenantId(tenantsList[0].id);
     }

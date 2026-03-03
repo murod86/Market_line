@@ -17,9 +17,12 @@ import type { Dealer, Product, Category } from "@shared/schema";
 import {
   UserCheck, Plus, Edit, Phone, Car, Package, Search,
   Minus, Trash2, ArrowDownToLine, ArrowUpFromLine, ShoppingCart,
-  History, Eye, Printer, RotateCcw, Banknote
+  History, Eye, Printer, RotateCcw, Banknote, QrCode, Download
 } from "lucide-react";
 import { format } from "date-fns";
+import { useRef, useCallback } from "react";
+import { QRCodeSVG } from "qrcode.react";
+import logoImg from "@assets/marketline_pro_logo_1.png";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -76,9 +79,12 @@ export default function Dealers() {
   const [formPhone, setFormPhone] = useState("");
   const [formVehicle, setFormVehicle] = useState("");
   const [formPassword, setFormPassword] = useState("");
+  const [qrDealer, setQrDealer] = useState<Dealer | null>(null);
+  const qrRef = useRef<HTMLDivElement>(null);
 
   const { toast } = useToast();
 
+  const { data: user } = useQuery<any>({ queryKey: ["/api/auth/me"] });
   const { data: dealersList, isLoading } = useQuery<Dealer[]>({ queryKey: ["/api/dealers"] });
   const { data: products } = useQuery<Product[]>({ queryKey: ["/api/products"] });
   const { data: categories } = useQuery<Category[]>({ queryKey: ["/api/categories"] });
@@ -103,10 +109,13 @@ export default function Dealers() {
       const res = await apiRequest("POST", "/api/dealers", data);
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (newDealer: any) => {
       toast({ title: "Diller qo'shildi" });
       queryClient.invalidateQueries({ queryKey: ["/api/dealers"] });
       setCreateOpen(false);
+      if (newDealer?.phone) {
+        setQrDealer(newDealer);
+      }
       resetForm();
     },
     onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
@@ -1149,6 +1158,11 @@ export default function Dealers() {
                     <Eye className="h-3 w-3 mr-1" />
                     Ko'rish
                   </Button>
+                  {dealer.phone && (
+                    <Button size="sm" variant="outline" onClick={() => setQrDealer(dealer)} data-testid={`button-qr-dealer-${dealer.id}`}>
+                      <QrCode className="h-3 w-3" />
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" onClick={() => {
                     setFormName(dealer.name);
                     setFormPhone(dealer.phone || "");
@@ -1434,6 +1448,84 @@ export default function Dealers() {
               {deleteTxMutation.isPending ? "O'chirilmoqda..." : "O'chirish"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!qrDealer} onOpenChange={(o) => { if (!o) setQrDealer(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              Diller QR kodi
+            </DialogTitle>
+          </DialogHeader>
+          {qrDealer && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/50 text-sm">
+                <p className="font-medium">{qrDealer.name}</p>
+                {qrDealer.phone && <p className="text-muted-foreground">{qrDealer.phone}</p>}
+              </div>
+              <div className="flex justify-center" ref={qrRef}>
+                <div className="bg-white p-4 rounded-xl shadow-sm">
+                  <QRCodeSVG
+                    value={`${window.location.origin}/dealer-portal?store=${user?.tenantId || ""}&phone=${encodeURIComponent(qrDealer.phone || "")}`}
+                    size={200}
+                    level="M"
+                    imageSettings={{
+                      src: logoImg,
+                      height: 36,
+                      width: 36,
+                      excavate: true,
+                    }}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-center text-muted-foreground">
+                Diller bu QR kodni skanerlab portalga kirishi mumkin
+              </p>
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={() => {
+                  const svgEl = qrRef.current?.querySelector("svg");
+                  if (!svgEl) return;
+                  const serializer = new XMLSerializer();
+                  const data = serializer.serializeToString(svgEl);
+                  const canvas = document.createElement("canvas");
+                  canvas.width = 400;
+                  canvas.height = 460;
+                  const ctx = canvas.getContext("2d")!;
+                  ctx.fillStyle = "#ffffff";
+                  ctx.fillRect(0, 0, 400, 460);
+                  const img = new Image();
+                  img.onload = () => {
+                    ctx.drawImage(img, 68, 20, 264, 264);
+                    ctx.fillStyle = "#333";
+                    ctx.font = "bold 18px Arial";
+                    ctx.textAlign = "center";
+                    ctx.fillText(qrDealer!.name, 200, 320);
+                    if (qrDealer!.phone) {
+                      ctx.font = "14px Arial";
+                      ctx.fillStyle = "#666";
+                      ctx.fillText(qrDealer!.phone, 200, 345);
+                    }
+                    ctx.font = "12px Arial";
+                    ctx.fillStyle = "#999";
+                    ctx.fillText("MARKET_LINE - Diller portali", 200, 380);
+                    const link = document.createElement("a");
+                    link.download = `diller-qr-${qrDealer!.name}.png`;
+                    link.href = canvas.toDataURL("image/png");
+                    link.click();
+                  };
+                  img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(data)));
+                }}
+                data-testid="button-download-dealer-qr"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                QR kodni yuklab olish
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
