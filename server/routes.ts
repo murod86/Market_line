@@ -1537,6 +1537,27 @@ export async function registerRoutes(
         if (!allowed || !allowed.includes(status)) {
           return res.status(400).json({ message: "Bu holatdan o'tkazish mumkin emas" });
         }
+
+        if (status === "in_transit" && delivery.saleId) {
+          const saleItemsList = await storage.getSaleItems(delivery.saleId);
+          for (const item of saleItemsList) {
+            const inv = await storage.getDealerInventoryItem(dealerId, item.productId);
+            const currentQty = inv?.quantity || 0;
+            if (currentQty < item.quantity) {
+              const allProducts = await storage.getProducts(tenantId);
+              const prod = allProducts.find(p => p.id === item.productId);
+              return res.status(400).json({
+                message: `${prod?.name || "Mahsulot"} omborida yetarli emas (mavjud: ${currentQty}, kerak: ${item.quantity})`
+              });
+            }
+          }
+          for (const item of saleItemsList) {
+            const inv = await storage.getDealerInventoryItem(dealerId, item.productId);
+            const newQty = (inv?.quantity || 0) - item.quantity;
+            await storage.upsertDealerInventory(dealerId, item.productId, Math.max(0, newQty), tenantId);
+          }
+        }
+
         const updated = await storage.updateDelivery(delivery.id, { status });
         if (status === "delivered" && delivery.saleId) {
           const sale = await storage.getSale(delivery.saleId);
@@ -1559,6 +1580,26 @@ export async function registerRoutes(
           if (saleStatus !== "pending" && saleStatus !== "delivering") {
             return res.status(400).json({ message: "Bu holatdan o'tkazish mumkin emas" });
           }
+
+          const saleItemsList = await storage.getSaleItems(sale.id);
+          for (const item of saleItemsList) {
+            const inv = await storage.getDealerInventoryItem(dealerId, item.productId);
+            const currentQty = inv?.quantity || 0;
+            if (currentQty < item.quantity) {
+              const allProducts = await storage.getProducts(tenantId);
+              const prod = allProducts.find(p => p.id === item.productId);
+              return res.status(400).json({
+                message: `${prod?.name || "Mahsulot"} omborida yetarli emas (mavjud: ${currentQty}, kerak: ${item.quantity})`
+              });
+            }
+          }
+
+          for (const item of saleItemsList) {
+            const inv = await storage.getDealerInventoryItem(dealerId, item.productId);
+            const newQty = (inv?.quantity || 0) - item.quantity;
+            await storage.upsertDealerInventory(dealerId, item.productId, Math.max(0, newQty), tenantId);
+          }
+
           await storage.updateSale(sale.id, { status: "delivering" } as any);
 
           const customer = sale.customer_id ? await storage.getCustomer(sale.customer_id) : null;
