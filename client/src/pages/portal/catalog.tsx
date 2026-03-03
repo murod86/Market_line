@@ -97,7 +97,7 @@ export default function PortalCatalog({ cart, onAddToCart, onUpdateQuantity }: C
               <Card key={product.id} className="hover-elevate transition-all" data-testid={`card-catalog-${product.id}`}>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="flex items-center justify-center h-24 w-24 shrink-0 rounded-lg bg-muted overflow-hidden">
+                    <div className="flex items-center justify-center h-32 w-32 shrink-0 rounded-lg bg-muted overflow-hidden">
                       {product.imageUrl ? (
                         <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
                       ) : (

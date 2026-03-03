@@ -375,20 +375,20 @@ export default function PortalLayout({ onLogout }: PortalLayoutProps) {
                         )}
                       </div>
                       <div className="flex items-center gap-1">
-                        {(item.product.boxQuantity || 1) > 1 && (
-                          <Select
-                            value={item.buyUnit}
-                            onValueChange={(val) => changeCartUnit(item.product.id, val)}
-                          >
-                            <SelectTrigger className="h-7 w-16 text-[10px] px-1.5">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value={item.product.unit}>{item.product.unit}</SelectItem>
-                              <SelectItem value="quti">quti</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
+                        <Select
+                          value={item.buyUnit}
+                          onValueChange={(val) => changeCartUnit(item.product.id, val)}
+                        >
+                          <SelectTrigger className="h-7 w-16 text-[10px] px-1.5">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="dona">dona</SelectItem>
+                            <SelectItem value="quti">quti</SelectItem>
+                            <SelectItem value="litr">litr</SelectItem>
+                            <SelectItem value="kg">kg</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, -1)}>
                           <Minus className="h-3 w-3" />
                         </Button>
