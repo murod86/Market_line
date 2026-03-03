@@ -135,12 +135,63 @@ export default function Dealers() {
     onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
   });
 
+  const printLoadReceipt = (items: CartItem[], dealerName: string) => {
+    const now = new Date();
+    const dateStr = format(now, "dd.MM.yyyy HH:mm");
+    const total = items.reduce((s, i) => s + i.price * i.stockPieces, 0);
+
+    const itemsHtml = items.map((item, idx) =>
+      `<tr>
+        <td style="padding:3px 2px;font-size:11px;border-bottom:1px dashed #ccc">${idx + 1}. ${item.name}</td>
+        <td style="padding:3px 2px;font-size:11px;text-align:center;border-bottom:1px dashed #ccc">${item.buyUnit === "quti" ? `${item.quantity} quti (${item.stockPieces} ${item.unit})` : `${item.stockPieces} ${item.unit}`}</td>
+        <td style="padding:3px 2px;font-size:11px;text-align:right;border-bottom:1px dashed #ccc">${(item.price * item.stockPieces).toLocaleString()}</td>
+      </tr>`
+    ).join("");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+      <style>
+        @page { size: 58mm auto; margin: 2mm; }
+        body { font-family: 'Courier New', monospace; font-size: 11px; margin: 0; padding: 4px; width: 54mm; }
+        .center { text-align: center; }
+        .bold { font-weight: bold; }
+        .divider { border-top: 1px dashed #000; margin: 6px 0; }
+        table { width: 100%; border-collapse: collapse; }
+      </style></head><body>
+      <div class="center bold" style="font-size:14px;margin-bottom:4px">MARKET_LINE</div>
+      <div class="center" style="font-size:10px;margin-bottom:6px">Dillerga yuklash hujjati</div>
+      <div class="divider"></div>
+      <div style="font-size:10px;margin-bottom:2px"><b>Diller:</b> ${dealerName}</div>
+      <div style="font-size:10px;margin-bottom:4px"><b>Sana:</b> ${dateStr}</div>
+      <div style="font-size:10px;margin-bottom:4px"><b>Mahsulotlar soni:</b> ${items.length} ta</div>
+      <div class="divider"></div>
+      <table>
+        <tr><th style="text-align:left;font-size:10px">Nomi</th><th style="text-align:center;font-size:10px">Soni</th><th style="text-align:right;font-size:10px">Narxi</th></tr>
+        ${itemsHtml}
+      </table>
+      <div class="divider"></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px" class="bold">
+        <span>JAMI:</span><span>${total.toLocaleString()} UZS</span>
+      </div>
+      <div class="divider"></div>
+      <div style="display:flex;justify-content:space-between;margin-top:20px;font-size:10px">
+        <div>Topshirdi: __________</div>
+        <div>Qabul qildi: __________</div>
+      </div>
+      <div class="center" style="font-size:9px;margin-top:12px;color:#888">MARKET_LINE</div>
+      <script>window.onload=function(){window.print();setTimeout(function(){window.close()},5000)}</script>
+    </body></html>`;
+
+    const w = window.open("", "_blank", "width=300,height=600");
+    if (w) { w.document.write(html); w.document.close(); }
+  };
+
   const loadMutation = useMutation({
     mutationFn: async (data: any) => {
       const res = await apiRequest("POST", `/api/dealers/${detailDealer!.id}/load`, data);
       return res.json();
     },
     onSuccess: () => {
+      printLoadReceipt(cart, detailDealer?.name || "Diller");
       toast({ title: "Mahsulotlar dillerga yuklandi" });
       queryClient.invalidateQueries({ queryKey: ["/api/dealers", detailDealer?.id, "inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dealers", detailDealer?.id, "transactions"] });
