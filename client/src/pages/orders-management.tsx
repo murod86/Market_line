@@ -337,6 +337,17 @@ export default function OrdersManagement() {
                               <Button
                                 size="sm"
                                 variant="outline"
+                                className="h-7 text-xs text-blue-600 border-blue-200 hover:bg-blue-50"
+                                onClick={() => { setDeliverOrder(order); setSelectedDealerId(""); }}
+                                disabled={statusMutation.isPending}
+                                data-testid={`button-deliver-pending-order-${order.id}`}
+                              >
+                                <Truck className="h-3 w-3 mr-1" />
+                                Dillerga
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
                                 className="h-7 text-xs text-red-600 border-red-200 hover:bg-red-50"
                                 onClick={() => statusMutation.mutate({ id: order.id, status: "cancelled" })}
                                 disabled={statusMutation.isPending}
@@ -357,7 +368,7 @@ export default function OrdersManagement() {
                               data-testid={`button-deliver-order-${order.id}`}
                             >
                               <Truck className="h-3 w-3 mr-1" />
-                              Yetkazishga
+                              Dillerga
                             </Button>
                           )}
                           {order.status === "delivering" && (

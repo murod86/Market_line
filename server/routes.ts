@@ -2044,7 +2044,7 @@ export async function registerRoutes(
       const tenantId = req.session.tenantId!;
       const { status, dealerId } = req.body;
       const validTransitions: Record<string, string[]> = {
-        pending: ["completed", "cancelled"],
+        pending: ["completed", "delivering", "cancelled"],
         completed: ["delivering", "cancelled"],
         delivering: ["shipped", "cancelled"],
       };

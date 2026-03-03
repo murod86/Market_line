@@ -57,7 +57,7 @@ export default function DealerLayout({ onLogout }: DealerLayoutProps) {
     { id: "inventory" as const, label: "Ombor", icon: Package },
     { id: "sell" as const, label: "Sotish", icon: ShoppingCart },
     { id: "customers" as const, label: "Mijozlarim", icon: User },
-    { id: "delivery" as const, label: "Yetkazish", icon: Truck },
+    { id: "delivery" as const, label: "Buyurtmalar", icon: Truck },
     { id: "history" as const, label: "Tarix", icon: History },
     { id: "debt" as const, label: "Qarz", icon: CreditCard },
   ];
@@ -996,11 +996,11 @@ function DeliveryTab() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold" data-testid="text-delivery-title">Yetkazib berish</h2>
+      <h2 className="text-lg font-bold" data-testid="text-delivery-title">Buyurtmalar</h2>
 
       {active.length > 0 && (
         <div className="space-y-3">
-          <p className="text-sm font-medium text-muted-foreground">Faol yetkazishlar ({active.length})</p>
+          <p className="text-sm font-medium text-muted-foreground">Faol buyurtmalar ({active.length})</p>
           {active.map((d: any) => {
             const st = statusMap[d.status] || statusMap.pending;
             return (
@@ -1071,7 +1071,7 @@ function DeliveryTab() {
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <Truck className="h-10 w-10 mx-auto mb-3 opacity-20" />
-            <p>Hozircha yetkazish topshiriqlari yo'q</p>
+            <p>Hozircha buyurtmalar yo'q</p>
             <p className="text-sm mt-1">Admin buyurtma tayinlaganda bu yerda ko'rinadi</p>
           </CardContent>
         </Card>
