@@ -391,11 +391,7 @@ function SellTab() {
   };
 
   const getUnitOptions = (item: SellCartItem) => {
-    const allUnits = ["dona", "kg", "gram", "litr", "metr"];
     const units: string[] = [item.unit];
-    for (const u of allUnits) {
-      if (!units.includes(u)) units.push(u);
-    }
     if (item.boxQuantity > 1 && !units.includes("quti")) units.push("quti");
     return units;
   };
@@ -711,8 +707,8 @@ function SellTab() {
                 <div className="space-y-1">
                   {cart.map((item) => (
                     <div key={item.productId} className="flex justify-between text-sm">
-                      <span>{item.name} × {item.quantity}</span>
-                      <span className="font-medium">{formatCurrency(item.price * item.quantity)}</span>
+                      <span>{item.name} × {item.buyUnit === "quti" ? `${item.quantity} quti (${item.stockPieces} ${item.unit})` : `${item.stockPieces} ${item.unit}`}</span>
+                      <span className="font-medium">{formatCurrency(item.price * item.stockPieces)}</span>
                     </div>
                   ))}
                 </div>

@@ -101,7 +101,7 @@ export default function POS() {
         subtotal: sub,
         discount,
         total: tot,
-        paidAmount: paymentType === "debt" ? Number(paidAmount || 0) : tot,
+        paidAmount: paymentType === "debt" ? Number(paidAmount || 0) : pd,
         change: paymentType === "cash" ? pd - tot : 0,
         paymentType,
         customerName: customer?.fullName || null,
