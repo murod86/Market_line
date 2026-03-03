@@ -1525,27 +1525,78 @@ export async function registerRoutes(
     try {
       const dealerId = req.session.dealerId!;
       const tenantId = req.session.tenantId!;
-      const delivery = await storage.getDelivery(req.params.id);
-      if (!delivery || delivery.dealerId !== dealerId) {
-        return res.status(404).json({ message: "Yetkazish topilmadi" });
-      }
       const { status } = req.body;
-      const valid: Record<string, string[]> = {
-        pending: ["in_transit"],
-        in_transit: ["delivered"],
-      };
-      const allowed = valid[delivery.status];
-      if (!allowed || !allowed.includes(status)) {
-        return res.status(400).json({ message: "Bu holatdan o'tkazish mumkin emas" });
-      }
-      const updated = await storage.updateDelivery(delivery.id, { status });
-      if (status === "delivered" && delivery.saleId) {
-        const sale = await storage.getSale(delivery.saleId);
-        if (sale && sale.status === "delivering") {
-          await storage.updateSale(sale.id, { status: "shipped" } as any);
+
+      const delivery = await storage.getDelivery(req.params.id);
+      if (delivery && delivery.dealerId === dealerId) {
+        const valid: Record<string, string[]> = {
+          pending: ["in_transit"],
+          in_transit: ["delivered"],
+        };
+        const allowed = valid[delivery.status];
+        if (!allowed || !allowed.includes(status)) {
+          return res.status(400).json({ message: "Bu holatdan o'tkazish mumkin emas" });
         }
+        const updated = await storage.updateDelivery(delivery.id, { status });
+        if (status === "delivered" && delivery.saleId) {
+          const sale = await storage.getSale(delivery.saleId);
+          if (sale && sale.status === "delivering") {
+            await storage.updateSale(sale.id, { status: "shipped" } as any);
+          }
+        }
+        return res.json(updated);
       }
-      res.json(updated);
+
+      const saleCheck = await pool.query(
+        `SELECT * FROM sales WHERE id = $1 AND dealer_id = $2 AND tenant_id = $3`,
+        [req.params.id, dealerId, tenantId]
+      );
+      if (saleCheck.rows.length > 0) {
+        const sale = saleCheck.rows[0];
+        const saleStatus = sale.status;
+
+        if (status === "in_transit") {
+          if (saleStatus !== "pending" && saleStatus !== "delivering") {
+            return res.status(400).json({ message: "Bu holatdan o'tkazish mumkin emas" });
+          }
+          await storage.updateSale(sale.id, { status: "delivering" } as any);
+
+          const customer = sale.customer_id ? await storage.getCustomer(sale.customer_id) : null;
+          const [newDelivery] = await db.insert(deliveries).values({
+            tenantId,
+            saleId: sale.id,
+            customerId: sale.customer_id,
+            customerName: customer?.fullName || "Noma'lum",
+            customerPhone: customer?.phone || "",
+            address: customer?.address || "",
+            status: "in_transit",
+            dealerId,
+          }).returning();
+
+          return res.json(newDelivery);
+        }
+
+        if (status === "delivered") {
+          if (saleStatus !== "delivering") {
+            return res.status(400).json({ message: "Bu holatdan o'tkazish mumkin emas" });
+          }
+          await storage.updateSale(sale.id, { status: "shipped" } as any);
+
+          const existingDelivery = await pool.query(
+            `SELECT id FROM deliveries WHERE sale_id = $1 AND dealer_id = $2`,
+            [sale.id, dealerId]
+          );
+          if (existingDelivery.rows.length > 0) {
+            const updated = await storage.updateDelivery(existingDelivery.rows[0].id, { status: "delivered" });
+            return res.json(updated);
+          }
+          return res.json({ id: sale.id, status: "delivered" });
+        }
+
+        return res.status(400).json({ message: "Noto'g'ri status" });
+      }
+
+      return res.status(404).json({ message: "Yetkazish topilmadi" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
