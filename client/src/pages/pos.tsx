@@ -454,25 +454,30 @@ export default function POS() {
               <p className="text-xs mt-1">Mahsulot qo'shish uchun ustiga bosing</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {cart.map((item) => (
                 <div
                   key={item.product.id}
-                  className="flex items-center gap-3 p-2 rounded-md bg-background"
+                  className="p-2 rounded-md bg-background space-y-1.5"
                   data-testid={`cart-item-${item.product.id}`}
                 >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{item.product.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatCurrency(Number(item.product.price))} / {item.product.unit}
-                    </p>
-                    {item.buyUnit === "quti" && (item.product.boxQuantity || 1) > 1 && (
-                      <p className="text-[10px] text-blue-600">
-                        {item.quantity} quti × {item.product.boxQuantity} = {item.stockPieces} {item.product.unit}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium leading-tight">{item.product.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatCurrency(Number(item.product.price))} / {item.product.unit}
                       </p>
-                    )}
+                      {item.buyUnit === "quti" && (item.product.boxQuantity || 1) > 1 && (
+                        <p className="text-[10px] text-blue-600">
+                          {item.quantity} quti × {item.product.boxQuantity} = {item.stockPieces} {item.product.unit}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-sm font-semibold text-right shrink-0">
+                      {formatCurrency(item.stockPieces * Number(item.product.price))}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center justify-between">
                     <Select
                       value={item.buyUnit}
                       onValueChange={(val) => changeCartUnit(item.product.id, val)}
@@ -489,39 +494,38 @@ export default function POS() {
                         <SelectItem value="metr">metr</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="h-7 w-7"
-                      onClick={() => updateQuantity(item.product.id, -1)}
-                      data-testid={`button-minus-${item.product.id}`}
-                    >
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <span className="w-8 text-center text-sm font-medium">
-                      {item.quantity}
-                    </span>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="h-7 w-7"
-                      onClick={() => updateQuantity(item.product.id, 1)}
-                      data-testid={`button-plus-${item.product.id}`}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7 text-destructive"
-                      onClick={() => removeFromCart(item.product.id)}
-                      data-testid={`button-remove-${item.product.id}`}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  <div className="text-sm font-semibold w-24 text-right">
-                    {formatCurrency(item.stockPieces * Number(item.product.price))}
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-7 w-7"
+                        onClick={() => updateQuantity(item.product.id, -1)}
+                        data-testid={`button-minus-${item.product.id}`}
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="w-8 text-center text-sm font-medium">
+                        {item.quantity}
+                      </span>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-7 w-7"
+                        onClick={() => updateQuantity(item.product.id, 1)}
+                        data-testid={`button-plus-${item.product.id}`}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-destructive"
+                        onClick={() => removeFromCart(item.product.id)}
+                        data-testid={`button-remove-${item.product.id}`}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
