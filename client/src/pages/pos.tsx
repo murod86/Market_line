@@ -24,6 +24,10 @@ import {
   X,
   Package,
   Printer,
+  UserPlus,
+  User,
+  Phone,
+  MapPin,
 } from "lucide-react";
 
 interface CartItem {
@@ -58,12 +62,18 @@ export default function POS() {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedCustomer, setSelectedCustomer] = useState<string>("");
+  const [customerSearch, setCustomerSearch] = useState("");
   const [paymentType, setPaymentType] = useState<string>("cash");
-  const [discount, setDiscount] = useState<number>(0);
+  const [discountValue, setDiscountValue] = useState<string>("");
+  const [discountType, setDiscountType] = useState<"amount" | "percent">("amount");
   const [paidAmount, setPaidAmount] = useState<string>("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [newCustomerOpen, setNewCustomerOpen] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [newCustomerAddress, setNewCustomerAddress] = useState("");
   const receiptRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -84,6 +94,25 @@ export default function POS() {
   });
 
   const companyName = settings?.find((s) => s.key === "company_name")?.value || "MARKET_LINE";
+
+  const newCustomerMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/customers", data);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({ title: "Mijoz qo'shildi!" });
+      setSelectedCustomer(data.id);
+      setNewCustomerOpen(false);
+      setNewCustomerName("");
+      setNewCustomerPhone("");
+      setNewCustomerAddress("");
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Xatolik", description: error.message, variant: "destructive" });
+    },
+  });
 
   const saleMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -110,9 +139,11 @@ export default function POS() {
 
       toast({ title: "Savdo muvaffaqiyatli yakunlandi!" });
       setCart([]);
-      setDiscount(0);
+      setDiscountValue("");
+      setDiscountType("amount");
       setPaidAmount("");
       setSelectedCustomer("");
+      setCustomerSearch("");
       setPaymentType("cash");
       setCheckoutOpen(false);
       setReceiptOpen(true);
@@ -202,9 +233,19 @@ export default function POS() {
     (sum, item) => sum + item.stockPieces * Number(item.product.price),
     0
   );
-  const total = subtotal - discount;
+  const discountNum = Math.max(0, Number(discountValue) || 0);
+  const discount = discountType === "percent"
+    ? Math.min(Math.round(subtotal * discountNum / 100), subtotal)
+    : Math.min(discountNum, subtotal);
+  const total = Math.max(0, subtotal - discount);
   const paid = paidAmount ? Number(paidAmount) : total;
   const change = paid - total;
+
+  const filteredCustomers = customers?.filter((c) =>
+    !customerSearch ||
+    c.fullName.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    (c.phone && c.phone.includes(customerSearch))
+  );
 
   const handleCheckout = () => {
     if (cart.length === 0) return;
@@ -525,19 +566,55 @@ export default function POS() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium mb-1 block">Mijoz (ixtiyoriy)</label>
-              <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                <SelectTrigger data-testid="select-customer">
-                  <SelectValue placeholder="Mijoz tanlang" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers?.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.fullName} ({c.phone})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-sm font-medium">Mijoz (ixtiyoriy)</label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => setNewCustomerOpen(true)}
+                  data-testid="button-add-new-customer"
+                >
+                  <UserPlus className="h-3 w-3" />
+                  Yangi mijoz
+                </Button>
+              </div>
+              <div className="relative mb-2">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Mijoz qidirish (ism yoki telefon)..."
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  className="pl-9 h-9 text-sm"
+                  data-testid="input-customer-search"
+                />
+              </div>
+              <div className="max-h-32 overflow-y-auto border rounded-md">
+                <div
+                  className={`px-3 py-1.5 text-sm cursor-pointer hover:bg-accent ${!selectedCustomer ? "bg-accent font-medium" : ""}`}
+                  onClick={() => setSelectedCustomer("")}
+                  data-testid="option-no-customer"
+                >
+                  — Mijozsiz —
+                </div>
+                {filteredCustomers?.map((c) => (
+                  <div
+                    key={c.id}
+                    className={`px-3 py-1.5 text-sm cursor-pointer hover:bg-accent flex items-center justify-between ${selectedCustomer === c.id ? "bg-accent font-medium" : ""}`}
+                    onClick={() => setSelectedCustomer(c.id)}
+                    data-testid={`option-customer-${c.id}`}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <User className="h-3 w-3 text-muted-foreground" />
+                      {c.fullName}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{c.phone}</span>
+                  </div>
+                ))}
+                {filteredCustomers?.length === 0 && (
+                  <div className="px-3 py-2 text-xs text-muted-foreground text-center">Mijoz topilmadi</div>
+                )}
+              </div>
             </div>
 
             <div>
@@ -563,18 +640,47 @@ export default function POS() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1 block">Chegirma (UZS)</label>
-              <div className="relative">
-                <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="number"
-                  value={discount || ""}
-                  onChange={(e) => setDiscount(Number(e.target.value) || 0)}
-                  className="pl-10"
-                  placeholder="0"
-                  data-testid="input-discount"
-                />
+              <label className="text-sm font-medium mb-1 block">Chegirma</label>
+              <div className="flex gap-2">
+                <div className="flex border rounded-md overflow-hidden shrink-0">
+                  <button
+                    type="button"
+                    className={`px-3 py-1.5 text-xs font-medium transition-colors ${discountType === "amount" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-accent"}`}
+                    onClick={() => setDiscountType("amount")}
+                    data-testid="button-discount-amount"
+                  >
+                    UZS
+                  </button>
+                  <button
+                    type="button"
+                    className={`px-3 py-1.5 text-xs font-medium transition-colors ${discountType === "percent" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-accent"}`}
+                    onClick={() => setDiscountType("percent")}
+                    data-testid="button-discount-percent"
+                  >
+                    %
+                  </button>
+                </div>
+                <div className="relative flex-1">
+                  {discountType === "percent" ? (
+                    <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  )}
+                  <Input
+                    type="number"
+                    value={discountValue}
+                    onChange={(e) => setDiscountValue(e.target.value)}
+                    className="pl-10"
+                    placeholder={discountType === "percent" ? "0-100" : "0"}
+                    data-testid="input-discount"
+                  />
+                </div>
               </div>
+              {discount > 0 && (
+                <p className="text-xs text-destructive mt-1" data-testid="text-discount-preview">
+                  Chegirma: -{formatCurrency(discount)} {discountType === "percent" && `(${discountNum}%)`}
+                </p>
+              )}
             </div>
 
             {paymentType === "debt" && (
@@ -754,6 +860,80 @@ export default function POS() {
             <Button onClick={handlePrintReceipt} data-testid="button-print-receipt">
               <Printer className="h-4 w-4 mr-2" />
               Chop etish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={newCustomerOpen} onOpenChange={setNewCustomerOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Yangi mijoz qo'shish
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Ism *</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={newCustomerName}
+                  onChange={(e) => setNewCustomerName(e.target.value)}
+                  placeholder="Ism familya"
+                  className="pl-10"
+                  data-testid="input-new-customer-name"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Telefon</label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={newCustomerPhone}
+                  onChange={(e) => setNewCustomerPhone(e.target.value)}
+                  placeholder="+998 90 123 45 67"
+                  className="pl-10"
+                  data-testid="input-new-customer-phone"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Manzil</label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={newCustomerAddress}
+                  onChange={(e) => setNewCustomerAddress(e.target.value)}
+                  placeholder="Manzil"
+                  className="pl-10"
+                  data-testid="input-new-customer-address"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewCustomerOpen(false)} data-testid="button-cancel-new-customer">
+              Bekor qilish
+            </Button>
+            <Button
+              onClick={() => {
+                if (!newCustomerName.trim()) {
+                  toast({ title: "Ism majburiy", variant: "destructive" });
+                  return;
+                }
+                newCustomerMutation.mutate({
+                  fullName: newCustomerName.trim(),
+                  phone: newCustomerPhone.trim() || null,
+                  address: newCustomerAddress.trim() || null,
+                });
+              }}
+              disabled={newCustomerMutation.isPending}
+              data-testid="button-save-new-customer"
+            >
+              {newCustomerMutation.isPending ? "Saqlanmoqda..." : "Saqlash"}
             </Button>
           </DialogFooter>
         </DialogContent>

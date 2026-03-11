@@ -380,7 +380,8 @@ function SellTab() {
   const [notes, setNotes] = useState("");
   const [paymentType, setPaymentType] = useState<"cash" | "debt" | "partial">("cash");
   const [paidAmount, setPaidAmount] = useState("");
-  const [discount, setDiscount] = useState("");
+  const [discountValue, setDiscountValue] = useState("");
+  const [discountType, setDiscountType] = useState<"amount" | "percent">("amount");
   const { toast } = useToast();
 
   const { data: inventory } = useQuery<any[]>({
@@ -468,7 +469,8 @@ function SellTab() {
       setNotes("");
       setPaymentType("cash");
       setPaidAmount("");
-      setDiscount("");
+      setDiscountValue("");
+      setDiscountType("amount");
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -545,7 +547,10 @@ function SellTab() {
   };
 
   const subtotal = cart.reduce((s, c) => s + c.price * c.stockPieces, 0);
-  const discountAmount = Number(discount) || 0;
+  const discountNum = Math.max(0, Number(discountValue) || 0);
+  const discountAmount = discountType === "percent"
+    ? Math.min(Math.round(subtotal * discountNum / 100), subtotal)
+    : Math.min(discountNum, subtotal);
   const total = Math.max(0, subtotal - discountAmount);
 
   const handleSell = () => {
@@ -778,17 +783,38 @@ function SellTab() {
             )}
 
             <div>
-              <Label>Chegirma (UZS)</Label>
-              <Input
-                type="number"
-                value={discount}
-                onChange={(e) => setDiscount(e.target.value)}
-                placeholder="0"
-                data-testid="input-sell-discount"
-              />
+              <Label className="mb-1 block">Chegirma</Label>
+              <div className="flex gap-2">
+                <div className="flex border rounded-md overflow-hidden shrink-0">
+                  <button
+                    type="button"
+                    className={`px-3 py-1.5 text-xs font-medium transition-colors ${discountType === "amount" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-accent"}`}
+                    onClick={() => setDiscountType("amount")}
+                    data-testid="button-sell-discount-amount"
+                  >
+                    UZS
+                  </button>
+                  <button
+                    type="button"
+                    className={`px-3 py-1.5 text-xs font-medium transition-colors ${discountType === "percent" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-accent"}`}
+                    onClick={() => setDiscountType("percent")}
+                    data-testid="button-sell-discount-percent"
+                  >
+                    %
+                  </button>
+                </div>
+                <Input
+                  type="number"
+                  value={discountValue}
+                  onChange={(e) => setDiscountValue(e.target.value)}
+                  placeholder={discountType === "percent" ? "0-100" : "0"}
+                  className="flex-1"
+                  data-testid="input-sell-discount"
+                />
+              </div>
               {discountAmount > 0 && (
                 <p className="text-xs text-red-600 mt-1">
-                  {formatCurrency(subtotal)} - {formatCurrency(discountAmount)} = {formatCurrency(total)}
+                  Chegirma: -{formatCurrency(discountAmount)} {discountType === "percent" && `(${discountNum}%)`}
                 </p>
               )}
             </div>
@@ -1343,6 +1369,7 @@ function DeliveryTab() {
   const [editOrder, setEditOrder] = useState<any>(null);
   const [editItems, setEditItems] = useState<any[]>([]);
   const [editDiscount, setEditDiscount] = useState("");
+  const [editDiscountType, setEditDiscountType] = useState<"amount" | "percent">("amount");
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [productSearch, setProductSearch] = useState("");
 
@@ -1374,6 +1401,7 @@ function DeliveryTab() {
       setEditOrder(null);
       setEditItems([]);
       setEditDiscount("");
+      setEditDiscountType("amount");
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -1390,6 +1418,7 @@ function DeliveryTab() {
       }))
     );
     setEditDiscount(Number(order.discount) > 0 ? String(Number(order.discount)) : "");
+    setEditDiscountType("amount");
   };
 
   const updateItemQty = (productId: string, delta: number) => {
@@ -1429,7 +1458,10 @@ function DeliveryTab() {
   };
 
   const editSubtotal = editItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
-  const editDiscountAmount = Number(editDiscount) || 0;
+  const editDiscountNum = Math.max(0, Number(editDiscount) || 0);
+  const editDiscountAmount = editDiscountType === "percent"
+    ? Math.min(Math.round(editSubtotal * editDiscountNum / 100), editSubtotal)
+    : Math.min(editDiscountNum, editSubtotal);
   const editTotal = Math.max(0, editSubtotal - editDiscountAmount);
 
   const printDeliveryReceipt = (d: any) => {
@@ -1738,14 +1770,35 @@ function DeliveryTab() {
 
                 <div className="pt-2 border-t space-y-2">
                   <div>
-                    <Label className="text-sm">Chegirma (UZS)</Label>
-                    <Input
-                      type="number"
-                      value={editDiscount}
-                      onChange={(e) => setEditDiscount(e.target.value)}
-                      placeholder="0"
-                      data-testid="input-edit-discount"
-                    />
+                    <Label className="text-sm mb-1 block">Chegirma</Label>
+                    <div className="flex gap-2">
+                      <div className="flex border rounded-md overflow-hidden shrink-0">
+                        <button
+                          type="button"
+                          className={`px-2.5 py-1 text-xs font-medium transition-colors ${editDiscountType === "amount" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-accent"}`}
+                          onClick={() => setEditDiscountType("amount")}
+                          data-testid="button-edit-discount-amount"
+                        >
+                          UZS
+                        </button>
+                        <button
+                          type="button"
+                          className={`px-2.5 py-1 text-xs font-medium transition-colors ${editDiscountType === "percent" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-accent"}`}
+                          onClick={() => setEditDiscountType("percent")}
+                          data-testid="button-edit-discount-percent"
+                        >
+                          %
+                        </button>
+                      </div>
+                      <Input
+                        type="number"
+                        value={editDiscount}
+                        onChange={(e) => setEditDiscount(e.target.value)}
+                        placeholder={editDiscountType === "percent" ? "0-100" : "0"}
+                        className="flex-1"
+                        data-testid="input-edit-discount"
+                      />
+                    </div>
                   </div>
                   {editDiscountAmount > 0 && (
                     <>
@@ -1755,7 +1808,7 @@ function DeliveryTab() {
                       </div>
                       <div className="flex justify-between text-sm text-red-600">
                         <span>Chegirma:</span>
-                        <span>-{formatCurrency(editDiscountAmount)}</span>
+                        <span>-{formatCurrency(editDiscountAmount)} {editDiscountType === "percent" && `(${editDiscountNum}%)`}</span>
                       </div>
                     </>
                   )}
@@ -1768,7 +1821,7 @@ function DeliveryTab() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setEditOrder(null); setEditItems([]); setEditDiscount(""); }}>
+            <Button variant="outline" onClick={() => { setEditOrder(null); setEditItems([]); setEditDiscount(""); setEditDiscountType("amount"); }}>
               Bekor qilish
             </Button>
             <Button
