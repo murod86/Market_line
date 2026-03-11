@@ -10,7 +10,7 @@ if ('serviceWorker' in navigator) {
     } else if (path.startsWith('/portal')) {
       navigator.serviceWorker.register('/sw.js', { scope: '/portal' }).catch(() => {});
     } else {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      navigator.serviceWorker.register('/admin-sw.js').catch(() => {});
     }
   });
 }
