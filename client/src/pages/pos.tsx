@@ -435,8 +435,8 @@ export default function POS() {
         </ScrollArea>
       </div>
 
-      <div className="w-96 border-l bg-card flex flex-col">
-        <div className="p-4 border-b">
+      <div className="w-96 border-l bg-card flex flex-col overflow-hidden">
+        <div className="p-4 border-b shrink-0">
           <div className="flex items-center justify-between gap-1">
             <h2 className="font-semibold flex items-center gap-2" data-testid="text-cart-title">
               <ShoppingCart className="h-4 w-4" />
@@ -446,7 +446,7 @@ export default function POS() {
           </div>
         </div>
 
-        <ScrollArea className="flex-1 p-4">
+        <ScrollArea className="flex-1 min-h-0 p-4">
           {cart.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-20" />
@@ -530,7 +530,7 @@ export default function POS() {
         </ScrollArea>
 
         {cart.length > 0 && (
-          <div className="p-4 border-t space-y-3">
+          <div className="p-4 border-t space-y-3 shrink-0">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Jami:</span>
               <span className="font-medium">{formatCurrency(subtotal)}</span>
