@@ -446,7 +446,7 @@ export default function POS() {
           </div>
         </div>
 
-        <ScrollArea className="flex-1 min-h-0 p-4">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4">
           {cart.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-20" />
@@ -527,7 +527,7 @@ export default function POS() {
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
 
         {cart.length > 0 && (
           <div className="p-4 border-t space-y-3 shrink-0">
