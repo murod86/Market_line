@@ -20,6 +20,7 @@ import {
   ShoppingCart,
   CreditCard,
   Banknote,
+  Wallet,
   Percent,
   X,
   Package,
@@ -131,7 +132,7 @@ export default function POS() {
         discount,
         total: tot,
         paidAmount: paymentType === "debt" ? Number(paidAmount || 0) : pd,
-        change: paymentType === "cash" ? pd - tot : 0,
+        change: paymentType === "cash" ? Math.max(0, pd - tot) : 0,
         paymentType,
         customerName: customer?.fullName || null,
         date: new Date(),
@@ -623,21 +624,32 @@ export default function POS() {
 
             <div>
               <label className="text-sm font-medium mb-1 block">To'lov turi</label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <Button
                   variant={paymentType === "cash" ? "default" : "outline"}
                   onClick={() => setPaymentType("cash")}
                   data-testid="button-payment-cash"
+                  className="text-xs"
                 >
-                  <Banknote className="h-4 w-4 mr-2" />
+                  <Banknote className="h-4 w-4 mr-1" />
                   Naqd
+                </Button>
+                <Button
+                  variant={paymentType === "card" ? "default" : "outline"}
+                  onClick={() => setPaymentType("card")}
+                  data-testid="button-payment-card"
+                  className="text-xs"
+                >
+                  <CreditCard className="h-4 w-4 mr-1" />
+                  Karta
                 </Button>
                 <Button
                   variant={paymentType === "debt" ? "default" : "outline"}
                   onClick={() => setPaymentType("debt")}
                   data-testid="button-payment-debt"
+                  className="text-xs"
                 >
-                  <CreditCard className="h-4 w-4 mr-2" />
+                  <Wallet className="h-4 w-4 mr-1" />
                   Qarzga
                 </Button>
               </div>
@@ -815,7 +827,7 @@ export default function POS() {
 
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#000" }}>
                     <span>To'lov:</span>
-                    <span style={{ fontWeight: "bold" }}>{receiptData.paymentType === "cash" ? "Naqd" : "Qarzga"}</span>
+                    <span style={{ fontWeight: "bold" }}>{receiptData.paymentType === "cash" ? "Naqd" : receiptData.paymentType === "card" ? "Karta" : "Qarzga"}</span>
                   </div>
 
                   {receiptData.paymentType === "cash" && (

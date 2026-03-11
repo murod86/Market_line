@@ -2663,29 +2663,38 @@ export async function registerRoutes(
       const todaySales = allSales.filter(s => new Date(s.createdAt) >= todayStart);
       const todayRevenue = todaySales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
 
-      const profitResult = await pool.query(`
-        SELECT
-          SUM(CASE WHEN sa.created_at >= $2 THEN (si.price - si.cost_price) * si.quantity ELSE 0 END) AS today_gross,
-          SUM(CASE WHEN sa.created_at >= $3 THEN (si.price - si.cost_price) * si.quantity ELSE 0 END) AS month_gross,
-          SUM((si.price - si.cost_price) * si.quantity) AS total_gross
-        FROM sale_items si
-        JOIN sales sa ON sa.id = si.sale_id
-        WHERE sa.tenant_id = $1 AND sa.status != 'cancelled'
-      `, [tenantId, todayStart.toISOString(), monthStart.toISOString()]);
+      let todayProfit = 0, monthProfit = 0, totalProfit = 0;
+      try {
+        const profitResult = await pool.query(`
+          SELECT
+            COALESCE(SUM(CASE WHEN sa.created_at >= $2 THEN (si.price - COALESCE(si.cost_price,0)) * si.quantity ELSE 0 END),0) AS today_gross,
+            COALESCE(SUM(CASE WHEN sa.created_at >= $3 THEN (si.price - COALESCE(si.cost_price,0)) * si.quantity ELSE 0 END),0) AS month_gross,
+            COALESCE(SUM((si.price - COALESCE(si.cost_price,0)) * si.quantity),0) AS total_gross
+          FROM sale_items si
+          JOIN sales sa ON sa.id = si.sale_id
+          WHERE sa.tenant_id = $1 AND sa.status != 'cancelled'
+        `, [tenantId, todayStart.toISOString(), monthStart.toISOString()]);
 
-      const expResult = await pool.query(`
-        SELECT
-          SUM(CASE WHEN created_at >= $2 THEN amount ELSE 0 END) AS today_exp,
-          SUM(CASE WHEN created_at >= $3 THEN amount ELSE 0 END) AS month_exp,
-          SUM(amount) AS total_exp
-        FROM expenses WHERE tenant_id = $1
-      `, [tenantId, todayStart.toISOString(), monthStart.toISOString()]);
+        let todayExp = 0, monthExp = 0, totalExp = 0;
+        try {
+          const expResult = await pool.query(`
+            SELECT
+              COALESCE(SUM(CASE WHEN created_at >= $2 THEN amount ELSE 0 END),0) AS today_exp,
+              COALESCE(SUM(CASE WHEN created_at >= $3 THEN amount ELSE 0 END),0) AS month_exp,
+              COALESCE(SUM(amount),0) AS total_exp
+            FROM expenses WHERE tenant_id = $1
+          `, [tenantId, todayStart.toISOString(), monthStart.toISOString()]);
+          const er = expResult.rows[0];
+          todayExp = Number(er.today_exp) || 0;
+          monthExp = Number(er.month_exp) || 0;
+          totalExp = Number(er.total_exp) || 0;
+        } catch {}
 
-      const pr = profitResult.rows[0];
-      const er = expResult.rows[0];
-      const todayProfit = (Number(pr.today_gross) || 0) - (Number(er.today_exp) || 0);
-      const monthProfit = (Number(pr.month_gross) || 0) - (Number(er.month_exp) || 0);
-      const totalProfit = (Number(pr.total_gross) || 0) - (Number(er.total_exp) || 0);
+        const pr = profitResult.rows[0];
+        todayProfit = (Number(pr.today_gross) || 0) - todayExp;
+        monthProfit = (Number(pr.month_gross) || 0) - monthExp;
+        totalProfit = (Number(pr.total_gross) || 0) - totalExp;
+      } catch {}
 
       res.json({
         totalProducts, lowStockProducts, totalCustomers, totalDebt,
