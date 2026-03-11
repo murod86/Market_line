@@ -18,6 +18,7 @@ import {
   UserCheck,
   AlertTriangle,
   Clock,
+  Receipt,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import logoImg from "@assets/marketline_pro_logo_1.png";
@@ -47,6 +48,7 @@ const mainItems = [
   { title: "Kirim (Xaridlar)", url: "/purchases", icon: ShoppingBasket, color: "text-teal-400", moduleKey: "purchases" },
   { title: "Buyurtmalar", url: "/orders", icon: ClipboardList, color: "text-lime-400", moduleKey: "orders" },
   { title: "Dillerlar", url: "/dealers", icon: UserCheck, color: "text-sky-400", moduleKey: "dealers" },
+  { title: "Xarajatlar", url: "/expenses", icon: Receipt, color: "text-red-400", moduleKey: "expenses" },
 ];
 
 const managementItems = [

@@ -14,6 +14,7 @@ export const ALL_MODULES = [
   { key: "purchases", label: "Kirim (Xaridlar)" },
   { key: "orders", label: "Buyurtmalar" },
   { key: "dealers", label: "Dillerlar" },
+  { key: "expenses", label: "Xarajatlar" },
   { key: "roles", label: "Rollar" },
   { key: "employees", label: "Xodimlar" },
   { key: "settings", label: "Sozlamalar" },
@@ -152,6 +153,7 @@ export const saleItems = pgTable("sale_items", {
   productId: varchar("product_id").references(() => products.id).notNull(),
   quantity: integer("quantity").notNull(),
   price: decimal("price", { precision: 12, scale: 2 }).notNull(),
+  costPrice: decimal("cost_price", { precision: 12, scale: 2 }).notNull().default("0"),
   total: decimal("total", { precision: 12, scale: 2 }).notNull(),
 });
 
@@ -309,6 +311,20 @@ export const purchaseItems = pgTable("purchase_items", {
 export const insertPurchaseItemSchema = createInsertSchema(purchaseItems).omit({ id: true });
 export type InsertPurchaseItem = z.infer<typeof insertPurchaseItemSchema>;
 export type PurchaseItem = typeof purchaseItems.$inferSelect;
+
+export const expenses = pgTable("expenses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  title: text("title").notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  category: text("category").notNull().default("boshqa"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertExpenseSchema = createInsertSchema(expenses).omit({ id: true, createdAt: true });
+export type InsertExpense = z.infer<typeof insertExpenseSchema>;
+export type Expense = typeof expenses.$inferSelect;
 
 export const settings = pgTable("settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

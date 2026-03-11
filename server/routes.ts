@@ -559,15 +559,16 @@ export async function registerRoutes(
         }).returning();
 
         for (const item of items) {
+          const [product] = await tx.select().from(products).where(eq(products.id, item.productId));
           await tx.insert(saleItems).values({
             saleId: sale.id,
             productId: item.productId,
             quantity: item.quantity,
             price: Number(item.price).toFixed(2),
+            costPrice: product ? Number(product.costPrice).toFixed(2) : "0",
             total: (item.quantity * item.price).toFixed(2),
           });
 
-          const [product] = await tx.select().from(products).where(eq(products.id, item.productId));
           if (product) {
             await tx.update(products).set({
               stock: product.stock - item.quantity,
@@ -2593,6 +2594,51 @@ export async function registerRoutes(
     }
   });
 
+  // ===== EXPENSES =====
+  app.get("/api/expenses", requireTenant, async (req, res) => {
+    try {
+      const data = await storage.getExpenses(req.session.tenantId!);
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/expenses", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const { title, amount, category, notes } = req.body;
+      if (!title || !amount) return res.status(400).json({ message: "Sarlavha va summa majburiy" });
+      const exp = await storage.createExpense({ tenantId, title, amount: String(amount), category: category || "boshqa", notes });
+      res.json(exp);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.put("/api/expenses/:id", requireTenant, async (req, res) => {
+    try {
+      const exp = await storage.getExpense(req.params.id);
+      if (!exp || exp.tenantId !== req.session.tenantId) return res.status(404).json({ message: "Topilmadi" });
+      const { title, amount, category, notes } = req.body;
+      const updated = await storage.updateExpense(req.params.id, { title, amount: String(amount), category, notes });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/expenses/:id", requireTenant, async (req, res) => {
+    try {
+      const exp = await storage.getExpense(req.params.id);
+      if (!exp || exp.tenantId !== req.session.tenantId) return res.status(404).json({ message: "Topilmadi" });
+      await storage.deleteExpense(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // ===== DASHBOARD STATS =====
   app.get("/api/stats", requireTenant, async (req, res) => {
     try {
@@ -2610,12 +2656,41 @@ export async function registerRoutes(
 
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+
       const todaySales = allSales.filter(s => new Date(s.createdAt) >= todayStart);
       const todayRevenue = todaySales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
+
+      const profitResult = await pool.query(`
+        SELECT
+          SUM(CASE WHEN sa.created_at >= $2 THEN (si.price - si.cost_price) * si.quantity ELSE 0 END) AS today_gross,
+          SUM(CASE WHEN sa.created_at >= $3 THEN (si.price - si.cost_price) * si.quantity ELSE 0 END) AS month_gross,
+          SUM((si.price - si.cost_price) * si.quantity) AS total_gross
+        FROM sale_items si
+        JOIN sales sa ON sa.id = si.sale_id
+        WHERE sa.tenant_id = $1 AND sa.status != 'cancelled'
+      `, [tenantId, todayStart.toISOString(), monthStart.toISOString()]);
+
+      const expResult = await pool.query(`
+        SELECT
+          SUM(CASE WHEN created_at >= $2 THEN amount ELSE 0 END) AS today_exp,
+          SUM(CASE WHEN created_at >= $3 THEN amount ELSE 0 END) AS month_exp,
+          SUM(amount) AS total_exp
+        FROM expenses WHERE tenant_id = $1
+      `, [tenantId, todayStart.toISOString(), monthStart.toISOString()]);
+
+      const pr = profitResult.rows[0];
+      const er = expResult.rows[0];
+      const todayProfit = (Number(pr.today_gross) || 0) - (Number(er.today_exp) || 0);
+      const monthProfit = (Number(pr.month_gross) || 0) - (Number(er.month_exp) || 0);
+      const totalProfit = (Number(pr.total_gross) || 0) - (Number(er.total_exp) || 0);
 
       res.json({
         totalProducts, lowStockProducts, totalCustomers, totalDebt,
         totalSales, totalRevenue, todaySales: todaySales.length, todayRevenue,
+        todayProfit, monthProfit, totalProfit,
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });

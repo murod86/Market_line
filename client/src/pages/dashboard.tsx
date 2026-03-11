@@ -10,6 +10,9 @@ import {
   DollarSign,
   CreditCard,
   BarChart3,
+  TrendingDown,
+  Wallet,
+  PiggyBank,
 } from "lucide-react";
 
 function formatCurrency(amount: number) {
@@ -26,6 +29,9 @@ export default function Dashboard() {
     totalRevenue: number;
     todaySales: number;
     todayRevenue: number;
+    todayProfit: number;
+    monthProfit: number;
+    totalProfit: number;
   }>({
     queryKey: ["/api/stats"],
   });
@@ -38,13 +44,40 @@ export default function Dashboard() {
           <Skeleton className="h-4 w-96" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: 11 }).map((_, i) => (
             <Skeleton key={i} className="h-32" />
           ))}
         </div>
       </div>
     );
   }
+
+  const profitCards = [
+    {
+      title: "Bugungi sof foyda",
+      value: formatCurrency(stats?.todayProfit || 0),
+      subtitle: "Kirim − Tan narx − Xarajat",
+      icon: TrendingUp,
+      color: (stats?.todayProfit || 0) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400",
+      bgColor: (stats?.todayProfit || 0) >= 0 ? "bg-emerald-500/10" : "bg-red-500/10",
+    },
+    {
+      title: "Oylik sof foyda",
+      value: formatCurrency(stats?.monthProfit || 0),
+      subtitle: "Bu oyning foydasi",
+      icon: Wallet,
+      color: (stats?.monthProfit || 0) >= 0 ? "text-blue-600 dark:text-blue-400" : "text-red-600 dark:text-red-400",
+      bgColor: (stats?.monthProfit || 0) >= 0 ? "bg-blue-500/10" : "bg-red-500/10",
+    },
+    {
+      title: "Umumiy sof foyda",
+      value: formatCurrency(stats?.totalProfit || 0),
+      subtitle: "Barcha vaqt",
+      icon: PiggyBank,
+      color: (stats?.totalProfit || 0) >= 0 ? "text-violet-600 dark:text-violet-400" : "text-red-600 dark:text-red-400",
+      bgColor: (stats?.totalProfit || 0) >= 0 ? "bg-violet-500/10" : "bg-red-500/10",
+    },
+  ];
 
   const statCards = [
     {
@@ -59,7 +92,7 @@ export default function Dashboard() {
       title: "Bugungi daromad",
       value: formatCurrency(stats?.todayRevenue || 0),
       subtitle: `${stats?.todaySales || 0} ta savdo`,
-      icon: TrendingUp,
+      icon: TrendingDown,
       color: "text-green-600 dark:text-green-400",
       bgColor: "bg-green-500/10",
     },
@@ -120,23 +153,48 @@ export default function Dashboard() {
         <p className="text-muted-foreground">Biznesingiz holati haqida umumiy ma'lumot</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((card, index) => (
-          <Card key={index} data-testid={`card-stat-${index}`}>
-            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {card.title}
-              </CardTitle>
-              <div className={`p-2 rounded-md ${card.bgColor}`}>
-                <card.icon className={`h-4 w-4 ${card.color}`} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl font-bold">{card.value}</div>
-              <p className="text-xs text-muted-foreground mt-1">{card.subtitle}</p>
-            </CardContent>
-          </Card>
-        ))}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Sof Foyda</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {profitCards.map((card, index) => (
+            <Card key={index} className="border-2" data-testid={`card-profit-${index}`}>
+              <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {card.title}
+                </CardTitle>
+                <div className={`p-2 rounded-md ${card.bgColor}`}>
+                  <card.icon className={`h-4 w-4 ${card.color}`} />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className={`text-xl font-bold ${card.color}`}>{card.value}</div>
+                <p className="text-xs text-muted-foreground mt-1">{card.subtitle}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Umumiy Ko'rsatkichlar</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {statCards.map((card, index) => (
+            <Card key={index} data-testid={`card-stat-${index}`}>
+              <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {card.title}
+                </CardTitle>
+                <div className={`p-2 rounded-md ${card.bgColor}`}>
+                  <card.icon className={`h-4 w-4 ${card.color}`} />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl font-bold">{card.value}</div>
+                <p className="text-xs text-muted-foreground mt-1">{card.subtitle}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   );

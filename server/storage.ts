@@ -3,7 +3,7 @@ import { db, pool } from "./db";
 import {
   plans, tenants, roles, employees, categories, products, customers,
   sales, saleItems, deliveries, deliveryItems, settings, globalSettings,
-  suppliers, purchases, purchaseItems,
+  suppliers, purchases, purchaseItems, expenses,
   dealers, dealerInventory, dealerTransactions, payments, dealerCustomers,
   type InsertPlan, type Plan,
   type InsertTenant, type Tenant,
@@ -25,6 +25,7 @@ import {
   type InsertDealerTransaction, type DealerTransaction,
   type InsertPayment, type Payment,
   type InsertDealerCustomer, type DealerCustomer,
+  type InsertExpense, type Expense,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -130,6 +131,12 @@ export interface IStorage {
   createDealerCustomer(dc: InsertDealerCustomer): Promise<DealerCustomer>;
   updateDealerCustomer(id: string, data: Partial<InsertDealerCustomer>): Promise<DealerCustomer | undefined>;
   deleteDealerCustomer(id: string): Promise<void>;
+
+  getExpenses(tenantId: string): Promise<Expense[]>;
+  getExpense(id: string): Promise<Expense | undefined>;
+  createExpense(expense: InsertExpense): Promise<Expense>;
+  updateExpense(id: string, data: Partial<InsertExpense>): Promise<Expense | undefined>;
+  deleteExpense(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -557,6 +564,7 @@ export class DatabaseStorage implements IStorage {
       { text: 'DELETE FROM payments WHERE tenant_id = $1', values: [id] },
       { text: 'DELETE FROM sale_items WHERE sale_id IN (SELECT id FROM sales WHERE tenant_id = $1)', values: [id] },
       { text: 'DELETE FROM sales WHERE tenant_id = $1', values: [id] },
+      { text: 'DELETE FROM expenses WHERE tenant_id = $1', values: [id] },
       { text: 'DELETE FROM purchase_items WHERE purchase_id IN (SELECT id FROM purchases WHERE tenant_id = $1)', values: [id] },
       { text: 'DELETE FROM purchases WHERE tenant_id = $1', values: [id] },
       { text: 'DELETE FROM dealer_transactions WHERE tenant_id = $1', values: [id] },
@@ -596,6 +604,29 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDealerCustomer(id: string): Promise<void> {
     await db.delete(dealerCustomers).where(eq(dealerCustomers.id, id));
+  }
+
+  async getExpenses(tenantId: string): Promise<Expense[]> {
+    return await db.select().from(expenses).where(eq(expenses.tenantId, tenantId)).orderBy(desc(expenses.createdAt));
+  }
+
+  async getExpense(id: string): Promise<Expense | undefined> {
+    const [exp] = await db.select().from(expenses).where(eq(expenses.id, id));
+    return exp;
+  }
+
+  async createExpense(expense: InsertExpense): Promise<Expense> {
+    const [created] = await db.insert(expenses).values(expense).returning();
+    return created;
+  }
+
+  async updateExpense(id: string, data: Partial<InsertExpense>): Promise<Expense | undefined> {
+    const [updated] = await db.update(expenses).set(data).where(eq(expenses.id, id)).returning();
+    return updated;
+  }
+
+  async deleteExpense(id: string): Promise<void> {
+    await db.delete(expenses).where(eq(expenses.id, id));
   }
 }
 

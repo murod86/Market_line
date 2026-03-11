@@ -39,6 +39,17 @@ class PgSessionStore extends Store {
       `ALTER TABLE customers ADD COLUMN IF NOT EXISTS dealer_id varchar REFERENCES dealers(id)`,
       `ALTER TABLE dealer_customers ADD COLUMN IF NOT EXISTS password varchar(255)`,
       `ALTER TABLE dealer_customers ADD COLUMN IF NOT EXISTS address text`,
+      `ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS cost_price decimal(12,2) NOT NULL DEFAULT 0`,
+      `CREATE TABLE IF NOT EXISTS expenses (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid()::varchar,
+        tenant_id varchar REFERENCES tenants(id),
+        title text NOT NULL,
+        amount decimal(12,2) NOT NULL,
+        category text NOT NULL DEFAULT 'boshqa',
+        notes text,
+        created_at timestamp NOT NULL DEFAULT now()
+      )`,
+      `UPDATE plans SET allowed_modules = allowed_modules || '["expenses"]'::jsonb WHERE NOT allowed_modules::text LIKE '%expenses%'`,
     ];
     for (const m of migrations) {
       try { await pool.query(m); } catch {}
