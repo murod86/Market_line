@@ -1,0 +1,51 @@
+✅ sms_settings lottery_wheel_price columns migrated
+✅ sms_settings.lottery_wheel_note migrated
+✅ sms_settings company fields migrated
+✅ contracts.cost_price migrated
+Menu
+✅ All migrations completed successfully!
+8:06:32 AM [express] ✅ Database migrations complete
+8:06:32 AM [express] 🌱 Seeding users before auth setup...
+============================================================
+🌱 SEEDING USERS - START
+============================================================
+📋 Current users in database: 3
+   - kassir (admin: 0)
+   - adminjon9000 (admin: 1)
+   - murodjon5454 (admin: 0)
+🗑️ Deleting kassir user...
+============================================================
+❌ SEEDING ERROR: error: update or delete on table "users" violates foreign key constraint "products_user_id_fkey" on table "products"
+    at file:///opt/render/project/src/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async DatabaseStorage.deleteUser (file:///opt/render/project/src/dist/index.js:855:20)
+    at async seedDefaultUsers (file:///opt/render/project/src/dist/index.js:7928:7)
+    at async file:///opt/render/project/src/dist/index.js:7994:3 {
+  length: 311,
+  severity: 'ERROR',
+  code: '23503',
+  detail: 'Key (id)=(bcabde85-d8b9-4291-96ee-ca6847adc629) is still referenced from table "products".',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'public',
+  table: 'products',
+  column: undefined,
+  dataType: undefined,
+  constraint: 'products_user_id_fkey',
+  file: 'ri_triggers.c',
+  line: '2621',
+  routine: 'ri_ReportViolation'
+}
+============================================================
+8:06:32 AM [express] ✅ User seeding complete
+8:06:32 AM [express] serving on port 10000
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+==> Available at your primary URL https://nasiya-savdo-sxqi.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
