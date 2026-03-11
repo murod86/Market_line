@@ -301,7 +301,7 @@ export async function registerRoutes(
     const allPlans = await storage.getPlans();
     const currentPlan = allPlans.find(p => p.slug === tenant.plan);
 
-    const allModuleKeys = ["pos","warehouse","categories","products","customers","deliveries","suppliers","purchases","orders","dealers","roles","employees","settings"];
+    const allModuleKeys = ["pos","warehouse","categories","products","customers","deliveries","suppliers","purchases","orders","dealers","roles","employees","settings","expenses"];
 
     const hasTrial = tenant.trialEndsAt != null;
     const isTrialActive = hasTrial && new Date(tenant.trialEndsAt!) > new Date();
