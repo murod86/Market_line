@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Clock,
   Receipt,
+  History,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import logoImg from "@assets/marketline_pro_logo_1.png";
@@ -39,6 +40,7 @@ import { Badge } from "@/components/ui/badge";
 const mainItems = [
   { title: "Boshqaruv paneli", url: "/dashboard", icon: LayoutDashboard, color: "text-blue-400", moduleKey: "dashboard" },
   { title: "Sotuv (POS)", url: "/pos", icon: ShoppingCart, color: "text-emerald-400", moduleKey: "pos" },
+  { title: "Sotuvlar tarixi", url: "/sales-history", icon: History, color: "text-green-400", moduleKey: "pos" },
   { title: "Ombor", url: "/warehouse", icon: Warehouse, color: "text-amber-400", moduleKey: "warehouse" },
   { title: "Kategoriyalar", url: "/categories", icon: FolderOpen, color: "text-purple-400", moduleKey: "categories" },
   { title: "Mahsulotlar", url: "/products", icon: Package, color: "text-violet-400", moduleKey: "products" },

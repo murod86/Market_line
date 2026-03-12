@@ -34,6 +34,7 @@ export default function Dashboard() {
     totalProfit: number;
   }>({
     queryKey: ["/api/stats"],
+    staleTime: 0,
   });
 
   if (isLoading) {

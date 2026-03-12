@@ -524,6 +524,29 @@ export async function registerRoutes(
     res.json(data);
   });
 
+  app.get("/api/sales-history", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const result = await pool.query(`
+        SELECT
+          s.id, s.total_amount, s.discount, s.paid_amount, s.payment_type,
+          s.status, s.created_at,
+          c.full_name AS customer_name,
+          COUNT(si.id)::int AS item_count,
+          COALESCE(SUM((si.price - COALESCE(si.cost_price,0)) * si.quantity), 0) AS profit
+        FROM sales s
+        LEFT JOIN customers c ON c.id = s.customer_id
+        LEFT JOIN sale_items si ON si.sale_id = s.id
+        WHERE s.tenant_id = $1
+        GROUP BY s.id, c.full_name
+        ORDER BY s.created_at DESC
+      `, [tenantId]);
+      res.json(result.rows);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/sales/:id", requireTenant, async (req, res) => {
     const sale = await storage.getSale(req.params.id);
     if (!verifyTenant(sale, req.session.tenantId!)) return res.status(404).json({ message: "Sale not found" });
