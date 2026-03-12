@@ -200,7 +200,16 @@ export default function LandingPage() {
           <div className="flex items-center gap-2">
             <img src={logoImg} alt="MARKET_LINE" className="h-8 w-auto" />
           </div>
-          <p className="text-white/40 text-sm">© 2025 MARKET_LINE. Barcha huquqlar himoyalangan.</p>
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <a
+              href="tel:+998939185454"
+              className="flex items-center gap-2 text-white/70 hover:text-white transition-colors text-sm font-medium"
+            >
+              <span className="text-lg">📞</span>
+              <span>+998 93 918 54 54</span>
+            </a>
+            <p className="text-white/40 text-sm">© 2025 MARKET_LINE. Barcha huquqlar himoyalangan.</p>
+          </div>
         </div>
       </footer>
     </div>
