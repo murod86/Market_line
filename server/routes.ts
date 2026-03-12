@@ -533,7 +533,10 @@ export async function registerRoutes(
           s.status, s.created_at,
           c.full_name AS customer_name,
           COUNT(si.id)::int AS item_count,
-          COALESCE(SUM((si.price - COALESCE(si.cost_price,0)) * si.quantity), 0) AS profit
+          GREATEST(
+            COALESCE(SUM((si.price - COALESCE(si.cost_price,0)) * si.quantity), 0) - COALESCE(s.discount, 0),
+            0
+          ) AS profit
         FROM sales s
         LEFT JOIN customers c ON c.id = s.customer_id
         LEFT JOIN sale_items si ON si.sale_id = s.id
@@ -2690,12 +2693,21 @@ export async function registerRoutes(
       try {
         const profitResult = await pool.query(`
           SELECT
-            COALESCE(SUM(CASE WHEN sa.created_at >= $2 THEN (si.price - COALESCE(si.cost_price,0)) * si.quantity ELSE 0 END),0) AS today_gross,
-            COALESCE(SUM(CASE WHEN sa.created_at >= $3 THEN (si.price - COALESCE(si.cost_price,0)) * si.quantity ELSE 0 END),0) AS month_gross,
-            COALESCE(SUM((si.price - COALESCE(si.cost_price,0)) * si.quantity),0) AS total_gross
-          FROM sale_items si
-          JOIN sales sa ON sa.id = si.sale_id
-          WHERE sa.tenant_id = $1 AND sa.status != 'cancelled'
+            COALESCE(SUM(CASE WHEN sp.created_at >= $2 THEN sp.sale_profit ELSE 0 END), 0) AS today_gross,
+            COALESCE(SUM(CASE WHEN sp.created_at >= $3 THEN sp.sale_profit ELSE 0 END), 0) AS month_gross,
+            COALESCE(SUM(sp.sale_profit), 0) AS total_gross
+          FROM (
+            SELECT
+              sa.id, sa.created_at,
+              GREATEST(
+                SUM((si.price - COALESCE(si.cost_price, 0)) * si.quantity) - COALESCE(sa.discount, 0),
+                0
+              ) AS sale_profit
+            FROM sales sa
+            JOIN sale_items si ON si.sale_id = sa.id
+            WHERE sa.tenant_id = $1 AND sa.status != 'cancelled'
+            GROUP BY sa.id, sa.discount, sa.created_at
+          ) sp
         `, [tenantId, todayStart.toISOString(), monthStart.toISOString()]);
 
         let todayExp = 0, monthExp = 0, totalExp = 0;

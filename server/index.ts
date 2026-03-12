@@ -50,6 +50,7 @@ class PgSessionStore extends Store {
         created_at timestamp NOT NULL DEFAULT now()
       )`,
       `UPDATE plans SET allowed_modules = allowed_modules || '["expenses"]'::jsonb WHERE NOT allowed_modules::text LIKE '%expenses%'`,
+      `UPDATE sale_items si SET cost_price = p.cost_price FROM products p WHERE si.product_id = p.id AND si.cost_price = 0 AND p.cost_price > 0`,
     ];
     for (const m of migrations) {
       try { await pool.query(m); } catch {}
