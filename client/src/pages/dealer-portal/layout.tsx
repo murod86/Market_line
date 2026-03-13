@@ -377,6 +377,7 @@ function SellTab() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [dealerCustomerId, setDealerCustomerId] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
   const [notes, setNotes] = useState("");
   const [paymentType, setPaymentType] = useState<"cash" | "debt" | "partial">("cash");
   const [paidAmount, setPaidAmount] = useState("");
@@ -466,6 +467,7 @@ function SellTab() {
       setCustomerName("");
       setCustomerPhone("");
       setDealerCustomerId("");
+      setCustomerSearch("");
       setNotes("");
       setPaymentType("cash");
       setPaidAmount("");
@@ -721,36 +723,56 @@ function SellTab() {
           <div className="space-y-4">
             {dealerCustomers && dealerCustomers.length > 0 && (
               <div>
-                <Label>
-                  <User className="h-3.5 w-3.5 inline mr-1" />
-                  Mijozni tanlang
+                <Label className="mb-1.5 flex items-center gap-1">
+                  <User className="h-3.5 w-3.5" />
+                  Mijozni qidiring
                 </Label>
-                <Select
-                  value={dealerCustomerId || "none"}
-                  onValueChange={(v) => {
-                    if (v === "none") {
-                      setDealerCustomerId("");
-                      setCustomerName("");
-                      setCustomerPhone("");
-                    } else {
-                      setDealerCustomerId(v);
-                      const dc = dealerCustomers.find((c: any) => c.id === v);
-                      if (dc) { setCustomerName(dc.name); setCustomerPhone(dc.phone || ""); }
-                    }
-                  }}
-                >
-                  <SelectTrigger data-testid="select-sell-dealer-customer">
-                    <SelectValue placeholder="Mijoz tanlang..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Yangi mijoz (qo'lda kiritish)</SelectItem>
-                    {dealerCustomers.map((c: any) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name} {c.phone ? `(${c.phone})` : ""} {Number(c.debt) > 0 ? `- Qarz: ${formatCurrency(Number(c.debt))}` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="relative mb-1.5">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    value={customerSearch}
+                    onChange={(e) => setCustomerSearch(e.target.value)}
+                    placeholder="Ism yoki telefon..."
+                    className="pl-8 h-9 text-sm"
+                    data-testid="input-sell-customer-search"
+                  />
+                </div>
+                <div className="border rounded-md max-h-40 overflow-y-auto">
+                  <button
+                    type="button"
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${!dealerCustomerId ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground"}`}
+                    onClick={() => { setDealerCustomerId(""); setCustomerName(""); setCustomerPhone(""); }}
+                    data-testid="button-sell-new-customer"
+                  >
+                    + Yangi mijoz (qo'lda kiritish)
+                  </button>
+                  {(dealerCustomers as any[])
+                    .filter((c: any) =>
+                      !customerSearch ||
+                      c.name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
+                      (c.phone && c.phone.includes(customerSearch))
+                    )
+                    .map((c: any) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors border-t ${dealerCustomerId === c.id ? "bg-primary/10 text-primary font-medium" : ""}`}
+                        onClick={() => {
+                          setDealerCustomerId(c.id);
+                          setCustomerName(c.name);
+                          setCustomerPhone(c.phone || "");
+                        }}
+                        data-testid={`button-sell-customer-${c.id}`}
+                      >
+                        <span className="font-medium">{c.name}</span>
+                        {c.phone && <span className="text-muted-foreground ml-2 text-xs">{c.phone}</span>}
+                        {Number(c.debt) > 0 && (
+                          <span className="text-red-500 ml-2 text-xs">Qarz: {formatCurrency(Number(c.debt))}</span>
+                        )}
+                      </button>
+                    ))
+                  }
+                </div>
               </div>
             )}
             {!dealerCustomerId && (

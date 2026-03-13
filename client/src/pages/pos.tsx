@@ -465,8 +465,12 @@ export default function POS() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium leading-tight">{item.product.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatCurrency(Number(item.product.price))} / {item.product.unit}
+                      <p className="text-xs text-foreground/60">
+                        <span className="font-semibold text-foreground/80">{formatCurrency(Number(item.product.price))}</span>
+                        <span className="mx-1 text-muted-foreground">/{item.product.unit}</span>
+                        {item.stockPieces > 1 && (
+                          <span className="text-muted-foreground">× {item.stockPieces}</span>
+                        )}
                       </p>
                       {item.buyUnit === "quti" && (item.product.boxQuantity || 1) > 1 && (
                         <p className="text-[10px] text-blue-600">
@@ -474,8 +478,10 @@ export default function POS() {
                         </p>
                       )}
                     </div>
-                    <div className="text-sm font-semibold text-right shrink-0">
-                      {formatCurrency(item.stockPieces * Number(item.product.price))}
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-bold text-primary">
+                        {formatCurrency(item.stockPieces * Number(item.product.price))}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
@@ -795,7 +801,7 @@ export default function POS() {
                       <div style={{ fontSize: "12px", fontWeight: "bold", color: "#000", wordBreak: "break-word" }}>
                         {item.product.name}
                       </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", fontWeight: "600", color: "#000" }}>
                         <span>{item.buyUnit === "quti" ? `${item.quantity} quti (${item.stockPieces} ${item.product.unit})` : `${item.stockPieces} ${item.product.unit}`} x {formatCurrencyShort(Number(item.product.price))}</span>
                         <span style={{ fontWeight: "bold" }}>{formatCurrencyShort(item.stockPieces * Number(item.product.price))}</span>
                       </div>
@@ -804,13 +810,13 @@ export default function POS() {
 
                   <div style={{ borderTop: "1px dashed #000", margin: "6px 0" }} />
 
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#000" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: "600", color: "#000" }}>
                     <span>Jami:</span>
                     <span>{formatCurrencyShort(receiptData.subtotal)}</span>
                   </div>
 
                   {receiptData.discount > 0 && (
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#000" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: "600", color: "#000" }}>
                       <span>Chegirma:</span>
                       <span>-{formatCurrencyShort(receiptData.discount)}</span>
                     </div>
@@ -825,19 +831,19 @@ export default function POS() {
 
                   <div style={{ borderTop: "1px dashed #000", margin: "4px 0" }} />
 
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#000" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: "600", color: "#000" }}>
                     <span>To'lov:</span>
                     <span style={{ fontWeight: "bold" }}>{receiptData.paymentType === "cash" ? "Naqd" : receiptData.paymentType === "card" ? "Karta" : "Qarzga"}</span>
                   </div>
 
                   {receiptData.paymentType === "cash" && (
                     <>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#000" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: "600", color: "#000" }}>
                         <span>Berildi:</span>
                         <span>{formatCurrencyShort(receiptData.paidAmount)}</span>
                       </div>
                       {receiptData.change > 0 && (
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#000", fontWeight: "bold" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: "bold", color: "#000" }}>
                           <span>Qaytim:</span>
                           <span>{formatCurrencyShort(receiptData.change)}</span>
                         </div>
@@ -847,7 +853,7 @@ export default function POS() {
 
                   {receiptData.paymentType === "debt" && (
                     <>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#000" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: "600", color: "#000" }}>
                         <span>To'landi:</span>
                         <span>{formatCurrencyShort(receiptData.paidAmount)}</span>
                       </div>
