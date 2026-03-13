@@ -127,6 +127,7 @@ export interface IStorage {
   createPayment(payment: InsertPayment): Promise<Payment>;
 
   getDealerCustomers(dealerId: string): Promise<DealerCustomer[]>;
+  getAllDealerCustomersByTenant(tenantId: string): Promise<DealerCustomer[]>;
   getDealerCustomer(id: string): Promise<DealerCustomer | undefined>;
   createDealerCustomer(dc: InsertDealerCustomer): Promise<DealerCustomer>;
   updateDealerCustomer(id: string, data: Partial<InsertDealerCustomer>): Promise<DealerCustomer | undefined>;
@@ -585,6 +586,10 @@ export class DatabaseStorage implements IStorage {
   }
   async getDealerCustomers(dealerId: string): Promise<DealerCustomer[]> {
     return await db.select().from(dealerCustomers).where(eq(dealerCustomers.dealerId, dealerId)).orderBy(desc(dealerCustomers.createdAt));
+  }
+
+  async getAllDealerCustomersByTenant(tenantId: string): Promise<DealerCustomer[]> {
+    return await db.select().from(dealerCustomers).where(eq(dealerCustomers.tenantId, tenantId)).orderBy(desc(dealerCustomers.createdAt));
   }
 
   async getDealerCustomer(id: string): Promise<DealerCustomer | undefined> {

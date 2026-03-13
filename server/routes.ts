@@ -1877,13 +1877,15 @@ export async function registerRoutes(
   // ===== DEALER PORTAL - CUSTOMER MANAGEMENT =====
   app.get("/api/dealer-portal/customers", requireDealer, async (req, res) => {
     try {
-      const dealerId = req.session.dealerId!;
       const tenantId = req.session.tenantId!;
-      const dealerCustomers = await storage.getDealerCustomers(dealerId);
+
+      // All dealer customers across all dealers of this tenant
+      const allDealerCustomers = await storage.getAllDealerCustomersByTenant(tenantId);
+      // Admin customers
       const adminCustomers = await storage.getCustomers(tenantId);
 
-      // Merge: dealer customers first, then admin customers not already in dealer list
-      const dealerPhones = new Set(dealerCustomers.map((c: any) => c.phone).filter(Boolean));
+      // Deduplicate: admin customers that share phone with any dealer customer are excluded
+      const dealerPhones = new Set(allDealerCustomers.map((c: any) => c.phone).filter(Boolean));
       const adminMapped = adminCustomers
         .filter((c: any) => !c.phone || !dealerPhones.has(c.phone))
         .map((c: any) => ({
@@ -1895,7 +1897,7 @@ export async function registerRoutes(
           source: "admin",
         }));
 
-      const dealerMapped = dealerCustomers.map((c: any) => ({ ...c, source: "dealer" }));
+      const dealerMapped = allDealerCustomers.map((c: any) => ({ ...c, source: "dealer" }));
       res.json([...dealerMapped, ...adminMapped]);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
