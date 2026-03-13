@@ -439,15 +439,15 @@ function SellTab() {
       const unitPriceStr = item.price.toLocaleString();
       const totalPriceStr = (item.price * item.stockPieces).toLocaleString();
       return `<tr>
-        <td colspan="2" style="padding:3px 2px 0px 2px;font-weight:bold;border-top:1px dashed #ccc">${item.name}</td>
+        <td colspan="2" style="padding:4px 2px 1px 2px;font-weight:900;border-top:2px solid #000;font-size:1.05em">${item.name}</td>
       </tr>
       <tr>
-        <td style="padding:1px 2px">${qtyLabel}</td>
-        <td style="padding:1px 2px;text-align:right">${unitPriceStr}/dona</td>
+        <td style="padding:1px 2px;font-weight:700">${qtyLabel}</td>
+        <td style="padding:1px 2px;text-align:right;font-weight:700">${unitPriceStr}/dona</td>
       </tr>
       <tr>
-        <td style="padding:1px 2px 4px 2px;font-weight:bold">= Jami:</td>
-        <td style="padding:1px 2px 4px 2px;font-weight:bold;text-align:right">${totalPriceStr} UZS</td>
+        <td style="padding:1px 2px 5px 2px;font-weight:900">= Jami:</td>
+        <td style="padding:1px 2px 5px 2px;font-weight:900;text-align:right">${totalPriceStr} UZS</td>
       </tr>`;
     }).join("");
 
@@ -456,15 +456,17 @@ function SellTab() {
       <style>
         @page { size: ${sz.pageWidth} auto; margin: 0; }
         * { margin:0; padding:0; box-sizing:border-box; }
-        html, body { width:${sz.bodyWidth}; font-family:'Courier New',monospace; font-size:${sz.baseFontSize}; line-height:1.4; padding:${sz.padding}; color:#000; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+        html, body { width:${sz.bodyWidth}; font-family:'Courier New',monospace; font-size:${sz.baseFontSize}; font-weight:700; line-height:1.5; padding:${sz.padding}; color:#000; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
         .center { text-align:center; }
-        .bold { font-weight:bold; }
-        .divider { border-top:1px dashed #000; margin:5px 0; }
+        .bold { font-weight:900; }
+        .divider { border-top:2px solid #000; margin:5px 0; }
         table { width:100%; border-collapse:collapse; }
-        div { overflow-wrap:break-word; word-wrap:break-word; }
+        td { font-weight:700; color:#000; }
+        div,span,p,b { color:#000; }
+        b { font-weight:900; }
       </style></head><body>
-      <div class="center bold" style="font-size:1.3em;margin-bottom:3px">MARKET_LINE</div>
-      <div class="center" style="font-size:0.9em;margin-bottom:5px">Sotuv cheki</div>
+      <div class="center bold" style="font-size:1.4em;margin-bottom:2px;letter-spacing:1px">MARKET_LINE</div>
+      <div class="center bold" style="font-size:1em;margin-bottom:5px">Sotuv cheki</div>
       <div class="divider"></div>
       ${custName ? `<div style="margin-bottom:2px"><b>Mijoz:</b> ${custName}</div>` : ""}
       ${custPhone ? `<div style="margin-bottom:2px"><b>Tel:</b> ${custPhone}</div>` : ""}
@@ -473,21 +475,21 @@ function SellTab() {
       <table>${itemsHtml}</table>
       <div class="divider"></div>
       ${discAmt > 0 ? `
-        <div style="display:flex;justify-content:space-between">
+        <div style="display:flex;justify-content:space-between;margin-bottom:2px">
           <span>Summa:</span><span>${subtotalAmt.toLocaleString()} UZS</span>
         </div>
-        <div style="display:flex;justify-content:space-between;color:red">
+        <div style="display:flex;justify-content:space-between;margin-bottom:2px">
           <span>Chegirma:</span><span>-${discAmt.toLocaleString()} UZS</span>
         </div>
       ` : ""}
-      <div style="display:flex;justify-content:space-between;font-size:1.2em" class="bold">
+      <div style="display:flex;justify-content:space-between;font-size:1.3em;font-weight:900;border-top:2px solid #000;padding-top:3px;margin-top:2px">
         <span>JAMI:</span><span>${totalAmt.toLocaleString()} UZS</span>
       </div>
-      ${pType === "cash" ? `<div style="margin-top:3px"><b>To'lov:</b> Naqd</div>` : ""}
-      ${pType === "debt" ? `<div style="margin-top:3px;color:red"><b>Qarz:</b> ${totalAmt.toLocaleString()} UZS</div>` : ""}
-      ${pType === "partial" ? `<div style="margin-top:3px"><b>To'langan:</b> ${paidAmt.toLocaleString()} UZS</div><div style="color:red"><b>Qarz:</b> ${debtAmt.toLocaleString()} UZS</div>` : ""}
+      ${pType === "cash" ? `<div style="margin-top:4px"><b>To'lov:</b> Naqd</div>` : ""}
+      ${pType === "debt" ? `<div style="margin-top:4px"><b>Qarz:</b> ${totalAmt.toLocaleString()} UZS</div>` : ""}
+      ${pType === "partial" ? `<div style="margin-top:4px"><b>To'langan:</b> ${paidAmt.toLocaleString()} UZS</div><div><b>Qarz:</b> ${debtAmt.toLocaleString()} UZS</div>` : ""}
       <div class="divider"></div>
-      <div class="center" style="font-size:0.85em;margin-top:6px;color:#555">Xaridingiz uchun rahmat!</div>
+      <div class="center bold" style="font-size:1em;margin-top:5px">Xaridingiz uchun rahmat!</div>
       <script>window.onload=function(){setTimeout(function(){window.print();window.onafterprint=function(){window.close()};setTimeout(function(){window.close()},8000)},300)}<\/script>
     </body></html>`;
 
