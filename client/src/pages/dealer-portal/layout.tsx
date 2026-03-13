@@ -398,13 +398,24 @@ function SellTab() {
     const dateStr = format(now, "dd.MM.yyyy HH:mm");
     const debtAmt = pType === "debt" ? totalAmt : pType === "partial" ? Math.max(0, totalAmt - paidAmt) : 0;
 
-    const itemsHtml = items.map(item =>
-      `<tr>
-        <td style="padding:4px 0;font-size:11px;border-bottom:1px dashed #ccc">${item.name}</td>
-        <td style="padding:4px 0;font-size:11px;text-align:center;border-bottom:1px dashed #ccc">${item.buyUnit === "quti" ? `${item.quantity} quti` : `${item.stockPieces} ${item.unit}`}</td>
-        <td style="padding:4px 0;font-size:11px;text-align:right;border-bottom:1px dashed #ccc">${(item.price * item.stockPieces).toLocaleString()} UZS</td>
-      </tr>`
-    ).join("");
+    const itemsHtml = items.map(item => {
+      const qtyLabel = item.buyUnit === "quti"
+        ? `${item.quantity} quti (${item.stockPieces} ${item.unit})`
+        : `${item.stockPieces} ${item.unit}`;
+      const unitPriceStr = item.price.toLocaleString();
+      const totalPriceStr = (item.price * item.stockPieces).toLocaleString();
+      return `<tr>
+        <td colspan="2" style="padding:3px 2px 0px 2px;font-size:11px;font-weight:bold;border-top:1px dashed #ccc">${item.name}</td>
+      </tr>
+      <tr>
+        <td style="padding:1px 2px;font-size:10px">${qtyLabel}</td>
+        <td style="padding:1px 2px;font-size:10px;text-align:right">${unitPriceStr}/dona</td>
+      </tr>
+      <tr>
+        <td style="padding:1px 2px 4px 2px;font-size:11px;font-weight:bold">= Jami:</td>
+        <td style="padding:1px 2px 4px 2px;font-size:11px;font-weight:bold;text-align:right">${totalPriceStr} UZS</td>
+      </tr>`;
+    }).join("");
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
       <style>
@@ -423,7 +434,6 @@ function SellTab() {
       <div style="font-size:10px;margin-bottom:4px"><b>Sana:</b> ${dateStr}</div>
       <div class="divider"></div>
       <table>
-        <tr><th style="text-align:left;font-size:10px">Nomi</th><th style="text-align:center;font-size:10px">Soni</th><th style="text-align:right;font-size:10px">Summa</th></tr>
         ${itemsHtml}
       </table>
       <div class="divider"></div>

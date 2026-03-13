@@ -140,13 +140,24 @@ export default function Dealers() {
     const dateStr = format(now, "dd.MM.yyyy HH:mm");
     const total = items.reduce((s, i) => s + i.price * i.stockPieces, 0);
 
-    const itemsHtml = items.map((item, idx) =>
-      `<tr>
-        <td style="padding:3px 2px;font-size:11px;border-bottom:1px dashed #ccc">${idx + 1}. ${item.name}</td>
-        <td style="padding:3px 2px;font-size:11px;text-align:center;border-bottom:1px dashed #ccc">${item.buyUnit === "quti" ? `${item.quantity} quti (${item.stockPieces} ${item.unit})` : `${item.stockPieces} ${item.unit}`}</td>
-        <td style="padding:3px 2px;font-size:11px;text-align:right;border-bottom:1px dashed #ccc">${(item.price * item.stockPieces).toLocaleString()}</td>
-      </tr>`
-    ).join("");
+    const itemsHtml = items.map((item, idx) => {
+      const qtyLabel = item.buyUnit === "quti"
+        ? `${item.quantity} quti (${item.stockPieces} ${item.unit})`
+        : `${item.stockPieces} ${item.unit}`;
+      const unitPrice = item.price.toLocaleString();
+      const totalPrice = (item.price * item.stockPieces).toLocaleString();
+      return `<tr>
+        <td colspan="2" style="padding:3px 2px 0px 2px;font-size:11px;font-weight:bold;border-top:1px dashed #ccc">${idx + 1}. ${item.name}</td>
+      </tr>
+      <tr>
+        <td style="padding:1px 2px;font-size:10px">${qtyLabel}</td>
+        <td style="padding:1px 2px;font-size:10px;text-align:right">${unitPrice}/dona</td>
+      </tr>
+      <tr>
+        <td style="padding:1px 2px 4px 2px;font-size:11px;font-weight:bold">= Jami:</td>
+        <td style="padding:1px 2px 4px 2px;font-size:11px;font-weight:bold;text-align:right">${totalPrice} UZS</td>
+      </tr>`;
+    }).join("");
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
       <style>
@@ -165,7 +176,6 @@ export default function Dealers() {
       <div style="font-size:10px;margin-bottom:4px"><b>Mahsulotlar soni:</b> ${items.length} ta</div>
       <div class="divider"></div>
       <table>
-        <tr><th style="text-align:left;font-size:10px">Nomi</th><th style="text-align:center;font-size:10px">Soni</th><th style="text-align:right;font-size:10px">Narxi</th></tr>
         ${itemsHtml}
       </table>
       <div class="divider"></div>
