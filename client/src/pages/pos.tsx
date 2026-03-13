@@ -71,6 +71,9 @@ export default function POS() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [paperSize, setPaperSize] = useState<"58mm" | "80mm" | "A4">(() => {
+    return (localStorage.getItem("pos_paper_size") as "58mm" | "80mm" | "A4") || "58mm";
+  });
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
@@ -272,69 +275,77 @@ export default function POS() {
   const handlePrintReceipt = () => {
     if (!receiptRef.current) return;
     const printContent = receiptRef.current.innerHTML;
-    const printWindow = window.open("", "_blank", "width=300,height=600");
-    if (!printWindow) return;
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Chek</title>
-        <style>
-          @page {
-            size: 58mm auto;
-            margin: 0mm;
-            padding: 0mm;
-          }
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-          html, body {
-            width: 58mm;
-            max-width: 58mm;
-            overflow: hidden;
-          }
-          body {
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 12px;
-            line-height: 1.3;
-            padding: 1mm 2mm;
-            color: #000;
-            -webkit-print-color-adjust: exact;
-          }
-          div {
-            max-width: 100%;
-            overflow-wrap: break-word;
-            word-wrap: break-word;
-          }
-          span {
-            max-width: 100%;
-          }
-          div[style*="display: flex"] {
-            width: 100%;
-          }
-          div[style*="flex: 1"], span[style*="flex: 1"] {
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
-        </style>
-      </head>
-      <body>
-        ${printContent}
-        <script>
-          window.onload = function() {
-            window.print();
-            window.onafterprint = function() { window.close(); };
-            setTimeout(function() { window.close(); }, 5000);
-          };
-        <\/script>
-      </body>
-      </html>
-    `);
-    printWindow.document.close();
+
+    const sizeMap = {
+      "58mm": { width: "58mm", bodyWidth: "54mm", fontSize: "11px", padding: "1mm 2mm" },
+      "80mm": { width: "80mm", bodyWidth: "76mm", fontSize: "13px", padding: "2mm 3mm" },
+      "A4":   { width: "210mm", bodyWidth: "200mm", fontSize: "14px", padding: "5mm 8mm" },
+    };
+    const sz = sizeMap[paperSize];
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chek</title>
+  <style>
+    @page {
+      size: ${sz.width} auto;
+      margin: 0;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: ${sz.bodyWidth};
+      font-family: 'Courier New', Courier, monospace;
+      font-size: ${sz.fontSize};
+      line-height: 1.4;
+      padding: ${sz.padding};
+      color: #000;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    div { max-width: 100%; overflow-wrap: break-word; word-wrap: break-word; }
+    div[style*="display: flex"] { width: 100%; }
+  </style>
+</head>
+<body>
+  ${printContent}
+  <script>
+    window.onload = function() {
+      setTimeout(function() {
+        window.print();
+        window.onafterprint = function() { window.close(); };
+        setTimeout(function() { window.close(); }, 8000);
+      }, 300);
+    };
+  <\/script>
+</body>
+</html>`;
+
+    // Android Chrome PWA uchun iframe usuli (popup blocker muammosini hal qiladi)
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    if (isAndroid) {
+      let iframe = document.getElementById("print-iframe") as HTMLIFrameElement;
+      if (!iframe) {
+        iframe = document.createElement("iframe");
+        iframe.id = "print-iframe";
+        iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;";
+        document.body.appendChild(iframe);
+      }
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (iframeDoc) {
+        iframeDoc.open();
+        iframeDoc.write(html);
+        iframeDoc.close();
+        setTimeout(() => { iframe.contentWindow?.print(); }, 400);
+      }
+    } else {
+      const printWindow = window.open("", "_blank", "width=320,height=600");
+      if (!printWindow) return;
+      printWindow.document.write(html);
+      printWindow.document.close();
+    }
   };
 
   return (
@@ -765,7 +776,7 @@ export default function POS() {
       </Dialog>
 
       <Dialog open={receiptOpen} onOpenChange={setReceiptOpen}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className={paperSize === "A4" ? "sm:max-w-2xl" : paperSize === "80mm" ? "sm:max-w-md" : "sm:max-w-sm"}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Printer className="h-4 w-4" />
@@ -773,7 +784,7 @@ export default function POS() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="border rounded-lg p-4 bg-white text-black font-mono max-h-[60vh] overflow-y-auto" style={{ maxWidth: "220px", margin: "0 auto" }} data-testid="receipt-preview">
+          <div className="border rounded-lg p-4 bg-white text-black font-mono max-h-[60vh] overflow-y-auto" style={{ maxWidth: paperSize === "A4" ? "100%" : paperSize === "80mm" ? "300px" : "220px", margin: "0 auto", fontSize: paperSize === "A4" ? "14px" : paperSize === "80mm" ? "13px" : "11px" }} data-testid="receipt-preview">
             <div ref={receiptRef}>
               {receiptData && (
                 <>
@@ -879,13 +890,35 @@ export default function POS() {
             </div>
           </div>
 
+          <div className="px-4 pb-2 pt-0">
+            <p className="text-xs text-muted-foreground mb-1.5">Qog'oz o'lchami:</p>
+            <div className="flex gap-1.5">
+              {(["58mm", "80mm", "A4"] as const).map((size) => (
+                <button
+                  key={size}
+                  onClick={() => {
+                    setPaperSize(size);
+                    localStorage.setItem("pos_paper_size", size);
+                  }}
+                  className={`px-3 py-1.5 text-xs font-medium rounded border transition-colors ${
+                    paperSize === size
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background border-border hover:bg-accent"
+                  }`}
+                  data-testid={`button-paper-size-${size}`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setReceiptOpen(false)} data-testid="button-close-receipt">
               Yopish
             </Button>
             <Button onClick={handlePrintReceipt} data-testid="button-print-receipt">
               <Printer className="h-4 w-4 mr-2" />
-              Chop etish
+              Chop etish ({paperSize})
             </Button>
           </DialogFooter>
         </DialogContent>
