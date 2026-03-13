@@ -994,87 +994,32 @@ function SellTab() {
             <DialogTitle>Sotishni tasdiqlash</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {dealerCustomers && dealerCustomers.length > 0 && (
-              <div>
-                <Label className="mb-1.5 flex items-center gap-1">
-                  <User className="h-3.5 w-3.5" />
-                  Mijozni qidiring
-                </Label>
-                <div className="relative mb-1.5">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    value={customerSearch}
-                    onChange={(e) => setCustomerSearch(e.target.value)}
-                    placeholder="Ism yoki telefon..."
-                    className="pl-8 h-9 text-sm"
-                    data-testid="input-sell-customer-search"
-                  />
+            {/* Mijoz ko'rsatish */}
+            {customerName ? (
+              <div className="flex items-center gap-2 p-2.5 rounded-md bg-primary/10 border border-primary/20">
+                <User className="h-4 w-4 text-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-primary truncate">{customerName}</p>
+                  {customerPhone && <p className="text-xs text-muted-foreground">{customerPhone}</p>}
                 </div>
-                <div className="border rounded-md max-h-40 overflow-y-auto">
-                  <button
-                    type="button"
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors ${!dealerCustomerId ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground"}`}
-                    onClick={() => { setDealerCustomerId(""); setCustomerName(""); setCustomerPhone(""); }}
-                    data-testid="button-sell-new-customer"
-                  >
-                    + Yangi mijoz (qo'lda kiritish)
-                  </button>
-                  {(dealerCustomers as any[])
-                    .filter((c: any) =>
-                      !customerSearch ||
-                      c.name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
-                      (c.phone && c.phone.includes(customerSearch))
-                    )
-                    .map((c: any) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors border-t ${dealerCustomerId === c.id ? "bg-primary/10 text-primary font-medium" : ""}`}
-                        onClick={() => {
-                          setDealerCustomerId(c.id);
-                          setCustomerName(c.name);
-                          setCustomerPhone(c.phone || "");
-                        }}
-                        data-testid={`button-sell-customer-${c.id}`}
-                      >
-                        <span className="font-medium">{c.name}</span>
-                        {c.phone && <span className="text-muted-foreground ml-2 text-xs">{c.phone}</span>}
-                        {Number(c.debt) > 0 && (
-                          <span className="text-red-500 ml-2 text-xs">Qarz: {formatCurrency(Number(c.debt))}</span>
-                        )}
-                      </button>
-                    ))
-                  }
-                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs h-7 px-2 shrink-0"
+                  onClick={() => { setCheckoutOpen(false); setTimeout(() => { setCustomerDialogSearch(""); setCustomerSelectOpen(true); }, 100); }}
+                >
+                  O'zgartirish
+                </Button>
               </div>
-            )}
-            {!dealerCustomerId && (
-              <>
-                <div>
-                  <Label>
-                    <User className="h-3.5 w-3.5 inline mr-1" />
-                    Mijoz ismi (ixtiyoriy)
-                  </Label>
-                  <Input
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Mijoz ismi"
-                    data-testid="input-sell-customer-name"
-                  />
-                </div>
-                <div>
-                  <Label>
-                    <Phone className="h-3.5 w-3.5 inline mr-1" />
-                    Telefon (ixtiyoriy)
-                  </Label>
-                  <Input
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="+998..."
-                    data-testid="input-sell-customer-phone"
-                  />
-                </div>
-              </>
+            ) : (
+              <div
+                className="flex items-center gap-2 p-2.5 rounded-md border border-dashed cursor-pointer hover:bg-accent transition-colors"
+                onClick={() => { setCheckoutOpen(false); setTimeout(() => { setCustomerDialogSearch(""); setCustomerSelectOpen(true); }, 100); }}
+                data-testid="button-checkout-select-customer"
+              >
+                <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-sm text-muted-foreground">Mijoz tanlanmagan — tanlash uchun bosing</span>
+              </div>
             )}
 
             <div>
