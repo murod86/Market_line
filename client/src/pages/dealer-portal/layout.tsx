@@ -647,38 +647,65 @@ function SellTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold" data-testid="text-sell-title">Mijozga sotish</h2>
-        <Button
-          variant={dealerCustomerId ? "default" : "outline"}
-          size="sm"
-          className="gap-2"
-          onClick={() => { setCustomerDialogSearch(""); setCustomerSelectOpen(true); }}
-          data-testid="button-open-customer-select"
-        >
-          <User className="h-4 w-4" />
-          {customerName ? customerName : "Mijoz tanlash"}
-        </Button>
-      </div>
+      <h2 className="text-lg font-bold" data-testid="text-sell-title">Mijozga sotish</h2>
 
-      {customerName && (
-        <div className="flex items-center gap-2 p-2 rounded-md bg-primary/10 border border-primary/20">
-          <User className="h-4 w-4 text-primary shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-primary truncate">{customerName}</p>
-            {customerPhone && <p className="text-xs text-muted-foreground">{customerPhone}</p>}
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-destructive"
-            onClick={() => { setCustomerName(""); setCustomerPhone(""); setDealerCustomerId(""); }}
-            data-testid="button-clear-customer"
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
-        </div>
-      )}
+      {/* Customer selector - always visible */}
+      <Card className="border-dashed">
+        <CardContent className="p-3">
+          <p className="text-xs text-muted-foreground font-medium mb-2 flex items-center gap-1">
+            <User className="h-3 w-3" /> MIJOZ
+          </p>
+          {customerName ? (
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-primary truncate">{customerName}</p>
+                {customerPhone && <p className="text-xs text-muted-foreground">{customerPhone}</p>}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1 shrink-0"
+                onClick={() => { setCustomerDialogSearch(""); setCustomerSelectOpen(true); }}
+                data-testid="button-change-customer"
+              >
+                <Search className="h-3 w-3" />
+                O'zgartirish
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                onClick={() => { setCustomerName(""); setCustomerPhone(""); setDealerCustomerId(""); }}
+                data-testid="button-clear-customer"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="flex-1 flex items-center gap-2 px-3 py-2 rounded-md border border-input bg-background hover:bg-accent transition-colors text-left"
+                onClick={() => { setCustomerDialogSearch(""); setCustomerSelectOpen(true); }}
+                data-testid="button-open-customer-select"
+              >
+                <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-sm text-muted-foreground">Mijoz qidirish yoki tanlash...</span>
+              </button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1 shrink-0"
+                onClick={() => { setCreateCustomerMode(true); setCustomerSelectOpen(true); }}
+                data-testid="button-quick-create-customer"
+              >
+                <UserPlus className="h-4 w-4" />
+                Yangi
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Customer Select / Create Dialog */}
       <Dialog open={customerSelectOpen} onOpenChange={(o) => { setCustomerSelectOpen(o); if (!o) { setCreateCustomerMode(false); setNewCustName(""); setNewCustPhone(""); setNewCustAddress(""); } }}>
