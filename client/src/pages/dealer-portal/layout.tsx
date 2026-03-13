@@ -835,8 +835,13 @@ function SellTab() {
                     data-testid={`button-select-customer-${c.id}`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{c.name}</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-medium truncate">{c.name}</p>
+                          {c.source === "admin" && (
+                            <span className="text-[9px] px-1 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 shrink-0 font-medium">ADMIN</span>
+                          )}
+                        </div>
                         {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
                         {c.address && <p className="text-xs text-muted-foreground truncate">{c.address}</p>}
                       </div>
