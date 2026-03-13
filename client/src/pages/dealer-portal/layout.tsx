@@ -375,6 +375,10 @@ function SellTab() {
   const [cart, setCart] = useState<SellCartItem[]>([]);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [customerSelectOpen, setCustomerSelectOpen] = useState(false);
+  const [createCustomerMode, setCreateCustomerMode] = useState(false);
+  const [newCustName, setNewCustName] = useState("");
+  const [newCustPhone, setNewCustPhone] = useState("");
+  const [newCustAddress, setNewCustAddress] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [dealerCustomerId, setDealerCustomerId] = useState("");
@@ -385,6 +389,9 @@ function SellTab() {
   const [paidAmount, setPaidAmount] = useState("");
   const [discountValue, setDiscountValue] = useState("");
   const [discountType, setDiscountType] = useState<"amount" | "percent">("amount");
+  const [paperSize, setPaperSize] = useState<"58mm" | "80mm" | "A4">(() =>
+    (localStorage.getItem("dealer_paper_size") as "58mm" | "80mm" | "A4") || "58mm"
+  );
   const { toast } = useToast();
 
   const { data: inventory } = useQuery<any[]>({
@@ -395,10 +402,35 @@ function SellTab() {
     queryKey: ["/api/dealer-portal/customers"],
   });
 
-  const printSaleReceipt = (items: SellCartItem[], subtotalAmt: number, discAmt: number, totalAmt: number, custName: string, custPhone: string, pType: string, paidAmt: number) => {
+  const createCustomerMut = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/dealer-portal/customers", data);
+      return res.json();
+    },
+    onSuccess: (created: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/customers"] });
+      setDealerCustomerId(created.id);
+      setCustomerName(created.name);
+      setCustomerPhone(created.phone || "");
+      setCreateCustomerMode(false);
+      setNewCustName(""); setNewCustPhone(""); setNewCustAddress("");
+      setCustomerSelectOpen(false);
+      toast({ title: "Mijoz qo'shildi" });
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const printSaleReceipt = (items: SellCartItem[], subtotalAmt: number, discAmt: number, totalAmt: number, custName: string, custPhone: string, pType: string, paidAmt: number, ps: "58mm" | "80mm" | "A4" = "58mm") => {
     const now = new Date();
     const dateStr = format(now, "dd.MM.yyyy HH:mm");
     const debtAmt = pType === "debt" ? totalAmt : pType === "partial" ? Math.max(0, totalAmt - paidAmt) : 0;
+
+    const sizeMap = {
+      "58mm": { pageWidth: "58mm", bodyWidth: "54mm", baseFontSize: "11px", padding: "1mm 2mm" },
+      "80mm": { pageWidth: "80mm", bodyWidth: "76mm", baseFontSize: "13px", padding: "2mm 3mm" },
+      "A4":   { pageWidth: "210mm", bodyWidth: "190mm", baseFontSize: "14px", padding: "5mm 8mm" },
+    };
+    const sz = sizeMap[ps];
 
     const itemsHtml = items.map(item => {
       const qtyLabel = item.buyUnit === "quti"
@@ -407,59 +439,76 @@ function SellTab() {
       const unitPriceStr = item.price.toLocaleString();
       const totalPriceStr = (item.price * item.stockPieces).toLocaleString();
       return `<tr>
-        <td colspan="2" style="padding:3px 2px 0px 2px;font-size:11px;font-weight:bold;border-top:1px dashed #ccc">${item.name}</td>
+        <td colspan="2" style="padding:3px 2px 0px 2px;font-weight:bold;border-top:1px dashed #ccc">${item.name}</td>
       </tr>
       <tr>
-        <td style="padding:1px 2px;font-size:10px">${qtyLabel}</td>
-        <td style="padding:1px 2px;font-size:10px;text-align:right">${unitPriceStr}/dona</td>
+        <td style="padding:1px 2px">${qtyLabel}</td>
+        <td style="padding:1px 2px;text-align:right">${unitPriceStr}/dona</td>
       </tr>
       <tr>
-        <td style="padding:1px 2px 4px 2px;font-size:11px;font-weight:bold">= Jami:</td>
-        <td style="padding:1px 2px 4px 2px;font-size:11px;font-weight:bold;text-align:right">${totalPriceStr} UZS</td>
+        <td style="padding:1px 2px 4px 2px;font-weight:bold">= Jami:</td>
+        <td style="padding:1px 2px 4px 2px;font-weight:bold;text-align:right">${totalPriceStr} UZS</td>
       </tr>`;
     }).join("");
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
       <style>
-        @page { size: 58mm auto; margin: 2mm; }
-        body { font-family: 'Courier New', monospace; font-size: 11px; margin: 0; padding: 4px; width: 54mm; }
-        .center { text-align: center; }
-        .bold { font-weight: bold; }
-        .divider { border-top: 1px dashed #000; margin: 6px 0; }
-        table { width: 100%; border-collapse: collapse; }
+        @page { size: ${sz.pageWidth} auto; margin: 0; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html, body { width:${sz.bodyWidth}; font-family:'Courier New',monospace; font-size:${sz.baseFontSize}; line-height:1.4; padding:${sz.padding}; color:#000; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+        .center { text-align:center; }
+        .bold { font-weight:bold; }
+        .divider { border-top:1px dashed #000; margin:5px 0; }
+        table { width:100%; border-collapse:collapse; }
+        div { overflow-wrap:break-word; word-wrap:break-word; }
       </style></head><body>
-      <div class="center bold" style="font-size:14px;margin-bottom:4px">MARKET_LINE</div>
-      <div class="center" style="font-size:10px;margin-bottom:6px">Sotuv cheki</div>
+      <div class="center bold" style="font-size:1.3em;margin-bottom:3px">MARKET_LINE</div>
+      <div class="center" style="font-size:0.9em;margin-bottom:5px">Sotuv cheki</div>
       <div class="divider"></div>
-      ${custName ? `<div style="font-size:10px;margin-bottom:2px"><b>Mijoz:</b> ${custName}</div>` : ""}
-      ${custPhone ? `<div style="font-size:10px;margin-bottom:2px"><b>Tel:</b> ${custPhone}</div>` : ""}
-      <div style="font-size:10px;margin-bottom:4px"><b>Sana:</b> ${dateStr}</div>
+      ${custName ? `<div style="margin-bottom:2px"><b>Mijoz:</b> ${custName}</div>` : ""}
+      ${custPhone ? `<div style="margin-bottom:2px"><b>Tel:</b> ${custPhone}</div>` : ""}
+      <div style="margin-bottom:4px"><b>Sana:</b> ${dateStr}</div>
       <div class="divider"></div>
-      <table>
-        ${itemsHtml}
-      </table>
+      <table>${itemsHtml}</table>
       <div class="divider"></div>
       ${discAmt > 0 ? `
-        <div style="display:flex;justify-content:space-between;font-size:10px">
+        <div style="display:flex;justify-content:space-between">
           <span>Summa:</span><span>${subtotalAmt.toLocaleString()} UZS</span>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:10px;color:red">
+        <div style="display:flex;justify-content:space-between;color:red">
           <span>Chegirma:</span><span>-${discAmt.toLocaleString()} UZS</span>
         </div>
       ` : ""}
-      <div style="display:flex;justify-content:space-between;font-size:13px" class="bold">
+      <div style="display:flex;justify-content:space-between;font-size:1.2em" class="bold">
         <span>JAMI:</span><span>${totalAmt.toLocaleString()} UZS</span>
       </div>
-      ${pType === "cash" ? `<div style="font-size:10px;margin-top:4px"><b>To'lov:</b> Naqd</div>` : ""}
-      ${pType === "debt" ? `<div style="font-size:10px;margin-top:4px;color:red"><b>Qarz:</b> ${totalAmt.toLocaleString()} UZS</div>` : ""}
-      ${pType === "partial" ? `<div style="font-size:10px;margin-top:4px"><b>To'langan:</b> ${paidAmt.toLocaleString()} UZS</div><div style="font-size:10px;color:red"><b>Qarz:</b> ${debtAmt.toLocaleString()} UZS</div>` : ""}
+      ${pType === "cash" ? `<div style="margin-top:3px"><b>To'lov:</b> Naqd</div>` : ""}
+      ${pType === "debt" ? `<div style="margin-top:3px;color:red"><b>Qarz:</b> ${totalAmt.toLocaleString()} UZS</div>` : ""}
+      ${pType === "partial" ? `<div style="margin-top:3px"><b>To'langan:</b> ${paidAmt.toLocaleString()} UZS</div><div style="color:red"><b>Qarz:</b> ${debtAmt.toLocaleString()} UZS</div>` : ""}
       <div class="divider"></div>
-      <div class="center" style="font-size:9px;margin-top:8px;color:#888">MARKET_LINE - Diller sotuv xizmati</div>
-      <script>window.onload=function(){window.print();setTimeout(function(){window.close()},5000)}</script>
+      <div class="center" style="font-size:0.85em;margin-top:6px;color:#555">Xaridingiz uchun rahmat!</div>
+      <script>window.onload=function(){setTimeout(function(){window.print();window.onafterprint=function(){window.close()};setTimeout(function(){window.close()},8000)},300)}<\/script>
     </body></html>`;
 
-    const w = window.open("", "_blank", "width=300,height=600");
-    if (w) { w.document.write(html); w.document.close(); }
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    if (isAndroid) {
+      let iframe = document.getElementById("dealer-print-iframe") as HTMLIFrameElement;
+      if (!iframe) {
+        iframe = document.createElement("iframe");
+        iframe.id = "dealer-print-iframe";
+        iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;";
+        document.body.appendChild(iframe);
+      }
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (iframeDoc) {
+        iframeDoc.open(); iframeDoc.write(html); iframeDoc.close();
+        setTimeout(() => { iframe.contentWindow?.print(); }, 400);
+      }
+    } else {
+      const w = window.open("", "_blank", "width=320,height=600");
+      if (w) { w.document.write(html); w.document.close(); }
+    }
   };
 
   const sellMutation = useMutation({
@@ -468,7 +517,7 @@ function SellTab() {
       return res.json();
     },
     onSuccess: () => {
-      printSaleReceipt(cart, subtotal, discountAmount, total, customerName, customerPhone, paymentType, Number(paidAmount) || 0);
+      printSaleReceipt(cart, subtotal, discountAmount, total, customerName, customerPhone, paymentType, Number(paidAmount) || 0, paperSize);
       toast({ title: "Sotish muvaffaqiyatli amalga oshirildi" });
       queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/transactions"] });
@@ -631,78 +680,150 @@ function SellTab() {
         </div>
       )}
 
-      {/* Customer Select Dialog */}
-      <Dialog open={customerSelectOpen} onOpenChange={setCustomerSelectOpen}>
+      {/* Customer Select / Create Dialog */}
+      <Dialog open={customerSelectOpen} onOpenChange={(o) => { setCustomerSelectOpen(o); if (!o) { setCreateCustomerMode(false); setNewCustName(""); setNewCustPhone(""); setNewCustAddress(""); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Mijoz tanlash
+              {createCustomerMode ? <UserPlus className="h-5 w-5" /> : <Users className="h-5 w-5" />}
+              {createCustomerMode ? "Yangi mijoz qo'shish" : "Mijoz tanlash"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={customerDialogSearch}
-                onChange={(e) => setCustomerDialogSearch(e.target.value)}
-                placeholder="Ism yoki telefon raqam..."
-                className="pl-9"
-                autoFocus
-                data-testid="input-customer-dialog-search"
-              />
-            </div>
-            <div className="border rounded-md max-h-72 overflow-y-auto">
-              <button
-                type="button"
-                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent transition-colors border-b text-muted-foreground"
-                onClick={() => {
-                  setDealerCustomerId("");
-                  setCustomerName("");
-                  setCustomerPhone("");
-                  setCustomerSelectOpen(false);
-                }}
-                data-testid="button-no-customer"
-              >
-                <span className="flex items-center gap-2">
-                  <UserPlus className="h-4 w-4" />
-                  Mijoz tanlash (ixtiyoriy)
-                </span>
-              </button>
-              {filteredForDialog.length === 0 && customerDialogSearch && (
-                <div className="px-3 py-4 text-center text-sm text-muted-foreground">
-                  Topilmadi
-                </div>
-              )}
-              {filteredForDialog.map((c: any) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={`w-full text-left px-3 py-2.5 text-sm hover:bg-accent transition-colors border-b last:border-0 ${dealerCustomerId === c.id ? "bg-primary/10" : ""}`}
-                  onClick={() => {
-                    setDealerCustomerId(c.id);
-                    setCustomerName(c.name);
-                    setCustomerPhone(c.phone || "");
-                    setCustomerSelectOpen(false);
-                    setCustomerDialogSearch("");
-                  }}
-                  data-testid={`button-select-customer-${c.id}`}
+
+          {createCustomerMode ? (
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Ism *</label>
+                <Input
+                  value={newCustName}
+                  onChange={(e) => setNewCustName(e.target.value)}
+                  placeholder="Mijoz ismi"
+                  autoFocus
+                  data-testid="input-new-customer-name"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Telefon</label>
+                <Input
+                  value={newCustPhone}
+                  onChange={(e) => setNewCustPhone(e.target.value)}
+                  placeholder="+998901234567"
+                  data-testid="input-new-customer-phone"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Manzil</label>
+                <Input
+                  value={newCustAddress}
+                  onChange={(e) => setNewCustAddress(e.target.value)}
+                  placeholder="Manzil (ixtiyoriy)"
+                  data-testid="input-new-customer-address"
+                />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => { setCreateCustomerMode(false); }}>
+                  Orqaga
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1"
+                  disabled={!newCustName.trim() || createCustomerMut.isPending}
+                  onClick={() => createCustomerMut.mutate({ name: newCustName.trim(), phone: newCustPhone.trim(), address: newCustAddress.trim() })}
+                  data-testid="button-save-new-customer"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <p className="font-medium">{c.name}</p>
-                      {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
-                    </div>
-                    {Number(c.debt) > 0 && (
-                      <Badge variant="destructive" className="text-[10px] shrink-0">
-                        Qarz: {formatCurrency(Number(c.debt))}
-                      </Badge>
-                    )}
-                  </div>
-                </button>
-              ))}
+                  {createCustomerMut.isPending ? "Saqlanmoqda..." : "Saqlash"}
+                </Button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={customerDialogSearch}
+                    onChange={(e) => setCustomerDialogSearch(e.target.value)}
+                    placeholder="Ism yoki telefon raqam..."
+                    className="pl-9"
+                    autoFocus
+                    data-testid="input-customer-dialog-search"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 shrink-0"
+                  onClick={() => { setCreateCustomerMode(true); setCustomerDialogSearch(""); }}
+                  data-testid="button-create-new-customer"
+                >
+                  <Plus className="h-4 w-4" />
+                  Yangi
+                </Button>
+              </div>
+              <div className="border rounded-md max-h-72 overflow-y-auto">
+                <button
+                  type="button"
+                  className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent transition-colors border-b text-muted-foreground"
+                  onClick={() => {
+                    setDealerCustomerId("");
+                    setCustomerName("");
+                    setCustomerPhone("");
+                    setCustomerSelectOpen(false);
+                  }}
+                  data-testid="button-no-customer"
+                >
+                  <span className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Mijoz tanlash (ixtiyoriy)
+                  </span>
+                </button>
+                {filteredForDialog.length === 0 && customerDialogSearch ? (
+                  <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                    <p>Topilmadi</p>
+                    <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-primary" onClick={() => { setNewCustName(customerDialogSearch); setCreateCustomerMode(true); }}>
+                      + "{customerDialogSearch}" ni yaratish
+                    </Button>
+                  </div>
+                ) : filteredForDialog.length === 0 ? (
+                  <div className="px-3 py-8 text-center text-sm text-muted-foreground">
+                    <Users className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <p>Mijozlar yo'q</p>
+                    <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-primary" onClick={() => setCreateCustomerMode(true)}>
+                      + Yangi mijoz qo'shish
+                    </Button>
+                  </div>
+                ) : null}
+                {filteredForDialog.map((c: any) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={`w-full text-left px-3 py-2.5 text-sm hover:bg-accent transition-colors border-b last:border-0 ${dealerCustomerId === c.id ? "bg-primary/10" : ""}`}
+                    onClick={() => {
+                      setDealerCustomerId(c.id);
+                      setCustomerName(c.name);
+                      setCustomerPhone(c.phone || "");
+                      setCustomerSelectOpen(false);
+                      setCustomerDialogSearch("");
+                    }}
+                    data-testid={`button-select-customer-${c.id}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{c.name}</p>
+                        {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
+                        {c.address && <p className="text-xs text-muted-foreground truncate">{c.address}</p>}
+                      </div>
+                      {Number(c.debt) > 0 && (
+                        <Badge variant="destructive" className="text-[10px] shrink-0">
+                          Qarz: {formatCurrency(Number(c.debt))}
+                        </Badge>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -1050,6 +1171,25 @@ function SellTab() {
                 )}
               </CardContent>
             </Card>
+          </div>
+          <div className="px-1 pb-2">
+            <div className="flex items-center gap-2">
+              <Printer className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="text-sm text-muted-foreground">Chek o'lchami:</span>
+              <div className="flex gap-1">
+                {(["58mm", "80mm", "A4"] as const).map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => { setPaperSize(s); localStorage.setItem("dealer_paper_size", s); }}
+                    className={`px-2 py-0.5 rounded text-xs border transition-colors ${paperSize === s ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent"}`}
+                    data-testid={`button-paper-size-${s}`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCheckoutOpen(false)}>Bekor qilish</Button>
