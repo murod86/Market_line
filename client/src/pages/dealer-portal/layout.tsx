@@ -374,10 +374,12 @@ interface SellCartItem {
 function SellTab() {
   const [cart, setCart] = useState<SellCartItem[]>([]);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [customerSelectOpen, setCustomerSelectOpen] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [dealerCustomerId, setDealerCustomerId] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");
+  const [customerDialogSearch, setCustomerDialogSearch] = useState("");
   const [notes, setNotes] = useState("");
   const [paymentType, setPaymentType] = useState<"cash" | "debt" | "partial">("cash");
   const [paidAmount, setPaidAmount] = useState("");
@@ -478,6 +480,7 @@ function SellTab() {
       setCustomerPhone("");
       setDealerCustomerId("");
       setCustomerSearch("");
+      setCustomerDialogSearch("");
       setNotes("");
       setPaymentType("cash");
       setPaidAmount("");
@@ -587,9 +590,121 @@ function SellTab() {
     });
   };
 
+  const filteredForDialog = (dealerCustomers as any[] || []).filter((c: any) =>
+    !customerDialogSearch ||
+    c.name?.toLowerCase().includes(customerDialogSearch.toLowerCase()) ||
+    (c.phone && c.phone.includes(customerDialogSearch))
+  );
+
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold" data-testid="text-sell-title">Mijozga sotish</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold" data-testid="text-sell-title">Mijozga sotish</h2>
+        <Button
+          variant={dealerCustomerId ? "default" : "outline"}
+          size="sm"
+          className="gap-2"
+          onClick={() => { setCustomerDialogSearch(""); setCustomerSelectOpen(true); }}
+          data-testid="button-open-customer-select"
+        >
+          <User className="h-4 w-4" />
+          {customerName ? customerName : "Mijoz tanlash"}
+        </Button>
+      </div>
+
+      {customerName && (
+        <div className="flex items-center gap-2 p-2 rounded-md bg-primary/10 border border-primary/20">
+          <User className="h-4 w-4 text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-primary truncate">{customerName}</p>
+            {customerPhone && <p className="text-xs text-muted-foreground">{customerPhone}</p>}
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+            onClick={() => { setCustomerName(""); setCustomerPhone(""); setDealerCustomerId(""); }}
+            data-testid="button-clear-customer"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
+
+      {/* Customer Select Dialog */}
+      <Dialog open={customerSelectOpen} onOpenChange={setCustomerSelectOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Mijoz tanlash
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={customerDialogSearch}
+                onChange={(e) => setCustomerDialogSearch(e.target.value)}
+                placeholder="Ism yoki telefon raqam..."
+                className="pl-9"
+                autoFocus
+                data-testid="input-customer-dialog-search"
+              />
+            </div>
+            <div className="border rounded-md max-h-72 overflow-y-auto">
+              <button
+                type="button"
+                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent transition-colors border-b text-muted-foreground"
+                onClick={() => {
+                  setDealerCustomerId("");
+                  setCustomerName("");
+                  setCustomerPhone("");
+                  setCustomerSelectOpen(false);
+                }}
+                data-testid="button-no-customer"
+              >
+                <span className="flex items-center gap-2">
+                  <UserPlus className="h-4 w-4" />
+                  Mijoz tanlash (ixtiyoriy)
+                </span>
+              </button>
+              {filteredForDialog.length === 0 && customerDialogSearch && (
+                <div className="px-3 py-4 text-center text-sm text-muted-foreground">
+                  Topilmadi
+                </div>
+              )}
+              {filteredForDialog.map((c: any) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`w-full text-left px-3 py-2.5 text-sm hover:bg-accent transition-colors border-b last:border-0 ${dealerCustomerId === c.id ? "bg-primary/10" : ""}`}
+                  onClick={() => {
+                    setDealerCustomerId(c.id);
+                    setCustomerName(c.name);
+                    setCustomerPhone(c.phone || "");
+                    setCustomerSelectOpen(false);
+                    setCustomerDialogSearch("");
+                  }}
+                  data-testid={`button-select-customer-${c.id}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="font-medium">{c.name}</p>
+                      {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
+                    </div>
+                    {Number(c.debt) > 0 && (
+                      <Badge variant="destructive" className="text-[10px] shrink-0">
+                        Qarz: {formatCurrency(Number(c.debt))}
+                      </Badge>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-4 lg:grid-cols-5">
         <div className="lg:col-span-3 space-y-3">
