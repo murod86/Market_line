@@ -787,26 +787,30 @@ export default function POS() {
                     )}
                   </div>
 
-                  <div style={{ borderTop: "1px dashed #000", margin: "6px 0" }} />
+                  <div style={{ borderTop: "1px dashed #000", margin: "5px 0" }} />
 
-                  <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "11px", marginBottom: "4px", color: "#000" }}>
-                    <span>Nomi</span>
-                    <span>Summa</span>
-                  </div>
-
-                  <div style={{ borderTop: "1px dashed #000", margin: "4px 0" }} />
-
-                  {receiptData.items.map((item, idx) => (
-                    <div key={idx} style={{ marginBottom: "5px" }}>
-                      <div style={{ fontSize: "12px", fontWeight: "bold", color: "#000", wordBreak: "break-word" }}>
-                        {item.product.name}
+                  {receiptData.items.map((item, idx) => {
+                    const unitPrice = Number(item.product.price);
+                    const totalPrice = item.stockPieces * unitPrice;
+                    const qtyLabel = item.buyUnit === "quti"
+                      ? `${item.quantity} quti (${item.stockPieces} ${item.product.unit})`
+                      : `${item.stockPieces} ${item.product.unit}`;
+                    return (
+                      <div key={idx} style={{ marginBottom: "6px" }}>
+                        <div style={{ fontSize: "12px", fontWeight: "bold", color: "#000", wordBreak: "break-word" }}>
+                          {item.product.name}
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", fontWeight: "600", color: "#000", marginTop: "1px" }}>
+                          <span>{qtyLabel}</span>
+                          <span>{formatCurrencyShort(unitPrice)}/dona</span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: "bold", color: "#000" }}>
+                          <span>= Jami:</span>
+                          <span>{formatCurrencyShort(totalPrice)}</span>
+                        </div>
                       </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", fontWeight: "600", color: "#000" }}>
-                        <span>{item.buyUnit === "quti" ? `${item.quantity} quti (${item.stockPieces} ${item.product.unit})` : `${item.stockPieces} ${item.product.unit}`} x {formatCurrencyShort(Number(item.product.price))}</span>
-                        <span style={{ fontWeight: "bold" }}>{formatCurrencyShort(item.stockPieces * Number(item.product.price))}</span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   <div style={{ borderTop: "1px dashed #000", margin: "6px 0" }} />
 
