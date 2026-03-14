@@ -1,14 +1,16 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, TrendingUp, ShoppingCart, Banknote, CreditCard, Wallet, Eye, Calendar } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { Search, TrendingUp, ShoppingCart, Banknote, CreditCard, Wallet, Eye, Calendar, Pencil } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface SaleHistory {
   id: string;
@@ -58,12 +60,16 @@ function paymentLabel(type: string) {
 }
 
 export default function SalesHistory() {
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
+  const [editSale, setEditSale] = useState<SaleHistory | null>(null);
+  const [editPaymentType, setEditPaymentType] = useState("cash");
+  const [editPaidAmount, setEditPaidAmount] = useState("");
 
   const { data: sales, isLoading } = useQuery<SaleHistory[]>({
     queryKey: ["/api/sales-history"],
@@ -96,6 +102,26 @@ export default function SalesHistory() {
   const todayProfit = todaySales.reduce((s, x) => s + Number(x.profit), 0);
   const monthProfit = monthSales.reduce((s, x) => s + Number(x.profit), 0);
   const allProfit = filtered.reduce((s, x) => s + Number(x.profit), 0);
+
+  const editSaleMutation = useMutation({
+    mutationFn: async ({ id, paymentType, paidAmount }: { id: string; paymentType: string; paidAmount?: number }) => {
+      const res = await apiRequest("PATCH", `/api/sales/${id}`, { paymentType, paidAmount });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Sotuv tahrirlandi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales-history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      setEditSale(null);
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const openEdit = (sale: SaleHistory) => {
+    setEditSale(sale);
+    setEditPaymentType(sale.payment_type);
+    setEditPaidAmount(sale.paid_amount ? String(Math.round(Number(sale.paid_amount))) : "");
+  };
 
   const openDetail = (id: string) => {
     setSelectedSaleId(id);
@@ -250,7 +276,10 @@ export default function SalesHistory() {
                             {pt.label}
                           </span>
                         </td>
-                        <td className="py-3">
+                        <td className="py-3 flex gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openEdit(sale)} data-testid={`button-sale-edit-${sale.id}`}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                           <Button variant="ghost" size="sm" onClick={() => openDetail(sale.id)} data-testid={`button-sale-detail-${sale.id}`}>
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -264,6 +293,71 @@ export default function SalesHistory() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!editSale} onOpenChange={() => setEditSale(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Sotuvni tahrirlash</DialogTitle>
+          </DialogHeader>
+          {editSale && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/50 text-sm">
+                <p className="font-medium">{editSale.customer_name || "Noma'lum mijoz"}</p>
+                <p className="text-muted-foreground">Jami: {formatCurrency(Number(editSale.total_amount))}</p>
+                <p className="text-muted-foreground text-xs">Joriy: {paymentLabel(editSale.payment_type).label}</p>
+              </div>
+              <div>
+                <Label>To'lov turi</Label>
+                <Select value={editPaymentType} onValueChange={v => { setEditPaymentType(v); if (v !== "partial") setEditPaidAmount(""); }}>
+                  <SelectTrigger data-testid="select-edit-payment-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Naqd (to'liq)</SelectItem>
+                    <SelectItem value="card">Karta (to'liq)</SelectItem>
+                    <SelectItem value="debt">Qarzga (0 to'liq)</SelectItem>
+                    <SelectItem value="partial">Qisman</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {editPaymentType === "partial" && (
+                <div>
+                  <Label>To'langan summa</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max={Math.round(Number(editSale.total_amount))}
+                    placeholder="To'langan miqdor"
+                    value={editPaidAmount}
+                    onChange={e => setEditPaidAmount(e.target.value)}
+                    data-testid="input-edit-paid-amount"
+                  />
+                  {editPaidAmount && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Qarz: {formatCurrency(Math.max(0, Number(editSale.total_amount) - Number(editPaidAmount)))}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditSale(null)}>Bekor qilish</Button>
+            <Button
+              onClick={() => {
+                if (!editSale) return;
+                const payload: any = { paymentType: editPaymentType };
+                if (editPaymentType === "partial") payload.paidAmount = Number(editPaidAmount) || 0;
+                editSaleMutation.mutate({ id: editSale.id, ...payload });
+              }}
+              disabled={editSaleMutation.isPending || (editPaymentType === "partial" && (!editPaidAmount || Number(editPaidAmount) <= 0))}
+              data-testid="button-save-edit-sale"
+            >
+              {editSaleMutation.isPending ? "Saqlanmoqda..." : "Saqlash"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-w-md">

@@ -557,6 +557,53 @@ export async function registerRoutes(
     res.json({ ...sale, items });
   });
 
+  app.patch("/api/sales/:id", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const sale = await storage.getSale(req.params.id);
+      if (!sale || (sale as any).tenantId !== tenantId) {
+        return res.status(404).json({ message: "Sotuv topilmadi" });
+      }
+      const editSchema = z.object({
+        paymentType: z.enum(["cash", "card", "debt", "partial"]).optional(),
+        paidAmount: z.number().min(0).optional(),
+        notes: z.string().optional().nullable(),
+      });
+      const { paymentType, paidAmount, notes } = editSchema.parse(req.body);
+      const total = Number((sale as any).totalAmount);
+      const oldPaymentType = (sale as any).paymentType;
+      const oldPaidAmount = Number((sale as any).paidAmount || 0);
+      const newPaymentType = paymentType || oldPaymentType;
+      let newPaidAmount: number;
+      if (newPaymentType === "cash" || newPaymentType === "card") {
+        newPaidAmount = total;
+      } else if (newPaymentType === "debt") {
+        newPaidAmount = 0;
+      } else if (newPaymentType === "partial") {
+        newPaidAmount = paidAmount !== undefined ? Math.min(paidAmount, total) : oldPaidAmount;
+      } else {
+        newPaidAmount = oldPaidAmount;
+      }
+      const customerId = (sale as any).customerId;
+      if (customerId) {
+        const customer = await storage.getCustomer(customerId);
+        if (customer) {
+          const oldSaleDebt = Math.max(0, total - oldPaidAmount);
+          const newSaleDebt = Math.max(0, total - newPaidAmount);
+          const currentDebt = Number((customer as any).debt || 0);
+          const adjustedDebt = Math.max(0, currentDebt - oldSaleDebt + newSaleDebt);
+          await storage.updateCustomer(customerId, { debt: adjustedDebt.toFixed(2) } as any);
+        }
+      }
+      const updateData: any = { paymentType: newPaymentType, paidAmount: newPaidAmount.toFixed(2) };
+      if (notes !== undefined) updateData.notes = notes;
+      const updated = await storage.updateSale(sale.id, updateData);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
   app.post("/api/sales", requireTenant, async (req, res) => {
     try {
       const { items, customerId, discount, paidAmount, paymentType, employeeId } = req.body;
@@ -924,12 +971,15 @@ export async function registerRoutes(
       }
 
       const editSchema = z.object({
-        quantity: z.number().int().positive(),
+        quantity: z.number().int().positive().optional(),
         notes: z.string().optional().nullable(),
+        paymentType: z.enum(["cash", "debt", "partial"]).optional(),
+        paidAmount: z.number().min(0).optional(),
       });
-      const { quantity, notes } = editSchema.parse(req.body);
+      const { quantity, notes, paymentType, paidAmount } = editSchema.parse(req.body);
       const oldQuantity = tx.quantity;
-      const diff = quantity - oldQuantity;
+      const finalQuantity = quantity !== undefined ? quantity : oldQuantity;
+      const diff = finalQuantity - oldQuantity;
 
       const product = await storage.getProduct(tx.productId);
       if (!product) return res.status(400).json({ message: "Mahsulot topilmadi" });
@@ -938,28 +988,46 @@ export async function registerRoutes(
         return res.status(400).json({ message: `Omborda yetarli emas (${product.stock} ${product.unit} bor)` });
       }
 
-      await storage.updateProduct(product.id, { stock: product.stock - diff });
+      if (diff !== 0) {
+        await storage.updateProduct(product.id, { stock: product.stock - diff });
+        const inv = await storage.getDealerInventoryItem(tx.dealerId, tx.productId);
+        const currentInvQty = inv?.quantity || 0;
+        await storage.upsertDealerInventory(tx.dealerId, tx.productId, Math.max(0, currentInvQty + diff), tenantId);
+      }
 
-      const inv = await storage.getDealerInventoryItem(tx.dealerId, tx.productId);
-      const currentInvQty = inv?.quantity || 0;
-      await storage.upsertDealerInventory(tx.dealerId, tx.productId, Math.max(0, currentInvQty + diff), tenantId);
-
-      const newTotal = (Number(tx.price) * quantity).toFixed(2);
-      const oldTotal = Number(tx.total);
+      const newTotal = (Number(tx.price) * finalQuantity).toFixed(2);
       const newTotalNum = Number(newTotal);
-      const debtDiff = newTotalNum - oldTotal;
+
+      const oldPaymentType = (tx as any).paymentType || "debt";
+      const newPaymentType = paymentType || oldPaymentType;
+      const oldPaidAmount = Number((tx as any).paidAmount || 0);
+
+      let newPaidAmount: number;
+      if (newPaymentType === "cash") {
+        newPaidAmount = newTotalNum;
+      } else if (newPaymentType === "debt") {
+        newPaidAmount = 0;
+      } else {
+        newPaidAmount = paidAmount !== undefined ? Math.min(paidAmount, newTotalNum) : Math.min(oldPaidAmount, newTotalNum);
+      }
+
+      const oldDebt = Math.max(0, Number(tx.total) - oldPaidAmount);
+      const newDebt = Math.max(0, newTotalNum - newPaidAmount);
+      const debtDiff = newDebt - oldDebt;
 
       const dealer = await storage.getDealer(tx.dealerId);
       if (dealer) {
-        const newDebt = Math.max(0, Number(dealer.debt) + debtDiff);
-        await storage.updateDealer(tx.dealerId, { debt: newDebt.toFixed(2) });
+        const updatedDebt = Math.max(0, Number(dealer.debt) + debtDiff);
+        await storage.updateDealer(tx.dealerId, { debt: updatedDebt.toFixed(2) });
       }
 
       const updated = await storage.updateDealerTransaction(tx.id, {
-        quantity,
+        quantity: finalQuantity,
         total: newTotal,
         notes: notes !== undefined ? notes : tx.notes,
-      });
+        paymentType: newPaymentType,
+        paidAmount: newPaidAmount.toFixed(2),
+      } as any);
 
       res.json(updated);
     } catch (error: any) {

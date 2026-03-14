@@ -66,6 +66,8 @@ export default function Dealers() {
   const [editTx, setEditTx] = useState<any | null>(null);
   const [editTxQty, setEditTxQty] = useState("");
   const [editTxNotes, setEditTxNotes] = useState("");
+  const [editTxPaymentType, setEditTxPaymentType] = useState("debt");
+  const [editTxPaidAmount, setEditTxPaidAmount] = useState("");
   const [deleteTx, setDeleteTx] = useState<any | null>(null);
 
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -257,8 +259,8 @@ export default function Dealers() {
   });
 
   const editTxMutation = useMutation({
-    mutationFn: async ({ id, quantity, notes }: { id: string; quantity: number; notes?: string }) => {
-      const res = await apiRequest("PATCH", `/api/dealer-transactions/${id}`, { quantity, notes });
+    mutationFn: async ({ id, quantity, notes, paymentType, paidAmount }: { id: string; quantity?: number; notes?: string; paymentType?: string; paidAmount?: number }) => {
+      const res = await apiRequest("PATCH", `/api/dealer-transactions/${id}`, { quantity, notes, paymentType, paidAmount });
       return res.json();
     },
     onSuccess: () => {
@@ -711,6 +713,8 @@ export default function Dealers() {
                                     setEditTx(tx);
                                     setEditTxQty(String(tx.quantity));
                                     setEditTxNotes(tx.notes || "");
+                                    setEditTxPaymentType(tx.paymentType || "debt");
+                                    setEditTxPaidAmount(tx.paidAmount ? String(Math.round(Number(tx.paidAmount))) : "");
                                   }}
                                   data-testid={`button-edit-tx-${tx.id}`}
                                 >
@@ -1462,7 +1466,7 @@ export default function Dealers() {
                 </p>
               </div>
               <div>
-                <Label>Yangi miqdor</Label>
+                <Label>Miqdor</Label>
                 <Input
                   type="number"
                   min="1"
@@ -1476,6 +1480,37 @@ export default function Dealers() {
                   </p>
                 )}
               </div>
+              <div>
+                <Label>To'lov turi</Label>
+                <Select value={editTxPaymentType} onValueChange={v => { setEditTxPaymentType(v); if (v !== "partial") setEditTxPaidAmount(""); }}>
+                  <SelectTrigger data-testid="select-edit-tx-payment-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="debt">Qarzga</SelectItem>
+                    <SelectItem value="cash">Naqd (to'liq)</SelectItem>
+                    <SelectItem value="partial">Qisman</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {editTxPaymentType === "partial" && (
+                <div>
+                  <Label>To'langan summa</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    placeholder="To'langan miqdor"
+                    value={editTxPaidAmount}
+                    onChange={e => setEditTxPaidAmount(e.target.value)}
+                    data-testid="input-edit-tx-paid-amount"
+                  />
+                  {editTxPaidAmount && editTxQty && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Qarz: {formatCurrency(Math.max(0, Number(editTx.price) * Number(editTxQty) - Number(editTxPaidAmount)))}
+                    </p>
+                  )}
+                </div>
+              )}
               <div>
                 <Label>Izoh</Label>
                 <Textarea
@@ -1492,13 +1527,14 @@ export default function Dealers() {
             <Button variant="outline" onClick={() => setEditTx(null)}>Bekor qilish</Button>
             <Button
               onClick={() => {
-                if (editTx && Number(editTxQty) > 0) {
-                  editTxMutation.mutate({
-                    id: editTx.id,
-                    quantity: Number(editTxQty),
-                    notes: editTxNotes || undefined,
-                  });
-                }
+                if (!editTx || !editTxQty || Number(editTxQty) <= 0) return;
+                editTxMutation.mutate({
+                  id: editTx.id,
+                  quantity: Number(editTxQty),
+                  notes: editTxNotes || undefined,
+                  paymentType: editTxPaymentType,
+                  paidAmount: editTxPaymentType === "partial" ? (Number(editTxPaidAmount) || 0) : undefined,
+                });
               }}
               disabled={editTxMutation.isPending || !editTxQty || Number(editTxQty) <= 0}
               data-testid="button-save-edit-tx"
