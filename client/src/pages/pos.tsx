@@ -568,6 +568,22 @@ export default function POS() {
               <span>Umumiy:</span>
               <span data-testid="text-cart-total">{formatCurrency(total)}</span>
             </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Chek o'lchami:</span>
+              <div className="flex gap-1">
+                {(["58mm", "80mm", "A4"] as const).map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => { setPaperSize(size); localStorage.setItem("pos_paper_size", size); }}
+                    className={`px-2 py-0.5 rounded text-xs border transition-colors ${paperSize === size ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent"}`}
+                    data-testid={`button-cart-paper-size-${size}`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
             <Button
               className="w-full"
               size="lg"
