@@ -125,6 +125,7 @@ export default function DealerLayout({ onLogout }: DealerLayoutProps) {
 }
 
 function DashboardTab({ dealer }: { dealer: any }) {
+  const { toast } = useToast();
   const { data: inventory, isLoading: invLoading } = useQuery<any[]>({
     queryKey: ["/api/dealer-portal/inventory"],
   });
@@ -136,6 +137,51 @@ function DashboardTab({ dealer }: { dealer: any }) {
   });
   const { data: dealerCustomers } = useQuery<any[]>({
     queryKey: ["/api/dealer-portal/customers"],
+  });
+
+  const [editTx, setEditTx] = useState<any>(null);
+  const [deleteTx, setDeleteTx] = useState<any>(null);
+  const [viewTx, setViewTx] = useState<any>(null);
+  const [editQty, setEditQty] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [editCustName, setEditCustName] = useState("");
+  const [editCustPhone, setEditCustPhone] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+
+  const openEdit = (tx: any) => {
+    setEditTx(tx);
+    setEditQty(String(tx.quantity));
+    setEditPrice(String(tx.price));
+    setEditCustName(tx.customerName || "");
+    setEditCustPhone(tx.customerPhone || "");
+    setEditNotes(tx.notes || "");
+  };
+
+  const dashEditMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await apiRequest("PATCH", `/api/dealer-portal/transactions/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Sotuv tahrirlandi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/transactions"] });
+      setEditTx(null);
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const dashDeleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/dealer-portal/transactions/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Sotuv o'chirildi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/inventory"] });
+      setDeleteTx(null);
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
   });
 
   if (invLoading || txLoading || payLoading) return <Skeleton className="h-64 w-full" />;
@@ -276,6 +322,7 @@ function DashboardTab({ dealer }: { dealer: any }) {
                     <TableHead>Soni</TableHead>
                     <TableHead>Summa</TableHead>
                     <TableHead>Mijoz</TableHead>
+                    <TableHead className="w-[80px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -283,9 +330,22 @@ function DashboardTab({ dealer }: { dealer: any }) {
                     <TableRow key={t.id} data-testid={`row-dash-sale-${t.id}`}>
                       <TableCell className="text-xs">{format(new Date(t.createdAt), "dd.MM HH:mm")}</TableCell>
                       <TableCell className="text-sm font-medium">{t.productName || t.productId}</TableCell>
-                      <TableCell>{t.quantity}</TableCell>
+                      <TableCell>{t.quantity} {t.productUnit}</TableCell>
                       <TableCell className="font-medium text-green-600">{formatCurrency(Number(t.total))}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{t.customerName || "-"}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewTx(t)} data-testid={`button-view-dash-sale-${t.id}`}>
+                            <Search className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(t)} data-testid={`button-edit-dash-sale-${t.id}`}>
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTx(t)} data-testid={`button-delete-dash-sale-${t.id}`}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -294,6 +354,210 @@ function DashboardTab({ dealer }: { dealer: any }) {
           </Card>
         </div>
       )}
+
+      {(() => {
+        const debtSells = sellTxs.filter((t: any) => t.paymentType === "debt" || (!t.paymentType && Number(t.paidAmount || 0) < Number(t.total)));
+        if (debtSells.length === 0) return null;
+        const totalDebtAmount = debtSells.reduce((s: number, t: any) => s + Math.max(0, Number(t.total) - Number(t.paidAmount || 0)), 0);
+        return (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-sm text-muted-foreground flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-orange-500" />
+                Qarzga berilgan sotuvlar
+              </h3>
+              <Badge variant="destructive" data-testid="text-dash-debt-sells-total">
+                Jami qarz: {formatCurrency(totalDebtAmount)}
+              </Badge>
+            </div>
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Sana</TableHead>
+                      <TableHead>Mahsulot</TableHead>
+                      <TableHead>Soni</TableHead>
+                      <TableHead>Jami</TableHead>
+                      <TableHead>Qarz</TableHead>
+                      <TableHead>Mijoz</TableHead>
+                      <TableHead className="w-[80px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {debtSells.reverse().map((t: any) => {
+                      const debtAmount = Math.max(0, Number(t.total) - Number(t.paidAmount || 0));
+                      return (
+                        <TableRow key={t.id} data-testid={`row-dash-debt-sell-${t.id}`}>
+                          <TableCell className="text-xs">{format(new Date(t.createdAt), "dd.MM HH:mm")}</TableCell>
+                          <TableCell className="text-sm font-medium">{t.productName || t.productId}</TableCell>
+                          <TableCell className="text-sm">{t.quantity} {t.productUnit}</TableCell>
+                          <TableCell className="text-sm font-medium">{formatCurrency(Number(t.total))}</TableCell>
+                          <TableCell className="text-sm font-bold text-destructive">{formatCurrency(debtAmount)}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{t.customerName || "-"}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewTx(t)} data-testid={`button-view-debt-sell-${t.id}`}>
+                                <Search className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(t)} data-testid={`button-edit-debt-sell-${t.id}`}>
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTx(t)} data-testid={`button-delete-debt-sell-${t.id}`}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
+
+      {/* Ko'rish dialogi */}
+      <Dialog open={!!viewTx} onOpenChange={(o) => { if (!o) setViewTx(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Search className="h-4 w-4" />
+              Sotuv tafsiloti
+            </DialogTitle>
+          </DialogHeader>
+          {viewTx && (
+            <div className="space-y-3 text-sm">
+              <div className="p-3 rounded-lg bg-muted/60 font-semibold text-base">{viewTx.productName}</div>
+              <div className="grid grid-cols-2 gap-y-2">
+                <span className="text-muted-foreground">Sana:</span>
+                <span className="font-medium">{format(new Date(viewTx.createdAt), "dd.MM.yyyy HH:mm")}</span>
+                <span className="text-muted-foreground">Miqdor:</span>
+                <span className="font-medium">{viewTx.quantity} {viewTx.productUnit}</span>
+                <span className="text-muted-foreground">Narxi:</span>
+                <span className="font-medium">{formatCurrency(Number(viewTx.price))}</span>
+                <span className="text-muted-foreground">Jami summa:</span>
+                <span className="font-medium text-green-600">{formatCurrency(Number(viewTx.total))}</span>
+                {viewTx.paidAmount && Number(viewTx.paidAmount) < Number(viewTx.total) && (
+                  <>
+                    <span className="text-muted-foreground">To'langan:</span>
+                    <span className="font-medium">{formatCurrency(Number(viewTx.paidAmount))}</span>
+                    <span className="text-muted-foreground">Qarz:</span>
+                    <span className="font-bold text-destructive">{formatCurrency(Math.max(0, Number(viewTx.total) - Number(viewTx.paidAmount)))}</span>
+                  </>
+                )}
+                <span className="text-muted-foreground">Mijoz:</span>
+                <span className="font-medium">{viewTx.customerName || "-"}</span>
+                {viewTx.customerPhone && (
+                  <>
+                    <span className="text-muted-foreground">Telefon:</span>
+                    <span className="font-medium">{viewTx.customerPhone}</span>
+                  </>
+                )}
+                {viewTx.notes && (
+                  <>
+                    <span className="text-muted-foreground">Izoh:</span>
+                    <span className="font-medium">{viewTx.notes}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewTx(null)}>Yopish</Button>
+            {viewTx && (
+              <Button onClick={() => { openEdit(viewTx); setViewTx(null); }}>
+                <Edit className="h-4 w-4 mr-1" /> Tahrirlash
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tahrirlash dialogi */}
+      <Dialog open={!!editTx} onOpenChange={(o) => { if (!o) setEditTx(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-4 w-4" />
+              Sotuvni tahrirlash
+            </DialogTitle>
+          </DialogHeader>
+          {editTx && (
+            <div className="space-y-3">
+              <div className="p-2.5 rounded-md bg-muted text-sm font-medium">{editTx.productName}</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Miqdor ({editTx.productUnit})</Label>
+                  <Input type="number" min="1" value={editQty} onChange={(e) => setEditQty(e.target.value)} data-testid="input-dash-edit-qty" />
+                </div>
+                <div>
+                  <Label className="text-xs">Narx</Label>
+                  <Input type="number" min="0" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} data-testid="input-dash-edit-price" />
+                </div>
+              </div>
+              {editQty && editPrice && (
+                <div className="text-sm font-semibold text-primary text-right">
+                  Jami: {formatCurrency(Number(editQty) * Number(editPrice))}
+                </div>
+              )}
+              <div>
+                <Label className="text-xs">Mijoz ismi</Label>
+                <Input value={editCustName} onChange={(e) => setEditCustName(e.target.value)} placeholder="Mijoz ismi" data-testid="input-dash-edit-customer" />
+              </div>
+              <div>
+                <Label className="text-xs">Telefon</Label>
+                <Input value={editCustPhone} onChange={(e) => setEditCustPhone(e.target.value)} placeholder="+998..." data-testid="input-dash-edit-phone" />
+              </div>
+              <div>
+                <Label className="text-xs">Izoh</Label>
+                <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Izoh..." data-testid="input-dash-edit-notes" />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTx(null)}>Bekor</Button>
+            <Button
+              disabled={dashEditMutation.isPending || !editQty || !editPrice || Number(editQty) < 1}
+              onClick={() => dashEditMutation.mutate({ id: editTx.id, data: { quantity: Number(editQty), price: Number(editPrice), customerName: editCustName || null, customerPhone: editCustPhone || null, notes: editNotes || null } })}
+              data-testid="button-save-dash-edit"
+            >
+              {dashEditMutation.isPending ? "Saqlanmoqda..." : "Saqlash"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* O'chirish dialogi */}
+      <Dialog open={!!deleteTx} onOpenChange={(o) => { if (!o) setDeleteTx(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Sotuvni o'chirish</DialogTitle>
+          </DialogHeader>
+          {deleteTx && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">{deleteTx.productName}</span> sotuvini o'chirmoqchimisiz?
+                Mahsulot omboringizga qaytariladi.
+              </p>
+              <p className="text-sm font-semibold">Summa: {formatCurrency(Number(deleteTx.total))}</p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTx(null)}>Bekor</Button>
+            <Button
+              variant="destructive"
+              disabled={dashDeleteMutation.isPending}
+              onClick={() => dashDeleteMutation.mutate(deleteTx.id)}
+              data-testid="button-confirm-dash-delete"
+            >
+              {dashDeleteMutation.isPending ? "O'chirilmoqda..." : "O'chirish"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
