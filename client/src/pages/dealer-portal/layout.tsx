@@ -2184,6 +2184,51 @@ function HistoryTab() {
   const { data: transactions, isLoading } = useQuery<any[]>({
     queryKey: ["/api/dealer-portal/transactions"],
   });
+  const { toast } = useToast();
+  const [editTx, setEditTx] = useState<any>(null);
+  const [deleteTx, setDeleteTx] = useState<any>(null);
+  const [editQty, setEditQty] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [editCustName, setEditCustName] = useState("");
+  const [editCustPhone, setEditCustPhone] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+
+  const openEdit = (tx: any) => {
+    setEditTx(tx);
+    setEditQty(String(tx.quantity));
+    setEditPrice(String(tx.price));
+    setEditCustName(tx.customerName || "");
+    setEditCustPhone(tx.customerPhone || "");
+    setEditNotes(tx.notes || "");
+  };
+
+  const editMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await apiRequest("PATCH", `/api/dealer-portal/transactions/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Sotuv tahrirlandi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/inventory"] });
+      setEditTx(null);
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/dealer-portal/transactions/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Sotuv o'chirildi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/inventory"] });
+      setDeleteTx(null);
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
 
@@ -2198,35 +2243,62 @@ function HistoryTab() {
       <h2 className="text-lg font-bold" data-testid="text-history-title">Operatsiyalar tarixi</h2>
 
       {transactions && transactions.length > 0 ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Sana</TableHead>
-              <TableHead>Turi</TableHead>
-              <TableHead>Mahsulot</TableHead>
-              <TableHead>Miqdor</TableHead>
-              <TableHead>Narx</TableHead>
-              <TableHead>Izoh</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {transactions.map((tx: any) => {
-              const config = typeMap[tx.type] || { label: tx.type, color: "" };
-              return (
-                <TableRow key={tx.id} data-testid={`row-transaction-${tx.id}`}>
-                  <TableCell className="text-xs whitespace-nowrap">{format(new Date(tx.createdAt), "dd.MM.yyyy HH:mm")}</TableCell>
-                  <TableCell>
-                    <Badge className={`${config.color} border-0`}>{config.label}</Badge>
-                  </TableCell>
-                  <TableCell className="font-medium">{tx.productName}</TableCell>
-                  <TableCell>{tx.quantity} {tx.productUnit}</TableCell>
-                  <TableCell>{formatCurrency(Number(tx.price) * tx.quantity)}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{tx.notes || "-"}</TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <div className="rounded-md border overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Sana</TableHead>
+                <TableHead>Turi</TableHead>
+                <TableHead>Mahsulot</TableHead>
+                <TableHead>Miqdor</TableHead>
+                <TableHead>Summa</TableHead>
+                <TableHead>Mijoz</TableHead>
+                <TableHead className="w-[80px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {transactions.map((tx: any) => {
+                const config = typeMap[tx.type] || { label: tx.type, color: "" };
+                return (
+                  <TableRow key={tx.id} data-testid={`row-transaction-${tx.id}`}>
+                    <TableCell className="text-xs whitespace-nowrap">{format(new Date(tx.createdAt), "dd.MM.yyyy HH:mm")}</TableCell>
+                    <TableCell>
+                      <Badge className={`${config.color} border-0 text-xs`}>{config.label}</Badge>
+                    </TableCell>
+                    <TableCell className="font-medium text-sm">{tx.productName}</TableCell>
+                    <TableCell className="text-sm">{tx.quantity} {tx.productUnit}</TableCell>
+                    <TableCell className="text-sm font-medium">{formatCurrency(Number(tx.price) * tx.quantity)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{tx.customerName || "-"}</TableCell>
+                    <TableCell>
+                      {tx.type === "sell" && (
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            onClick={() => openEdit(tx)}
+                            data-testid={`button-edit-transaction-${tx.id}`}
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            onClick={() => setDeleteTx(tx)}
+                            data-testid={`button-delete-transaction-${tx.id}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       ) : (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
@@ -2235,6 +2307,105 @@ function HistoryTab() {
           </CardContent>
         </Card>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editTx} onOpenChange={(o) => { if (!o) setEditTx(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="h-4 w-4" />
+              Sotuvni tahrirlash
+            </DialogTitle>
+          </DialogHeader>
+          {editTx && (
+            <div className="space-y-3">
+              <div className="p-2.5 rounded-md bg-muted text-sm font-medium">{editTx.productName}</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Miqdor ({editTx.productUnit})</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={editQty}
+                    onChange={(e) => setEditQty(e.target.value)}
+                    data-testid="input-edit-tx-qty"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Narx (dona)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={editPrice}
+                    onChange={(e) => setEditPrice(e.target.value)}
+                    data-testid="input-edit-tx-price"
+                  />
+                </div>
+              </div>
+              {editQty && editPrice && (
+                <div className="text-sm font-semibold text-primary text-right">
+                  Jami: {formatCurrency(Number(editQty) * Number(editPrice))}
+                </div>
+              )}
+              <div>
+                <Label className="text-xs">Mijoz ismi</Label>
+                <Input value={editCustName} onChange={(e) => setEditCustName(e.target.value)} placeholder="Mijoz ismi" data-testid="input-edit-tx-customer" />
+              </div>
+              <div>
+                <Label className="text-xs">Telefon</Label>
+                <Input value={editCustPhone} onChange={(e) => setEditCustPhone(e.target.value)} placeholder="+998..." data-testid="input-edit-tx-phone" />
+              </div>
+              <div>
+                <Label className="text-xs">Izoh</Label>
+                <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} placeholder="Izoh..." data-testid="input-edit-tx-notes" />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTx(null)}>Bekor</Button>
+            <Button
+              disabled={editMutation.isPending || !editQty || !editPrice || Number(editQty) < 1}
+              onClick={() => editMutation.mutate({ id: editTx.id, data: { quantity: Number(editQty), price: Number(editPrice), customerName: editCustName || null, customerPhone: editCustPhone || null, notes: editNotes || null } })}
+              data-testid="button-save-edit-transaction"
+            >
+              {editMutation.isPending ? "Saqlanmoqda..." : "Saqlash"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirm Dialog */}
+      <Dialog open={!!deleteTx} onOpenChange={(o) => { if (!o) setDeleteTx(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-4 w-4" />
+              Sotuvni o'chirish
+            </DialogTitle>
+          </DialogHeader>
+          {deleteTx && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground">{deleteTx.productName}</span> — {deleteTx.quantity} {deleteTx.productUnit} sotuvini o'chirmoqchimisiz?
+              </p>
+              <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded p-2">
+                Mahsulot omborga qaytariladi.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTx(null)}>Bekor</Button>
+            <Button
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => deleteMutation.mutate(deleteTx.id)}
+              data-testid="button-confirm-delete-transaction"
+            >
+              {deleteMutation.isPending ? "O'chirilmoqda..." : "O'chirish"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

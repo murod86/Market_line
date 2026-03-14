@@ -1400,6 +1400,63 @@ export async function registerRoutes(
     res.json(enriched);
   });
 
+  // Sotuv tranzaksiyasini tahrirlash
+  app.patch("/api/dealer-portal/transactions/:id", requireDealer, async (req, res) => {
+    try {
+      const dealerId = req.session.dealerId!;
+      const { id } = req.params;
+      const tx = await storage.getDealerTransaction(id);
+      if (!tx || tx.dealerId !== dealerId) return res.status(404).json({ message: "Topilmadi" });
+
+      const { quantity, price, customerName, customerPhone, notes } = req.body;
+
+      // Agar miqdor o'zgarsa, inventarni moslashtirish
+      if (quantity !== undefined && quantity !== tx.quantity) {
+        const oldQty = tx.quantity;
+        const newQty = Number(quantity);
+        const diff = oldQty - newQty; // + bo'lsa inventar qaytadi, - bo'lsa kamayadi
+        const inv = await storage.getDealerInventoryItem(dealerId, tx.productId);
+        if (inv) {
+          const newInvQty = inv.quantity + diff;
+          if (newInvQty < 0) return res.status(400).json({ message: "Omborda yetarli mahsulot yo'q" });
+          await storage.upsertDealerInventory(dealerId, tx.productId, newInvQty, tx.tenantId!);
+        }
+      }
+
+      const updated = await storage.updateDealerTransaction(id, {
+        ...(quantity !== undefined && { quantity: Number(quantity), total: (Number(price ?? tx.price) * Number(quantity)).toFixed(2) }),
+        ...(price !== undefined && { price: String(price), total: (Number(price) * Number(quantity ?? tx.quantity)).toFixed(2) }),
+        ...(customerName !== undefined && { customerName: customerName || null }),
+        ...(customerPhone !== undefined && { customerPhone: customerPhone || null }),
+        ...(notes !== undefined && { notes: notes || null }),
+      });
+      res.json(updated);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  // Sotuv tranzaksiyasini o'chirish
+  app.delete("/api/dealer-portal/transactions/:id", requireDealer, async (req, res) => {
+    try {
+      const dealerId = req.session.dealerId!;
+      const { id } = req.params;
+      const tx = await storage.getDealerTransaction(id);
+      if (!tx || tx.dealerId !== dealerId) return res.status(404).json({ message: "Topilmadi" });
+      // Inventarni qaytarish (sell bo'lsa)
+      if (tx.type === "sell") {
+        const inv = await storage.getDealerInventoryItem(dealerId, tx.productId);
+        if (inv) {
+          await storage.upsertDealerInventory(dealerId, tx.productId, inv.quantity + tx.quantity, tx.tenantId!);
+        }
+      }
+      await storage.deleteDealerTransaction(id);
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.get("/api/dealer-portal/payments", requireDealer, async (req, res) => {
     const dealerId = req.session.dealerId!;
     const payments = await storage.getPayments(req.session.tenantId!);
