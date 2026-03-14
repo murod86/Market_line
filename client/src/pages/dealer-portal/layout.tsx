@@ -76,15 +76,20 @@ export default function DealerLayout({ onLogout }: DealerLayoutProps) {
               <span className="font-semibold text-sm">Diller portali</span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground hidden sm:block" data-testid="text-dealer-name">
-              {dealer?.name}
-            </span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full px-3 py-1">
+              <User className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+              <span className="text-sm font-semibold text-blue-600 dark:text-blue-400 max-w-[140px] truncate" data-testid="text-dealer-name">
+                {dealer?.name}
+              </span>
+            </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => logoutMutation.mutate()}
               data-testid="button-dealer-logout"
+              className="h-8 w-8 p-0"
+              title="Chiqish"
             >
               <LogOut className="h-4 w-4" />
             </Button>
