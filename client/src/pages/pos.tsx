@@ -275,58 +275,111 @@ export default function POS() {
     });
   };
 
-  const handlePrintReceipt = () => {
-    if (!receiptRef.current) return;
-    const printContent = receiptRef.current.innerHTML;
-
+  const buildReceiptHtml = () => {
+    if (!receiptData) return "";
+    const fmt = (n: number) => new Intl.NumberFormat("uz-UZ").format(n);
     const sizeMap = {
-      "58mm": { width: "58mm", bodyWidth: "54mm", fontSize: "11px", padding: "1mm 2mm" },
-      "80mm": { width: "80mm", bodyWidth: "76mm", fontSize: "13px", padding: "2mm 3mm" },
-      "A4":   { width: "210mm", bodyWidth: "200mm", fontSize: "14px", padding: "5mm 8mm" },
+      "58mm": { pageW: "58mm", bodyW: "52mm", fs: "11pt", fsS: "9pt", fsL: "13pt", pad: "2mm 3mm" },
+      "80mm": { pageW: "80mm", bodyW: "74mm", fs: "12pt", fsS: "10pt", fsL: "14pt", pad: "3mm 4mm" },
+      "A4":   { pageW: "210mm", bodyW: "190mm", fs: "12pt", fsS: "10pt", fsL: "16pt", pad: "8mm 10mm" },
     };
     const sz = sizeMap[paperSize];
+    const chekNo = receiptData.date.getTime().toString().slice(-6);
+    const dateStr = receiptData.date.toLocaleDateString("uz-UZ") + " " +
+      receiptData.date.toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" });
 
-    const html = `<!DOCTYPE html>
+    const payLabel = receiptData.paymentType === "cash" ? "Naqd pul"
+      : receiptData.paymentType === "card" ? "Plastik karta"
+      : receiptData.paymentType === "partial" ? "Qisman to'lov"
+      : "Qarzga";
+
+    const row = (left: string, right: string, bold = false, big = false) =>
+      `<table style="width:100%;border-collapse:collapse;margin:1px 0">
+        <tr>
+          <td style="font-size:${big ? sz.fsL : sz.fs};font-weight:${bold ? "bold" : "normal"};color:#000;vertical-align:top">${left}</td>
+          <td style="font-size:${big ? sz.fsL : sz.fs};font-weight:${bold ? "bold" : "normal"};color:#000;text-align:right;vertical-align:top;white-space:nowrap;padding-left:4px">${right}</td>
+        </tr>
+      </table>`;
+
+    const dash = `<div style="border-top:1px dashed #000;margin:4px 0"></div>`;
+    const line = `<div style="border-top:2px solid #000;margin:5px 0"></div>`;
+
+    const itemsHtml = receiptData.items.map((item, idx) => {
+      const unitPrice = Number(item.product.price);
+      const total = item.stockPieces * unitPrice;
+      const qtyLabel = item.buyUnit === "quti"
+        ? `${item.quantity} quti (${item.stockPieces} ${item.product.unit})`
+        : `${item.stockPieces} ${item.product.unit}`;
+      return `<div style="margin-bottom:5px">
+        <div style="font-size:${sz.fs};font-weight:bold;color:#000;word-break:break-word">${idx + 1}. ${item.product.name}</div>
+        ${row(`${qtyLabel} &times; ${fmt(unitPrice)} so'm`, `${fmt(total)} so'm`)}
+      </div>`;
+    }).join("");
+
+    let payHtml = row("To'lov usuli:", payLabel, true);
+    if (receiptData.paymentType === "cash" || receiptData.paymentType === "card") {
+      payHtml += row("Berildi:", `${fmt(receiptData.paidAmount)} so'm`);
+      if (receiptData.change > 0) payHtml += row("Qaytim:", `${fmt(receiptData.change)} so'm`, true);
+    }
+    if (receiptData.paymentType === "debt" || receiptData.paymentType === "partial") {
+      if (receiptData.paidAmount > 0) payHtml += row("To'landi:", `${fmt(receiptData.paidAmount)} so'm`);
+      payHtml += row("QARZ:", `${fmt(Math.max(0, receiptData.total - receiptData.paidAmount))} so'm`, true);
+    }
+
+    return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Chek</title>
   <style>
-    @page {
-      size: ${sz.width} auto;
-      margin: 0;
-    }
+    @page { size: ${sz.pageW} auto; margin: 0; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
-      width: ${sz.bodyWidth};
+      width: ${sz.bodyW};
+      max-width: ${sz.bodyW};
       font-family: 'Courier New', Courier, monospace;
-      font-size: ${sz.fontSize};
-      line-height: 1.4;
-      padding: ${sz.padding};
+      font-size: ${sz.fs};
+      line-height: 1.45;
+      padding: ${sz.pad};
       color: #000;
+      background: #fff;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
+      overflow: visible;
     }
-    div { max-width: 100%; overflow-wrap: break-word; word-wrap: break-word; }
-    div[style*="display: flex"] { width: 100%; }
+    table { table-layout: fixed; width: 100%; }
+    td { overflow-wrap: break-word; word-break: break-word; }
   </style>
 </head>
 <body>
-  ${printContent}
-  <script>
-    window.onload = function() {
-      setTimeout(function() {
-        window.print();
-        window.onafterprint = function() { window.close(); };
-        setTimeout(function() { window.close(); }, 8000);
-      }, 300);
-    };
-  <\/script>
+  <div style="text-align:center;margin-bottom:5px">
+    <div style="font-size:${sz.fsL};font-weight:bold;color:#000;letter-spacing:0.5px">${companyName}</div>
+    ${companyAddress ? `<div style="font-size:${sz.fsS};color:#000">${companyAddress}</div>` : ""}
+    ${companyPhone ? `<div style="font-size:${sz.fsS};color:#000">Tel: ${companyPhone}</div>` : ""}
+    <div style="font-size:${sz.fsS};color:#000;margin-top:3px">CHEK #${chekNo}</div>
+    <div style="font-size:${sz.fsS};color:#000">${dateStr}</div>
+    ${receiptData.customerName ? `<div style="font-size:${sz.fs};font-weight:bold;color:#000;margin-top:2px">Mijoz: ${receiptData.customerName}</div>` : ""}
+  </div>
+  ${line}
+  ${itemsHtml}
+  ${dash}
+  ${receiptData.discount > 0 ? row("Yig'indi:", `${fmt(receiptData.subtotal)} so'm`) + row("Chegirma:", `-${fmt(receiptData.discount)} so'm`) : ""}
+  <div style="margin:3px 0">${row("JAMI TO'LOV:", `${fmt(receiptData.total)} so'm`, true, true)}</div>
+  ${dash}
+  ${payHtml}
+  ${line}
+  <div style="text-align:center;font-size:${sz.fs};color:#000">
+    <div style="font-weight:bold">${receiptFooterText}</div>
+    ${companyPhone ? `<div style="margin-top:2px">Tel: ${companyPhone}</div>` : ""}
+  </div>
 </body>
 </html>`;
+  };
 
-    // Android Chrome PWA uchun iframe usuli (popup blocker muammosini hal qiladi)
+  const handlePrintReceipt = () => {
+    const html = buildReceiptHtml();
+    if (!html) return;
+
     const isAndroid = /Android/i.test(navigator.userAgent);
     if (isAndroid) {
       let iframe = document.getElementById("print-iframe") as HTMLIFrameElement;
@@ -341,13 +394,23 @@ export default function POS() {
         iframeDoc.open();
         iframeDoc.write(html);
         iframeDoc.close();
-        setTimeout(() => { iframe.contentWindow?.print(); }, 400);
+        setTimeout(() => {
+          iframe.contentWindow?.print();
+        }, 500);
       }
     } else {
-      const printWindow = window.open("", "_blank", "width=320,height=600");
-      if (!printWindow) return;
+      const printWindow = window.open("", "_blank", "width=400,height=700");
+      if (!printWindow) { alert("Popup blocker yoqilgan. Brauzerdagi bloklashni o'chiring."); return; }
+      printWindow.document.open();
       printWindow.document.write(html);
       printWindow.document.close();
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print();
+          printWindow.onafterprint = () => printWindow.close();
+          setTimeout(() => printWindow.close(), 10000);
+        }, 300);
+      };
     }
   };
 
