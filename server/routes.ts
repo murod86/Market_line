@@ -1877,14 +1877,20 @@ export async function registerRoutes(
   // ===== DEALER PORTAL - CUSTOMER MANAGEMENT =====
   app.get("/api/dealer-portal/customers", requireDealer, async (req, res) => {
     try {
+      const dealerId = req.session.dealerId!;
       const tenantId = req.session.tenantId!;
+      const scope = req.query.scope; // "own" = faqat joriy diller, boshqasi = hammasi
 
-      // All dealer customers across all dealers of this tenant
+      if (scope === "own") {
+        // Mijozlarim sahifasi: faqat joriy dillerning o'z mijozlari
+        const ownCustomers = await storage.getDealerCustomers(dealerId);
+        return res.json(ownCustomers.map((c: any) => ({ ...c, source: "dealer" })));
+      }
+
+      // Sotuv uchun: barcha diller + admin mijozlari birlashtirilgan
       const allDealerCustomers = await storage.getAllDealerCustomersByTenant(tenantId);
-      // Admin customers
       const adminCustomers = await storage.getCustomers(tenantId);
 
-      // Deduplicate: admin customers that share phone with any dealer customer are excluded
       const dealerPhones = new Set(allDealerCustomers.map((c: any) => c.phone).filter(Boolean));
       const adminMapped = adminCustomers
         .filter((c: any) => !c.phone || !dealerPhones.has(c.phone))

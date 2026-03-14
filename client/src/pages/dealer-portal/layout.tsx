@@ -1201,6 +1201,7 @@ function CustomersTab() {
 
   const { data: customers, isLoading } = useQuery<any[]>({
     queryKey: ["/api/dealer-portal/customers"],
+    select: (data) => data ?? [],
   });
 
   const addMutation = useMutation({
@@ -1303,14 +1304,25 @@ function CustomersTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {customers.map((c: any) => (
-                  <TableRow key={c.id} data-testid={`row-dealer-customer-${c.id}`}>
+                {(customers || []).map((c: any) => {
+                  const isAdmin = c.source === "admin";
+                  const displayName = c.name || "—";
+                  return (
+                  <TableRow key={`${c.source}-${c.id}`} data-testid={`row-dealer-customer-${c.id}`}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary text-xs font-bold">
-                          {c.name.charAt(0)}
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-md text-xs font-bold ${isAdmin ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" : "bg-primary/10 text-primary"}`}>
+                          {displayName.charAt(0).toUpperCase()}
                         </div>
-                        {c.name}
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span>{displayName}</span>
+                            {isAdmin && (
+                              <span className="text-[9px] px-1 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-medium">ADMIN</span>
+                            )}
+                          </div>
+                          {c.address && <p className="text-xs text-muted-foreground">{c.address}</p>}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -1330,49 +1342,54 @@ function CustomersTab() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1 flex-wrap">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8"
-                          onClick={() => openEdit(c)}
-                          data-testid={`button-edit-dealer-customer-${c.id}`}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => setDeleteCustomer(c)}
-                          data-testid={`button-delete-dealer-customer-${c.id}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8"
-                          onClick={() => setQrCustomer(c)}
-                          data-testid={`button-qr-dealer-customer-${c.id}`}
-                        >
-                          <QrCode className="h-4 w-4" />
-                        </Button>
-                        {Number(c.debt) > 0 && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-green-600"
-                            onClick={() => { setPayOpen(c); setPayAmount(""); setPayNotes(""); setPayMethod("cash"); }}
-                            data-testid={`button-pay-dealer-customer-${c.id}`}
-                          >
-                            <Banknote className="h-4 w-4 mr-1" />
-                            To'lov olish
-                          </Button>
+                        {!isAdmin && (
+                          <>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              onClick={() => openEdit(c)}
+                              data-testid={`button-edit-dealer-customer-${c.id}`}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => setDeleteCustomer(c)}
+                              data-testid={`button-delete-dealer-customer-${c.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              onClick={() => setQrCustomer(c)}
+                              data-testid={`button-qr-dealer-customer-${c.id}`}
+                            >
+                              <QrCode className="h-4 w-4" />
+                            </Button>
+                            {Number(c.debt) > 0 && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-green-600"
+                                onClick={() => { setPayOpen(c); setPayAmount(""); setPayNotes(""); setPayMethod("cash"); }}
+                                data-testid={`button-pay-dealer-customer-${c.id}`}
+                              >
+                                <Banknote className="h-4 w-4 mr-1" />
+                                To'lov olish
+                              </Button>
+                            )}
+                          </>
                         )}
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>
