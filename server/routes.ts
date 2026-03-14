@@ -553,8 +553,14 @@ export async function registerRoutes(
   app.get("/api/sales/:id", requireTenant, async (req, res) => {
     const sale = await storage.getSale(req.params.id);
     if (!verifyTenant(sale, req.session.tenantId!)) return res.status(404).json({ message: "Sale not found" });
-    const items = await storage.getSaleItems(req.params.id);
-    res.json({ ...sale, items });
+    const itemsResult = await pool.query(`
+      SELECT si.id, si.product_id, si.quantity, si.price, si.cost_price, si.total,
+             p.name AS product_name, p.unit AS product_unit
+      FROM sale_items si
+      LEFT JOIN products p ON p.id = si.product_id
+      WHERE si.sale_id = $1
+    `, [req.params.id]);
+    res.json({ ...sale, items: itemsResult.rows });
   });
 
   app.patch("/api/sales/:id", requireTenant, async (req, res) => {

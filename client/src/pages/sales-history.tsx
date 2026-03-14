@@ -35,10 +35,12 @@ interface SaleDetail {
   createdAt: string;
   items: {
     id: string;
-    productId: string;
+    product_id: string;
+    product_name: string | null;
+    product_unit: string | null;
     quantity: number;
     price: string;
-    costPrice: string;
+    cost_price: string;
     total: string;
   }[];
 }
@@ -386,12 +388,14 @@ export default function SalesHistory() {
                 <p className="text-sm font-medium mb-2">Mahsulotlar:</p>
                 <div className="space-y-2">
                   {detail.items.map((item, i) => (
-                    <div key={item.id} className="flex justify-between items-center text-sm bg-accent/30 rounded-md px-3 py-2" data-testid={`item-detail-${i}`}>
+                    <div key={item.id} className="flex justify-between items-start text-sm bg-accent/30 rounded-md px-3 py-2" data-testid={`item-detail-${i}`}>
                       <div>
-                        <span className="text-muted-foreground mr-2">{item.quantity} x</span>
-                        <span>{formatCurrency(Number(item.price))}</span>
+                        <p className="font-medium">{item.product_name || "Noma'lum mahsulot"}</p>
+                        <p className="text-muted-foreground text-xs">
+                          {item.quantity} {item.product_unit || "dona"} × {formatCurrency(Number(item.price))}
+                        </p>
                       </div>
-                      <div className="font-semibold">{formatCurrency(Number(item.total))}</div>
+                      <div className="font-semibold shrink-0">{formatCurrency(Number(item.total))}</div>
                     </div>
                   ))}
                 </div>
