@@ -137,8 +137,8 @@ export default function LandingPage() {
               {plans.map((plan: any, i: number) => {
                 const isPopular = i === popularIndex;
                 const priceNum = Number(plan.price);
-                const priceFormatted = priceNum === 0 ? "0" : new Intl.NumberFormat("uz-UZ").format(priceNum);
-                const periodText = priceNum === 0 ? "Bepul" : "oyiga";
+                const isFree = priceNum === 0;
+                const priceFormatted = isFree ? "Bepul" : new Intl.NumberFormat("uz-UZ").format(priceNum);
                 const planFeatures = Array.isArray(plan.features) ? plan.features : [];
                 return (
                   <Card
@@ -154,8 +154,14 @@ export default function LandingPage() {
                     <CardHeader className="text-center pb-2">
                       <CardTitle className="text-white text-xl">{plan.name}</CardTitle>
                       <div className="pt-4">
-                        <span className="text-4xl font-bold text-white">{priceFormatted}</span>
-                        <span className="text-white/50 ml-1">UZS / {periodText}</span>
+                        {isFree ? (
+                          <span className="text-4xl font-bold text-emerald-400">{priceFormatted}</span>
+                        ) : (
+                          <>
+                            <span className="text-4xl font-bold text-white">{priceFormatted}</span>
+                            <span className="text-white/50 ml-1 text-sm">UZS/oy</span>
+                          </>
+                        )}
                       </div>
                     </CardHeader>
                     <CardContent>

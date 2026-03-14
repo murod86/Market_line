@@ -426,6 +426,7 @@ function PlansManager() {
     { key: "dealers", label: "Dillerlar" },
     { key: "roles", label: "Rollar" },
     { key: "employees", label: "Xodimlar" },
+    { key: "expenses", label: "Xarajatlar" },
     { key: "settings", label: "Sozlamalar" },
   ];
 
