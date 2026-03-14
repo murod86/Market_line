@@ -71,6 +71,9 @@ export default function Dealers() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [loadPaperSize, setLoadPaperSize] = useState<"58mm" | "80mm" | "A4">(() =>
+    (localStorage.getItem("dealer_load_paper_size") as "58mm" | "80mm" | "A4") || "58mm"
+  );
   const [sellCustomerName, setSellCustomerName] = useState("");
   const [sellCustomerPhone, setSellCustomerPhone] = useState("");
   const [operationNotes, setOperationNotes] = useState("");
@@ -135,10 +138,17 @@ export default function Dealers() {
     onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
   });
 
-  const printLoadReceipt = (items: CartItem[], dealerName: string) => {
+  const printLoadReceipt = (items: CartItem[], dealerName: string, ps: "58mm" | "80mm" | "A4" = "58mm") => {
     const now = new Date();
     const dateStr = format(now, "dd.MM.yyyy HH:mm");
     const total = items.reduce((s, i) => s + i.price * i.stockPieces, 0);
+
+    const sizeMap = {
+      "58mm": { pageSize: "58mm auto", bodyWidth: "54mm", fontSize: "11px", fontSizeSm: "10px", padding: "4px", winWidth: 300 },
+      "80mm": { pageSize: "80mm auto", bodyWidth: "76mm", fontSize: "13px", fontSizeSm: "11px", padding: "6px", winWidth: 380 },
+      "A4":   { pageSize: "A4",        bodyWidth: "190mm", fontSize: "14px", fontSizeSm: "12px", padding: "15mm 15mm", winWidth: 800 },
+    };
+    const sz = sizeMap[ps];
 
     const itemsHtml = items.map((item, idx) => {
       const qtyLabel = item.buyUnit === "quti"
@@ -147,51 +157,51 @@ export default function Dealers() {
       const unitPrice = item.price.toLocaleString();
       const totalPrice = (item.price * item.stockPieces).toLocaleString();
       return `<tr>
-        <td colspan="2" style="padding:3px 2px 0px 2px;font-size:11px;font-weight:bold;border-top:1px dashed #ccc">${idx + 1}. ${item.name}</td>
+        <td colspan="2" style="padding:3px 2px 0px 2px;font-size:${sz.fontSize};font-weight:900;border-top:2px solid #000">${idx + 1}. ${item.name}</td>
       </tr>
       <tr>
-        <td style="padding:1px 2px;font-size:10px">${qtyLabel}</td>
-        <td style="padding:1px 2px;font-size:10px;text-align:right">${unitPrice}/dona</td>
+        <td style="padding:1px 2px;font-size:${sz.fontSizeSm}">${qtyLabel}</td>
+        <td style="padding:1px 2px;font-size:${sz.fontSizeSm};text-align:right">${unitPrice}/dona</td>
       </tr>
       <tr>
-        <td style="padding:1px 2px 4px 2px;font-size:11px;font-weight:bold">= Jami:</td>
-        <td style="padding:1px 2px 4px 2px;font-size:11px;font-weight:bold;text-align:right">${totalPrice} UZS</td>
+        <td style="padding:1px 2px 4px 2px;font-size:${sz.fontSize};font-weight:700">= Jami:</td>
+        <td style="padding:1px 2px 4px 2px;font-size:${sz.fontSize};font-weight:700;text-align:right">${totalPrice} UZS</td>
       </tr>`;
     }).join("");
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
       <style>
-        @page { size: 58mm auto; margin: 2mm; }
-        body { font-family: 'Courier New', monospace; font-size: 11px; margin: 0; padding: 4px; width: 54mm; }
+        @page { size: ${sz.pageSize}; margin: ${ps === "A4" ? "10mm" : "2mm"}; }
+        body { font-family: 'Courier New', monospace; font-size: ${sz.fontSize}; margin: 0; padding: ${sz.padding}; ${ps !== "A4" ? `width: ${sz.bodyWidth};` : "max-width: 190mm; margin: 0 auto;"} }
         .center { text-align: center; }
         .bold { font-weight: bold; }
-        .divider { border-top: 1px dashed #000; margin: 6px 0; }
+        .divider { border-top: 2px solid #000; margin: 6px 0; }
         table { width: 100%; border-collapse: collapse; }
       </style></head><body>
-      <div class="center bold" style="font-size:14px;margin-bottom:4px">MARKET_LINE</div>
-      <div class="center" style="font-size:10px;margin-bottom:6px">Dillerga yuklash hujjati</div>
+      <div class="center bold" style="font-size:${ps === "A4" ? "22px" : "16px"};margin-bottom:4px">MARKET_LINE</div>
+      <div class="center" style="font-size:${sz.fontSizeSm};margin-bottom:6px">Dillerga yuklash hujjati</div>
       <div class="divider"></div>
-      <div style="font-size:10px;margin-bottom:2px"><b>Diller:</b> ${dealerName}</div>
-      <div style="font-size:10px;margin-bottom:4px"><b>Sana:</b> ${dateStr}</div>
-      <div style="font-size:10px;margin-bottom:4px"><b>Mahsulotlar soni:</b> ${items.length} ta</div>
+      <div style="font-size:${sz.fontSizeSm};margin-bottom:2px"><b>Diller:</b> ${dealerName}</div>
+      <div style="font-size:${sz.fontSizeSm};margin-bottom:4px"><b>Sana:</b> ${dateStr}</div>
+      <div style="font-size:${sz.fontSizeSm};margin-bottom:4px"><b>Mahsulotlar soni:</b> ${items.length} ta</div>
       <div class="divider"></div>
       <table>
         ${itemsHtml}
       </table>
       <div class="divider"></div>
-      <div style="display:flex;justify-content:space-between;font-size:13px" class="bold">
+      <div style="display:flex;justify-content:space-between;font-size:${ps === "A4" ? "16px" : "13px"}" class="bold">
         <span>JAMI:</span><span>${total.toLocaleString()} UZS</span>
       </div>
       <div class="divider"></div>
-      <div style="display:flex;justify-content:space-between;margin-top:20px;font-size:10px">
+      <div style="display:flex;justify-content:space-between;margin-top:${ps === "A4" ? "30px" : "20px"};font-size:${sz.fontSizeSm}">
         <div>Topshirdi: __________</div>
         <div>Qabul qildi: __________</div>
       </div>
-      <div class="center" style="font-size:9px;margin-top:12px;color:#888">MARKET_LINE</div>
+      <div class="center" style="font-size:${ps === "A4" ? "11px" : "9px"};margin-top:12px;color:#888">MARKET_LINE &bull; ${dateStr}</div>
       <script>window.onload=function(){window.print();setTimeout(function(){window.close()},5000)}</script>
     </body></html>`;
 
-    const w = window.open("", "_blank", "width=300,height=600");
+    const w = window.open("", "_blank", `width=${sz.winWidth},height=600`);
     if (w) { w.document.write(html); w.document.close(); }
   };
 
@@ -201,7 +211,7 @@ export default function Dealers() {
       return res.json();
     },
     onSuccess: () => {
-      printLoadReceipt(cart, detailDealer?.name || "Diller");
+      printLoadReceipt(cart, detailDealer?.name || "Diller", loadPaperSize);
       toast({ title: "Mahsulotlar dillerga yuklandi" });
       queryClient.invalidateQueries({ queryKey: ["/api/dealers", detailDealer?.id, "inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dealers", detailDealer?.id, "transactions"] });
@@ -744,6 +754,7 @@ export default function Dealers() {
           "Yuklash",
           false,
           true,
+          true,
         )}
 
         {renderProductPickerDialog(
@@ -851,6 +862,7 @@ export default function Dealers() {
     submitLabel: string,
     showCustomer: boolean,
     showPaymentType: boolean = false,
+    showPaperSize: boolean = false,
   ) {
     const isFromInventory = productList.length === 0 && inventory;
     const sourceItems = isFromInventory ? inventory : null;
@@ -1149,7 +1161,25 @@ export default function Dealers() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            {showPaperSize && (
+              <div className="flex items-center gap-2 mr-auto">
+                <span className="text-xs text-muted-foreground shrink-0">Chek o'lchami:</span>
+                <div className="flex gap-1">
+                  {(["58mm", "80mm", "A4"] as const).map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => { setLoadPaperSize(size); localStorage.setItem("dealer_load_paper_size", size); }}
+                      className={`px-2 py-0.5 rounded text-xs border transition-colors ${loadPaperSize === size ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-accent"}`}
+                      data-testid={`button-load-paper-size-${size}`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <Button variant="outline" onClick={onClose} data-testid="button-dialog-cancel">
               Bekor qilish
             </Button>
