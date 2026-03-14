@@ -12,6 +12,9 @@ import { Settings as SettingsIcon, Save, Building2, MessageSquare, Webhook, Load
 
 export default function Settings() {
   const [companyName, setCompanyName] = useState("");
+  const [companyPhone, setCompanyPhone] = useState("");
+  const [companyAddress, setCompanyAddress] = useState("");
+  const [receiptFooter, setReceiptFooter] = useState("");
   const [currency, setCurrency] = useState("");
   const [telegramToken, setTelegramToken] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
@@ -24,6 +27,9 @@ export default function Settings() {
     if (settings) {
       const findVal = (key: string) => settings.find((s) => s.key === key)?.value || "";
       setCompanyName(findVal("company_name"));
+      setCompanyPhone(findVal("company_phone"));
+      setCompanyAddress(findVal("company_address"));
+      setReceiptFooter(findVal("receipt_footer"));
       setCurrency(findVal("currency"));
       setTelegramToken(findVal("telegram_bot_token"));
       setTelegramChatId(findVal("telegram_chat_id"));
@@ -45,6 +51,9 @@ export default function Settings() {
     try {
       await Promise.all([
         saveMutation.mutateAsync({ key: "company_name", value: companyName }),
+        saveMutation.mutateAsync({ key: "company_phone", value: companyPhone }),
+        saveMutation.mutateAsync({ key: "company_address", value: companyAddress }),
+        saveMutation.mutateAsync({ key: "receipt_footer", value: receiptFooter }),
         saveMutation.mutateAsync({ key: "currency", value: currency }),
         saveMutation.mutateAsync({ key: "telegram_bot_token", value: telegramToken }),
         saveMutation.mutateAsync({ key: "telegram_chat_id", value: telegramChatId }),
@@ -90,6 +99,19 @@ export default function Settings() {
             <div>
               <label className="text-sm font-medium mb-1 block">Kompaniya nomi</label>
               <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} data-testid="input-company-name" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Telefon raqam</label>
+              <Input value={companyPhone} onChange={(e) => setCompanyPhone(e.target.value)} placeholder="+998 90 123 45 67" data-testid="input-company-phone" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Manzil</label>
+              <Input value={companyAddress} onChange={(e) => setCompanyAddress(e.target.value)} placeholder="Toshkent, Yunusobod..." data-testid="input-company-address" />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Chek oxiri matni</label>
+              <Input value={receiptFooter} onChange={(e) => setReceiptFooter(e.target.value)} placeholder="Xaridingiz uchun rahmat!" data-testid="input-receipt-footer" />
+              <p className="text-xs text-muted-foreground mt-1">Chek pastida chiqadigan xabar</p>
             </div>
             <div>
               <label className="text-sm font-medium mb-1 block">Valyuta</label>
