@@ -379,6 +379,8 @@ function SellTab() {
   const [newCustName, setNewCustName] = useState("");
   const [newCustPhone, setNewCustPhone] = useState("");
   const [newCustAddress, setNewCustAddress] = useState("");
+  const [newCustPassword, setNewCustPassword] = useState("");
+  const [sellQrCustomer, setSellQrCustomer] = useState<any>(null);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [dealerCustomerId, setDealerCustomerId] = useState("");
@@ -413,9 +415,10 @@ function SellTab() {
       setCustomerName(created.name);
       setCustomerPhone(created.phone || "");
       setCreateCustomerMode(false);
-      setNewCustName(""); setNewCustPhone(""); setNewCustAddress("");
+      setNewCustName(""); setNewCustPhone(""); setNewCustAddress(""); setNewCustPassword("");
       setCustomerSelectOpen(false);
       toast({ title: "Mijoz qo'shildi" });
+      if (created.phone) setSellQrCustomer(created);
     },
     onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -710,7 +713,7 @@ function SellTab() {
       </Card>
 
       {/* Customer Select / Create Dialog */}
-      <Dialog open={customerSelectOpen} onOpenChange={(o) => { setCustomerSelectOpen(o); if (!o) { setCreateCustomerMode(false); setNewCustName(""); setNewCustPhone(""); setNewCustAddress(""); } }}>
+      <Dialog open={customerSelectOpen} onOpenChange={(o) => { setCustomerSelectOpen(o); if (!o) { setCreateCustomerMode(false); setNewCustName(""); setNewCustPhone(""); setNewCustAddress(""); setNewCustPassword(""); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -732,12 +735,22 @@ function SellTab() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Telefon</label>
+                <label className="text-sm font-medium mb-1 block">Telefon *</label>
                 <Input
                   value={newCustPhone}
                   onChange={(e) => setNewCustPhone(e.target.value)}
                   placeholder="+998901234567"
                   data-testid="input-new-customer-phone"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Parol (portal uchun)</label>
+                <Input
+                  type="password"
+                  value={newCustPassword}
+                  onChange={(e) => setNewCustPassword(e.target.value)}
+                  placeholder="Kamida 4 ta belgi"
+                  data-testid="input-new-customer-password"
                 />
               </div>
               <div>
@@ -757,7 +770,7 @@ function SellTab() {
                   size="sm"
                   className="flex-1"
                   disabled={!newCustName.trim() || createCustomerMut.isPending}
-                  onClick={() => createCustomerMut.mutate({ name: newCustName.trim(), phone: newCustPhone.trim(), address: newCustAddress.trim() })}
+                  onClick={() => createCustomerMut.mutate({ name: newCustName.trim(), phone: newCustPhone.trim() || null, password: newCustPassword.trim() || null, address: newCustAddress.trim() || null })}
                   data-testid="button-save-new-customer"
                 >
                   {createCustomerMut.isPending ? "Saqlanmoqda..." : "Saqlash"}
@@ -1176,6 +1189,55 @@ function SellTab() {
               {sellMutation.isPending ? "Yuklanmoqda..." : "Tasdiqlash"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Dialog — yangi mijoz yaratilgandan so'ng */}
+      <Dialog open={!!sellQrCustomer} onOpenChange={(o) => { if (!o) setSellQrCustomer(null); }}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5 text-primary" />
+              Mijoz QR kodi
+            </DialogTitle>
+          </DialogHeader>
+          {sellQrCustomer && (
+            <div className="flex flex-col items-center gap-4 py-2">
+              <div className="bg-white p-4 rounded-xl shadow-md">
+                <QRCodeSVG
+                  value={`${window.location.origin}/portal?store=${sellQrCustomer.tenantId || ""}&phone=${encodeURIComponent(sellQrCustomer.phone || "")}`}
+                  size={180}
+                  level="M"
+                />
+              </div>
+              <div className="text-center">
+                <p className="font-bold text-base">{sellQrCustomer.name}</p>
+                {sellQrCustomer.phone && <p className="text-sm text-muted-foreground">{sellQrCustomer.phone}</p>}
+                <p className="text-xs text-muted-foreground mt-2 max-w-[220px]">
+                  Mijoz ushbu QR orqali portal ga kirishi mumkin
+                </p>
+              </div>
+              <div className="flex gap-2 w-full">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setSellQrCustomer(null)}
+                >
+                  Yopish
+                </Button>
+                <Button
+                  className="flex-1 gap-2"
+                  onClick={() => {
+                    const url = `${window.location.origin}/portal?store=${sellQrCustomer.tenantId || ""}&phone=${encodeURIComponent(sellQrCustomer.phone || "")}`;
+                    navigator.clipboard?.writeText(url).then(() => toast({ title: "Havola nusxalandi!" }));
+                  }}
+                  data-testid="button-copy-portal-link"
+                >
+                  Havolani ko'chirish
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
