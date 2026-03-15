@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import * as XLSX from "xlsx";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,8 @@ import type { Dealer, Product, Category } from "@shared/schema";
 import {
   UserCheck, Plus, Edit, Phone, Car, Package, Search,
   Minus, Trash2, ArrowDownToLine, ArrowUpFromLine, ShoppingCart,
-  History, Eye, Printer, RotateCcw, Banknote, QrCode, Download
+  History, Eye, Printer, RotateCcw, Banknote, QrCode, Download,
+  FileSpreadsheet, CalendarRange
 } from "lucide-react";
 import { format } from "date-fns";
 import { useRef, useCallback } from "react";
@@ -64,6 +66,8 @@ export default function Dealers() {
   const [payNotes, setPayNotes] = useState("");
 
   const [historyFilter, setHistoryFilter] = useState<"all" | "load" | "sell" | "return">("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const [editTx, setEditTx] = useState<any | null>(null);
   const [editTxQty, setEditTxQty] = useState("");
@@ -517,6 +521,83 @@ export default function Dealers() {
 
   const inventoryTotal = inventory?.reduce((sum: number, i: any) => sum + Number(i.productPrice) * i.quantity, 0) || 0;
 
+  const dateFilteredTx = useMemo(() => {
+    if (!transactions) return [];
+    return transactions.filter((tx: any) => {
+      const d = new Date(tx.createdAt);
+      if (dateFrom && d < new Date(dateFrom)) return false;
+      if (dateTo && d > new Date(dateTo + "T23:59:59")) return false;
+      return true;
+    });
+  }, [transactions, dateFrom, dateTo]);
+
+  const dateFilteredPayments = useMemo(() => {
+    if (!dealerPayments) return [];
+    return dealerPayments.filter((p: any) => {
+      const d = new Date(p.createdAt);
+      if (dateFrom && d < new Date(dateFrom)) return false;
+      if (dateTo && d > new Date(dateTo + "T23:59:59")) return false;
+      return true;
+    });
+  }, [dealerPayments, dateFrom, dateTo]);
+
+  const exportToExcel = () => {
+    if (!detailDealer) return;
+    const dealerName = detailDealer.name;
+    const fmt = (n: number) => Math.round(n);
+    const dateLabel = dateFrom || dateTo
+      ? ` (${dateFrom || "..."} - ${dateTo || "..."})`
+      : "";
+
+    const loaded = dateFilteredTx.filter((t: any) => t.type === "load");
+    const returned = dateFilteredTx.filter((t: any) => t.type === "return");
+    const payments = dateFilteredPayments;
+
+    const loadSheet = XLSX.utils.json_to_sheet(
+      loaded.length > 0 ? loaded.map((t: any) => ({
+        "Sana": format(new Date(t.createdAt), "dd.MM.yyyy HH:mm"),
+        "Mahsulot": t.productName || "",
+        "Miqdor": t.quantity,
+        "O'lchov": t.productUnit || "dona",
+        "Narx (UZS)": fmt(Number(t.productPrice || 0)),
+        "Jami (UZS)": fmt(Number(t.total || 0)),
+        "To'lov turi": t.paymentType === "cash" ? "Naqd" : t.paymentType === "partial" ? "Qisman" : "Qarz",
+        "To'langan (UZS)": fmt(Number(t.paidAmount || 0)),
+        "Qarz (UZS)": fmt(Math.max(0, Number(t.total || 0) - Number(t.paidAmount || 0))),
+        "Izoh": t.notes || "",
+      })) : [{ "Ma'lumot": "Yuklash tarixi mavjud emas" }]
+    );
+
+    const returnSheet = XLSX.utils.json_to_sheet(
+      returned.length > 0 ? returned.map((t: any) => ({
+        "Sana": format(new Date(t.createdAt), "dd.MM.yyyy HH:mm"),
+        "Mahsulot": t.productName || "",
+        "Miqdor": t.quantity,
+        "O'lchov": t.productUnit || "dona",
+        "Narx (UZS)": fmt(Number(t.productPrice || 0)),
+        "Jami (UZS)": fmt(Number(t.total || 0)),
+        "Izoh": t.notes || "",
+      })) : [{ "Ma'lumot": "Qaytarish tarixi mavjud emas" }]
+    );
+
+    const paySheet = XLSX.utils.json_to_sheet(
+      payments.length > 0 ? payments.map((p: any) => ({
+        "Sana": format(new Date(p.createdAt), "dd.MM.yyyy HH:mm"),
+        "Summa (UZS)": fmt(Number(p.amount || 0)),
+        "Usul": p.method === "cash" ? "Naqd" : p.method === "card" ? "Karta" : p.method === "transfer" ? "O'tkazma" : p.method || "Naqd",
+        "Izoh": p.notes || "",
+      })) : [{ "Ma'lumot": "To'lov tarixi mavjud emas" }]
+    );
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, loadSheet, "Yuklangan");
+    XLSX.utils.book_append_sheet(wb, returnSheet, "Qaytarilgan");
+    XLSX.utils.book_append_sheet(wb, paySheet, "To'langan");
+
+    const fileName = `${dealerName}_hisobot${dateLabel}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-4 h-full overflow-y-auto">
@@ -598,6 +679,51 @@ export default function Dealers() {
           </Card>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2 p-3 bg-muted/30 rounded-lg border mb-2">
+          <CalendarRange className="h-4 w-4 text-muted-foreground shrink-0" />
+          <div className="flex items-center gap-1.5">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="h-8 text-xs px-2 rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+              data-testid="input-date-from"
+            />
+            <span className="text-muted-foreground text-xs">—</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="h-8 text-xs px-2 rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+              data-testid="input-date-to"
+            />
+          </div>
+          {(dateFrom || dateTo) && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs px-2"
+              onClick={() => { setDateFrom(""); setDateTo(""); }}
+              data-testid="button-clear-date"
+            >
+              ✕ Tozalash
+            </Button>
+          )}
+          <div className="ml-auto">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs border-emerald-500/40 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+              onClick={exportToExcel}
+              disabled={!transactions?.length && !dealerPayments?.length}
+              data-testid="button-export-excel"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
+              Excel yuklab olish
+            </Button>
+          </div>
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="inventory" data-testid="tab-inventory">
@@ -675,10 +801,10 @@ export default function Dealers() {
                 {(["all", "load", "sell", "return"] as const).map((f) => {
                   const labels: Record<string, string> = { all: "Barchasi", load: "Yuklash", sell: "Sotish", return: "Qaytarish" };
                   const counts: Record<string, number> = {
-                    all: transactions?.length || 0,
-                    load: transactions?.filter((t: any) => t.type === "load").length || 0,
-                    sell: transactions?.filter((t: any) => t.type === "sell").length || 0,
-                    return: transactions?.filter((t: any) => t.type === "return").length || 0,
+                    all: dateFilteredTx.length,
+                    load: dateFilteredTx.filter((t: any) => t.type === "load").length,
+                    sell: dateFilteredTx.filter((t: any) => t.type === "sell").length,
+                    return: dateFilteredTx.filter((t: any) => t.type === "return").length,
                   };
                   return (
                     <Button
@@ -701,9 +827,8 @@ export default function Dealers() {
               </Button>
             </div>
             {(() => {
-              const filtered = transactions
-                ? (historyFilter === "all" ? transactions : transactions.filter((t: any) => t.type === historyFilter))
-                : [];
+              const base = dateFilteredTx;
+              const filtered = historyFilter === "all" ? base : base.filter((t: any) => t.type === historyFilter);
               if (!transactions || transactions.length === 0) return (
                 <div className="text-center py-12 text-muted-foreground">
                   <History className="h-12 w-12 mx-auto mb-3 opacity-20" />
@@ -713,7 +838,7 @@ export default function Dealers() {
               if (filtered.length === 0) return (
                 <div className="text-center py-12 text-muted-foreground">
                   <History className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                  <p>Bu turda transaksiya mavjud emas</p>
+                  <p>{dateFrom || dateTo ? "Tanlangan sanada ma'lumot yo'q" : "Bu turda transaksiya mavjud emas"}</p>
                 </div>
               );
               return (
@@ -786,36 +911,53 @@ export default function Dealers() {
 
           <TabsContent value="payments" className="mt-4">
             {dealerPayments && dealerPayments.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Sana</TableHead>
-                    <TableHead>Miqdor</TableHead>
-                    <TableHead>Usul</TableHead>
-                    <TableHead>Izoh</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dealerPayments.map((p: any) => (
-                    <TableRow key={p.id} data-testid={`row-payment-${p.id}`}>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {format(new Date(p.createdAt), "dd.MM.yyyy HH:mm")}
-                      </TableCell>
-                      <TableCell className="font-bold text-green-600">
-                        {formatCurrency(Number(p.amount))}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {p.method === "cash" ? "Naqd" : p.method === "card" ? "Karta" : p.method === "transfer" ? "O'tkazma" : p.method || "Naqd"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {p.notes || "—"}
+              dateFilteredPayments.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Banknote className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                  <p>Tanlangan sanada to'lov mavjud emas</p>
+                </div>
+              ) : (
+              <Card>
+                <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Sana</TableHead>
+                      <TableHead>Miqdor</TableHead>
+                      <TableHead>Usul</TableHead>
+                      <TableHead>Izoh</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {dateFilteredPayments.map((p: any) => (
+                      <TableRow key={p.id} data-testid={`row-payment-${p.id}`}>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {format(new Date(p.createdAt), "dd.MM.yyyy HH:mm")}
+                        </TableCell>
+                        <TableCell className="font-bold text-green-600">
+                          {formatCurrency(Number(p.amount))}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {p.method === "cash" ? "Naqd" : p.method === "card" ? "Karta" : p.method === "transfer" ? "O'tkazma" : p.method || "Naqd"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {p.notes || "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="font-bold bg-muted/30">
+                      <TableCell colSpan={3}>Jami to'lovlar</TableCell>
+                      <TableCell className="text-green-600">
+                        {formatCurrency(dateFilteredPayments.reduce((s: number, p: any) => s + Number(p.amount), 0))}
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableBody>
+                </Table>
+                </CardContent>
+              </Card>
+              )
             ) : (
               <div className="text-center py-12 text-muted-foreground">
                 <Banknote className="h-12 w-12 mx-auto mb-3 opacity-20" />
