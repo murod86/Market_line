@@ -563,6 +563,74 @@ export async function registerRoutes(
     res.json({ ...sale, items: itemsResult.rows });
   });
 
+  app.get("/api/customers/:id/sales", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const customerId = (req.params['id'] as string);
+      const customer = await storage.getCustomer(customerId);
+      if (!verifyTenant(customer, tenantId)) return res.status(404).json({ message: "Mijoz topilmadi" });
+      const result = await pool.query(`
+        SELECT s.id, s.total_amount, s.discount, s.paid_amount, s.payment_type,
+               s.status, s.created_at,
+               COUNT(si.id)::int AS item_count,
+               json_agg(json_build_object(
+                 'id', si.id, 'product_id', si.product_id, 'quantity', si.quantity,
+                 'price', si.price, 'total', si.total,
+                 'product_name', p.name, 'product_unit', p.unit
+               )) AS items
+        FROM sales s
+        LEFT JOIN sale_items si ON si.sale_id = s.id
+        LEFT JOIN products p ON p.id = si.product_id
+        WHERE s.tenant_id = $1 AND s.customer_id = $2
+        GROUP BY s.id
+        ORDER BY s.created_at DESC
+      `, [tenantId, customerId]);
+      res.json(result.rows);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/sales/:id/return", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const saleId = (req.params['id'] as string);
+      const sale = await storage.getSale(saleId);
+      if (!sale || (sale as any).tenantId !== tenantId) {
+        return res.status(404).json({ message: "Sotuv topilmadi" });
+      }
+      if ((sale as any).status === "returned") {
+        return res.status(400).json({ message: "Bu sotuv allaqachon qaytarilgan" });
+      }
+      const itemsResult = await pool.query(
+        `SELECT si.id, si.product_id, si.quantity, si.price FROM sale_items si WHERE si.sale_id = $1`,
+        [saleId]
+      );
+      for (const item of itemsResult.rows) {
+        const product = await storage.getProduct(item.product_id);
+        if (product) {
+          await storage.updateProduct(item.product_id, { stock: (product.stock || 0) + item.quantity } as any);
+        }
+      }
+      const totalAmount = Number((sale as any).totalAmount);
+      const paidAmount = Number((sale as any).paidAmount || 0);
+      const saleDebt = Math.max(0, totalAmount - paidAmount);
+      const customerId = (sale as any).customerId;
+      if (customerId && saleDebt > 0) {
+        const customer = await storage.getCustomer(customerId);
+        if (customer) {
+          const currentDebt = Number((customer as any).debt || 0);
+          const newDebt = Math.max(0, currentDebt - saleDebt);
+          await storage.updateCustomer(customerId, { debt: newDebt.toFixed(2) } as any);
+        }
+      }
+      await storage.updateSale(saleId, { status: "returned" } as any);
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.patch("/api/sales/:id", requireTenant, async (req, res) => {
     try {
       const tenantId = req.session.tenantId!;

@@ -12,7 +12,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Customer } from "@shared/schema";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Edit, Phone, MapPin, Lock, QrCode, Download, Banknote, History } from "lucide-react";
+import { Plus, Search, Edit, Phone, MapPin, Lock, QrCode, Download, Banknote, History, ShoppingCart, RotateCcw, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { QRCodeSVG } from "qrcode.react";
 import logoImg from "@assets/marketline_pro_logo_1.png";
@@ -32,6 +32,8 @@ export default function Customers() {
   const [payMethod, setPayMethod] = useState("cash");
   const [payNotes, setPayNotes] = useState("");
   const [payHistoryCustomer, setPayHistoryCustomer] = useState<Customer | null>(null);
+  const [salesHistoryCustomer, setSalesHistoryCustomer] = useState<Customer | null>(null);
+  const [returnSale, setReturnSale] = useState<any>(null);
   const [form, setForm] = useState({
     fullName: "", phone: "", address: "", telegramId: "", password: "", dealerId: "",
   });
@@ -70,6 +72,26 @@ export default function Customers() {
   const { data: payHistory } = useQuery<any[]>({
     queryKey: ["/api/payments", "customer", payHistoryCustomer?.id],
     enabled: !!payHistoryCustomer,
+  });
+
+  const { data: customerSales, isLoading: salesLoading } = useQuery<any[]>({
+    queryKey: ["/api/customers", salesHistoryCustomer?.id, "sales"],
+    enabled: !!salesHistoryCustomer,
+  });
+
+  const returnMutation = useMutation({
+    mutationFn: async (saleId: string) => {
+      const res = await apiRequest("POST", `/api/sales/${saleId}/return`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Mahsulot omborga qaytarildi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers", salesHistoryCustomer?.id, "sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      setReturnSale(null);
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
   const paymentMutation = useMutation({
@@ -354,6 +376,16 @@ export default function Customers() {
                         <Button
                           size="icon"
                           variant="ghost"
+                          onClick={() => setSalesHistoryCustomer(customer)}
+                          data-testid={`button-sales-customer-${customer.id}`}
+                          title="Sotuv tarixi"
+                          className="text-blue-500"
+                        >
+                          <ShoppingCart className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
                           onClick={() => { setQrCustomer(customer); setShowQrAfterSave(false); }}
                           data-testid={`button-qr-customer-${customer.id}`}
                           title="QR kod"
@@ -570,6 +602,128 @@ export default function Customers() {
               data-testid="button-submit-payment"
             >
               {paymentMutation.isPending ? "Yuklanmoqda..." : "To'lovni tasdiqlash"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sales History Dialog */}
+      <Dialog open={!!salesHistoryCustomer} onOpenChange={(o) => { if (!o) { setSalesHistoryCustomer(null); setReturnSale(null); } }}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5 text-blue-500" />
+              Sotuv tarixi — {salesHistoryCustomer?.fullName}
+            </DialogTitle>
+          </DialogHeader>
+          {salesLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : customerSales && customerSales.length > 0 ? (
+            <div className="space-y-3">
+              {customerSales.map((sale: any) => {
+                const isReturned = sale.status === "returned";
+                const totalAmount = Number(sale.total_amount);
+                const paidAmount = Number(sale.paid_amount || 0);
+                const debt = Math.max(0, totalAmount - paidAmount);
+                const payLabel = sale.payment_type === "debt" ? "Qarz" : sale.payment_type === "partial" ? "Qisman" : sale.payment_type === "card" ? "Karta" : "Naqd";
+                return (
+                  <div key={sale.id} className={`border rounded-lg p-3 space-y-2 ${isReturned ? "opacity-60 bg-muted/30" : ""}`} data-testid={`sale-card-${sale.id}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>{sale.created_at ? (() => { try { return format(new Date(sale.created_at), "dd.MM.yyyy HH:mm"); } catch { return "—"; } })() : "—"}</span>
+                        <Badge variant={isReturned ? "secondary" : sale.payment_type === "debt" || sale.payment_type === "partial" ? "destructive" : "default"} className="text-[10px]">
+                          {isReturned ? "Qaytarilgan" : payLabel}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-green-600">{formatCurrency(totalAmount)}</span>
+                        {!isReturned && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs border-orange-300 text-orange-600 hover:bg-orange-50"
+                            onClick={() => setReturnSale(sale)}
+                            data-testid={`button-return-sale-${sale.id}`}
+                          >
+                            <RotateCcw className="h-3 w-3 mr-1" />
+                            Qaytarish
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    {sale.items && sale.items[0] && (
+                      <div className="text-xs text-muted-foreground space-y-0.5">
+                        {sale.items.filter((i: any) => i.id).map((item: any, idx: number) => (
+                          <div key={idx} className="flex justify-between">
+                            <span>{item.product_name} × {item.quantity} {item.product_unit}</span>
+                            <span>{formatCurrency(Number(item.total))}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {debt > 0 && !isReturned && (
+                      <div className="text-xs text-red-600 font-medium">Qarz: {formatCurrency(debt)}</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-10 text-muted-foreground">
+              <ShoppingCart className="h-10 w-10 mx-auto mb-2 opacity-20" />
+              <p>Sotuvlar mavjud emas</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Return Confirm Dialog */}
+      <Dialog open={!!returnSale} onOpenChange={(o) => { if (!o) setReturnSale(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-orange-600">
+              <AlertTriangle className="h-5 w-5" />
+              Mahsulotni qaytarish
+            </DialogTitle>
+          </DialogHeader>
+          {returnSale && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Ushbu sotuvdagi barcha mahsulotlar omborga qaytariladi:
+              </p>
+              <div className="p-3 rounded bg-muted text-sm space-y-1">
+                {returnSale.items?.filter((i: any) => i.id).map((item: any, idx: number) => (
+                  <div key={idx} className="flex justify-between">
+                    <span>{item.product_name}</span>
+                    <span className="font-medium">+{item.quantity} {item.product_unit}</span>
+                  </div>
+                ))}
+                <div className="pt-1 border-t flex justify-between font-semibold">
+                  <span>Jami summa</span>
+                  <span className="text-green-600">{formatCurrency(Number(returnSale.total_amount))}</span>
+                </div>
+              </div>
+              {Math.max(0, Number(returnSale.total_amount) - Number(returnSale.paid_amount || 0)) > 0 && (
+                <p className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-950/30 rounded p-2">
+                  Mijozning qarzi {formatCurrency(Math.max(0, Number(returnSale.total_amount) - Number(returnSale.paid_amount || 0)))} ga kamayadi.
+                </p>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReturnSale(null)}>Bekor</Button>
+            <Button
+              variant="default"
+              className="bg-orange-500 hover:bg-orange-600"
+              disabled={returnMutation.isPending}
+              onClick={() => returnMutation.mutate(returnSale.id)}
+              data-testid="button-confirm-return"
+            >
+              {returnMutation.isPending ? "Qaytarilmoqda..." : "Tasdiqlash"}
             </Button>
           </DialogFooter>
         </DialogContent>
