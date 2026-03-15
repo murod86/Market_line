@@ -34,6 +34,7 @@ export default function Customers() {
   const [payHistoryCustomer, setPayHistoryCustomer] = useState<Customer | null>(null);
   const [salesHistoryCustomer, setSalesHistoryCustomer] = useState<Customer | null>(null);
   const [returnSale, setReturnSale] = useState<any>(null);
+  const [returnItems, setReturnItems] = useState<Record<string, number>>({});
   const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
   const [form, setForm] = useState({
     fullName: "", phone: "", address: "", telegramId: "", password: "", dealerId: "",
@@ -95,17 +96,18 @@ export default function Customers() {
     enabled: !!salesHistoryCustomer,
   });
 
-  const returnMutation = useMutation({
-    mutationFn: async (saleId: string) => {
-      const res = await apiRequest("POST", `/api/sales/${saleId}/return`);
+  const partialReturnMutation = useMutation({
+    mutationFn: async ({ saleId, items }: { saleId: string; items: { itemId: string; quantity: number }[] }) => {
+      const res = await apiRequest("POST", `/api/sales/${saleId}/partial-return`, { items });
       return res.json();
     },
-    onSuccess: () => {
-      toast({ title: "Mahsulot omborga qaytarildi" });
+    onSuccess: (data: any) => {
+      toast({ title: data.allReturned ? "Barcha mahsulot qaytarildi" : "Tanlangan mahsulotlar qaytarildi" });
       queryClient.invalidateQueries({ queryKey: ["/api/customers", salesHistoryCustomer?.id, "sales"] });
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       setReturnSale(null);
+      setReturnItems({});
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -672,7 +674,15 @@ export default function Customers() {
                             size="sm"
                             variant="outline"
                             className="h-7 text-xs border-orange-300 text-orange-600 hover:bg-orange-50"
-                            onClick={() => setReturnSale(sale)}
+                            onClick={() => {
+                              setReturnSale(sale);
+                              const initial: Record<string, number> = {};
+                              sale.items?.filter((i: any) => i.id).forEach((i: any) => {
+                                const maxRet = Number(i.quantity) - Number(i.returned_qty || 0);
+                                initial[i.id] = maxRet > 0 ? maxRet : 0;
+                              });
+                              setReturnItems(initial);
+                            }}
                             data-testid={`button-return-sale-${sale.id}`}
                           >
                             <RotateCcw className="h-3 w-3 mr-1" />
@@ -707,51 +717,83 @@ export default function Customers() {
         </DialogContent>
       </Dialog>
 
-      {/* Return Confirm Dialog */}
-      <Dialog open={!!returnSale} onOpenChange={(o) => { if (!o) setReturnSale(null); }}>
-        <DialogContent className="sm:max-w-sm">
+      {/* Qisman Qaytarish Dialogi */}
+      <Dialog open={!!returnSale} onOpenChange={(o) => { if (!o) { setReturnSale(null); setReturnItems({}); } }}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-orange-600">
-              <AlertTriangle className="h-5 w-5" />
-              Mahsulotni qaytarish
+              <RotateCcw className="h-5 w-5" />
+              Mahsulot qaytarish
             </DialogTitle>
           </DialogHeader>
-          {returnSale && (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Ushbu sotuvdagi barcha mahsulotlar omborga qaytariladi:
-              </p>
-              <div className="p-3 rounded bg-muted text-sm space-y-1">
-                {returnSale.items?.filter((i: any) => i.id).map((item: any, idx: number) => (
-                  <div key={idx} className="flex justify-between">
-                    <span>{item.product_name}</span>
-                    <span className="font-medium">+{item.quantity} {item.product_unit}</span>
-                  </div>
-                ))}
-                <div className="pt-1 border-t flex justify-between font-semibold">
-                  <span>Jami summa</span>
-                  <span className="text-green-600">{formatCurrency(Number(returnSale.total_amount))}</span>
+          {returnSale && (() => {
+            const activeItems = returnSale.items?.filter((i: any) => i.id && (Number(i.quantity) - Number(i.returned_qty || 0)) > 0) || [];
+            const returnAmount = activeItems.reduce((sum: number, item: any) => {
+              const qty = returnItems[item.id] || 0;
+              return sum + qty * Number(item.price);
+            }, 0);
+            const hasSelection = activeItems.some((i: any) => (returnItems[i.id] || 0) > 0);
+            return (
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">Qaytariladigan miqdorni kiriting (0 = qaytarmaslik):</p>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {activeItems.map((item: any) => {
+                    const maxRet = Number(item.quantity) - Number(item.returned_qty || 0);
+                    const val = returnItems[item.id] ?? maxRet;
+                    return (
+                      <div key={item.id} className="flex items-center gap-2 p-2 rounded border bg-muted/30">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">{item.product_name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Sotilgan: {item.quantity} {item.product_unit} · Qaytarish mumkin: {maxRet}
+                          </div>
+                        </div>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={maxRet}
+                          value={val}
+                          onChange={(e) => {
+                            const n = Math.min(maxRet, Math.max(0, Number(e.target.value) || 0));
+                            setReturnItems(prev => ({ ...prev, [item.id]: n }));
+                          }}
+                          className="w-20 h-8 text-center text-sm"
+                          data-testid={`input-return-qty-${item.id}`}
+                        />
+                      </div>
+                    );
+                  })}
+                  {activeItems.length === 0 && (
+                    <p className="text-sm text-center text-muted-foreground py-4">Barcha mahsulotlar allaqachon qaytarilgan</p>
+                  )}
                 </div>
+                {returnAmount > 0 && (
+                  <div className="p-2 rounded bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800">
+                    <div className="flex justify-between text-sm font-semibold text-orange-700 dark:text-orange-400">
+                      <span>Qaytariladigan summa:</span>
+                      <span>{formatCurrency(returnAmount)}</span>
+                    </div>
+                  </div>
+                )}
+                <DialogFooter className="gap-2">
+                  <Button variant="outline" onClick={() => { setReturnSale(null); setReturnItems({}); }}>Bekor</Button>
+                  <Button
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                    disabled={partialReturnMutation.isPending || !hasSelection || activeItems.length === 0}
+                    onClick={() => {
+                      const items = activeItems
+                        .filter((i: any) => (returnItems[i.id] || 0) > 0)
+                        .map((i: any) => ({ itemId: i.id, quantity: returnItems[i.id] || 0 }));
+                      partialReturnMutation.mutate({ saleId: returnSale.id, items });
+                    }}
+                    data-testid="button-confirm-return"
+                  >
+                    {partialReturnMutation.isPending ? "Qaytarilmoqda..." : "Qaytarish"}
+                  </Button>
+                </DialogFooter>
               </div>
-              {Math.max(0, Number(returnSale.total_amount) - Number(returnSale.paid_amount || 0)) > 0 && (
-                <p className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-950/30 rounded p-2">
-                  Mijozning qarzi {formatCurrency(Math.max(0, Number(returnSale.total_amount) - Number(returnSale.paid_amount || 0)))} ga kamayadi.
-                </p>
-              )}
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setReturnSale(null)}>Bekor</Button>
-            <Button
-              variant="default"
-              className="bg-orange-500 hover:bg-orange-600"
-              disabled={returnMutation.isPending}
-              onClick={() => returnMutation.mutate(returnSale.id)}
-              data-testid="button-confirm-return"
-            >
-              {returnMutation.isPending ? "Qaytarilmoqda..." : "Tasdiqlash"}
-            </Button>
-          </DialogFooter>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 

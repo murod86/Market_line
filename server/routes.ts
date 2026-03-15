@@ -593,6 +593,7 @@ export async function registerRoutes(
                COUNT(si.id)::int AS item_count,
                json_agg(json_build_object(
                  'id', si.id, 'product_id', si.product_id, 'quantity', si.quantity,
+                 'returned_qty', COALESCE(si.returned_qty, 0),
                  'price', si.price, 'total', si.total,
                  'product_name', p.name, 'product_unit', p.unit
                )) AS items
@@ -665,6 +666,78 @@ export async function registerRoutes(
       }
       await storage.updateSale(saleId, { status: "returned" } as any);
       res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.post("/api/sales/:id/partial-return", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const saleId = req.params['id'] as string;
+      const { items } = req.body as { items: { itemId: string; quantity: number }[] };
+      if (!items || !items.length) return res.status(400).json({ message: "Mahsulotlar tanlanmadi" });
+
+      const sale = await storage.getSale(saleId);
+      if (!sale || (sale as any).tenantId !== tenantId) return res.status(404).json({ message: "Sotuv topilmadi" });
+      if ((sale as any).status === "returned") return res.status(400).json({ message: "Bu sotuv allaqachon qaytarilgan" });
+
+      const itemsResult = await pool.query(
+        `SELECT id, product_id, quantity, returned_qty, price, total FROM sale_items WHERE sale_id = $1`,
+        [saleId]
+      );
+      const saleItems = itemsResult.rows;
+
+      let returnAmount = 0;
+      for (const ri of items) {
+        if (!ri.quantity || ri.quantity <= 0) continue;
+        const saleItem = saleItems.find((si: any) => si.id === ri.itemId);
+        if (!saleItem) continue;
+        const maxReturnable = Number(saleItem.quantity) - Number(saleItem.returned_qty || 0);
+        const qty = Math.min(ri.quantity, maxReturnable);
+        if (qty <= 0) continue;
+        const unitPrice = Number(saleItem.price);
+        returnAmount += unitPrice * qty;
+        await pool.query(
+          `UPDATE sale_items SET returned_qty = COALESCE(returned_qty,0) + $1 WHERE id = $2`,
+          [qty, ri.itemId]
+        );
+        const product = await storage.getProduct(saleItem.product_id);
+        if (product) {
+          await storage.updateProduct(saleItem.product_id, { stock: (product.stock || 0) + qty } as any);
+        }
+      }
+
+      const updatedItems = await pool.query(
+        `SELECT quantity, returned_qty FROM sale_items WHERE sale_id = $1`,
+        [saleId]
+      );
+      const allReturned = updatedItems.rows.every(
+        (r: any) => Number(r.returned_qty || 0) >= Number(r.quantity)
+      );
+
+      const totalAmount = Number((sale as any).totalAmount);
+      const salePaymentType = (sale as any).paymentType || "cash";
+      const paidAmount = Number((sale as any).paidAmount || 0);
+      let saleDebt = 0;
+      if (salePaymentType === "debt") saleDebt = totalAmount;
+      else if (salePaymentType === "partial") saleDebt = Math.max(0, totalAmount - paidAmount);
+
+      const customerId = (sale as any).customerId;
+      if (customerId && saleDebt > 0 && returnAmount > 0) {
+        const customer = await storage.getCustomer(customerId);
+        if (customer) {
+          const currentDebt = Number((customer as any).debt || 0);
+          const debtReduction = Math.min(returnAmount, currentDebt);
+          await storage.updateCustomer(customerId, { debt: Math.max(0, currentDebt - debtReduction).toFixed(2) } as any);
+        }
+      }
+
+      if (allReturned) {
+        await storage.updateSale(saleId, { status: "returned" } as any);
+      }
+
+      res.json({ success: true, returnAmount, allReturned });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
