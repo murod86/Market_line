@@ -326,33 +326,43 @@ function DashboardTab({ dealer }: { dealer: any }) {
                     <TableHead>Mahsulot</TableHead>
                     <TableHead>Soni</TableHead>
                     <TableHead>Summa</TableHead>
+                    <TableHead>To'lov</TableHead>
                     <TableHead>Mijoz</TableHead>
                     <TableHead className="w-[80px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sellTxs.slice(-10).reverse().map((t: any) => (
-                    <TableRow key={t.id} data-testid={`row-dash-sale-${t.id}`}>
-                      <TableCell className="text-xs">{format(new Date(t.createdAt), "dd.MM HH:mm")}</TableCell>
-                      <TableCell className="text-sm font-medium">{t.productName || t.productId}</TableCell>
-                      <TableCell>{t.quantity} {t.productUnit}</TableCell>
-                      <TableCell className="font-medium text-green-600">{formatCurrency(Number(t.total))}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{t.customerName || "-"}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewTx(t)} data-testid={`button-view-dash-sale-${t.id}`}>
-                            <Search className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(t)} data-testid={`button-edit-dash-sale-${t.id}`}>
-                            <Edit className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTx(t)} data-testid={`button-delete-dash-sale-${t.id}`}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {sellTxs.slice(-10).reverse().map((t: any) => {
+                    const pt = t.paymentType;
+                    const payBadge = pt === "debt"
+                      ? <Badge variant="outline" className="text-[10px] text-red-600 border-red-200 bg-red-50">Qarz</Badge>
+                      : pt === "partial"
+                      ? <Badge variant="outline" className="text-[10px] text-orange-600 border-orange-200 bg-orange-50">Qisman</Badge>
+                      : <Badge variant="outline" className="text-[10px] text-green-600 border-green-200 bg-green-50">Naqd</Badge>;
+                    return (
+                      <TableRow key={t.id} data-testid={`row-dash-sale-${t.id}`}>
+                        <TableCell className="text-xs">{format(new Date(t.createdAt), "dd.MM HH:mm")}</TableCell>
+                        <TableCell className="text-sm font-medium">{t.productName || t.productId}</TableCell>
+                        <TableCell>{t.quantity} {t.productUnit}</TableCell>
+                        <TableCell className="font-medium text-green-600">{formatCurrency(Number(t.total))}</TableCell>
+                        <TableCell>{payBadge}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{t.customerName || "-"}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewTx(t)} data-testid={`button-view-dash-sale-${t.id}`}>
+                              <Search className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(t)} data-testid={`button-edit-dash-sale-${t.id}`}>
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTx(t)} data-testid={`button-delete-dash-sale-${t.id}`}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
@@ -361,7 +371,11 @@ function DashboardTab({ dealer }: { dealer: any }) {
       )}
 
       {(() => {
-        const debtSells = sellTxs.filter((t: any) => t.paymentType === "debt" || (!t.paymentType && Number(t.paidAmount || 0) < Number(t.total)));
+        const debtSells = sellTxs.filter((t: any) => {
+          if (t.paymentType === "debt") return true;
+          if (t.paymentType === "partial") return Math.max(0, Number(t.total) - Number(t.paidAmount || 0)) > 0;
+          return false;
+        });
         if (debtSells.length === 0) return null;
         const totalDebtAmount = debtSells.reduce((s: number, t: any) => s + Math.max(0, Number(t.total) - Number(t.paidAmount || 0)), 0);
         return (
