@@ -232,6 +232,9 @@ export const dealerTransactions = pgTable("dealer_transactions", {
   customerName: text("customer_name"),
   customerPhone: text("customer_phone"),
   notes: text("notes"),
+  dealerCustomerId: varchar("dealer_customer_id"),
+  paidAmount: decimal("paid_amount", { precision: 12, scale: 2 }).default("0"),
+  paymentType: text("payment_type").default("cash"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

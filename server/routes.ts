@@ -1818,13 +1818,17 @@ export async function registerRoutes(
       const tx = await storage.getDealerTransaction(id);
       if (!tx || tx.dealerId !== dealerId) return res.status(404).json({ message: "Topilmadi" });
 
-      const { quantity, price, customerName, customerPhone, notes } = req.body;
+      const { quantity, price, paymentType, paidAmount, customerName, customerPhone, notes } = req.body;
 
-      // Agar miqdor o'zgarsa, inventarni moslashtirish
-      if (quantity !== undefined && quantity !== tx.quantity) {
-        const oldQty = tx.quantity;
-        const newQty = Number(quantity);
-        const diff = oldQty - newQty; // + bo'lsa inventar qaytadi, - bo'lsa kamayadi
+      const newQty = quantity !== undefined ? Number(quantity) : tx.quantity;
+      const newPrice = price !== undefined ? Number(price) : Number(tx.price);
+      const newTotal = newQty * newPrice;
+      const newPayType = paymentType ?? tx.paymentType ?? "cash";
+      const newPaid = paidAmount !== undefined ? Number(paidAmount) : Number(tx.paidAmount || 0);
+
+      // Inventarni moslashtirish
+      if (newQty !== tx.quantity) {
+        const diff = tx.quantity - newQty;
         const inv = await storage.getDealerInventoryItem(dealerId, tx.productId);
         if (inv) {
           const newInvQty = inv.quantity + diff;
@@ -1833,9 +1837,26 @@ export async function registerRoutes(
         }
       }
 
+      // Dealer mijoz qarzini moslashtirish
+      if (tx.dealerCustomerId) {
+        const oldDebt = Math.max(0, Number(tx.total) - Number(tx.paidAmount || 0));
+        const newDebtForItem = newPayType === "cash" ? 0 : newPayType === "debt" ? newTotal : Math.max(0, newTotal - newPaid);
+        const debtDiff = newDebtForItem - oldDebt;
+        if (Math.abs(debtDiff) > 0.01) {
+          const dc = await storage.getDealerCustomer(tx.dealerCustomerId);
+          if (dc && dc.dealerId === dealerId) {
+            const adjustedDebt = Math.max(0, Number(dc.debt) + debtDiff);
+            await storage.updateDealerCustomer(dc.id, { debt: adjustedDebt.toFixed(2) } as any);
+          }
+        }
+      }
+
       const updated = await storage.updateDealerTransaction(id, {
-        ...(quantity !== undefined && { quantity: Number(quantity), total: (Number(price ?? tx.price) * Number(quantity)).toFixed(2) }),
-        ...(price !== undefined && { price: String(price), total: (Number(price) * Number(quantity ?? tx.quantity)).toFixed(2) }),
+        quantity: newQty,
+        price: String(newPrice),
+        total: newTotal.toFixed(2),
+        paidAmount: (newPayType === "cash" ? newTotal : newPayType === "debt" ? 0 : newPaid).toFixed(2),
+        paymentType: newPayType,
         ...(customerName !== undefined && { customerName: customerName || null }),
         ...(customerPhone !== undefined && { customerPhone: customerPhone || null }),
         ...(notes !== undefined && { notes: notes || null }),
@@ -1853,11 +1874,22 @@ export async function registerRoutes(
       const { id } = req.params;
       const tx = await storage.getDealerTransaction(id);
       if (!tx || tx.dealerId !== dealerId) return res.status(404).json({ message: "Topilmadi" });
-      // Inventarni qaytarish (sell bo'lsa)
       if (tx.type === "sell") {
+        // Inventarni qaytarish
         const inv = await storage.getDealerInventoryItem(dealerId, tx.productId);
         if (inv) {
           await storage.upsertDealerInventory(dealerId, tx.productId, inv.quantity + tx.quantity, tx.tenantId!);
+        }
+        // Dealer mijoz qarzini kamaytirish
+        if (tx.dealerCustomerId) {
+          const itemDebt = Math.max(0, Number(tx.total) - Number(tx.paidAmount || 0));
+          if (itemDebt > 0) {
+            const dc = await storage.getDealerCustomer(tx.dealerCustomerId);
+            if (dc && dc.dealerId === dealerId) {
+              const newDebt = Math.max(0, Number(dc.debt) - itemDebt);
+              await storage.updateDealerCustomer(dc.id, { debt: newDebt.toFixed(2) } as any);
+            }
+          }
         }
       }
       await storage.deleteDealerTransaction(id);
@@ -1873,6 +1905,22 @@ export async function registerRoutes(
       const allTxs = await storage.getDealerTransactions(dealerId);
       const sellTxs = allTxs.filter((t) => t.type === "sell");
       for (const tx of sellTxs) {
+        // Inventarni qaytarish
+        const inv = await storage.getDealerInventoryItem(dealerId, tx.productId);
+        if (inv) {
+          await storage.upsertDealerInventory(dealerId, tx.productId, inv.quantity + tx.quantity, tx.tenantId!);
+        }
+        // Dealer mijoz qarzini moslashtirish
+        if (tx.dealerCustomerId) {
+          const itemDebt = Math.max(0, Number(tx.total) - Number(tx.paidAmount || 0));
+          if (itemDebt > 0) {
+            const dc = await storage.getDealerCustomer(tx.dealerCustomerId);
+            if (dc && dc.dealerId === dealerId) {
+              const newDebt = Math.max(0, Number(dc.debt) - itemDebt);
+              await storage.updateDealerCustomer(dc.id, { debt: newDebt.toFixed(2) } as any);
+            }
+          }
+        }
         await storage.deleteDealerTransaction(tx.id);
       }
       res.json({ success: true, deleted: sellTxs.length });
@@ -1934,10 +1982,15 @@ export async function registerRoutes(
       const paymentLabel = paymentType === "cash" ? "Naqd" : paymentType === "debt" ? "Qarzga" : `Qisman (${paidAmount} UZS)`;
       const noteText = `${paymentLabel}${discountNote} | Mijoz: ${customerName || "Noma'lum"}${customerPhone ? ` (${customerPhone})` : ""}${notes ? ` | ${notes}` : ""}`;
 
+      const debtAmount = paymentType === "cash" ? 0 : paymentType === "debt" ? totalAmount : Math.max(0, totalAmount - paidAmount);
+
       for (const item of items) {
         const inv = await storage.getDealerInventoryItem(dealerId, item.productId);
         if (!inv) continue;
         await storage.upsertDealerInventory(dealerId, item.productId, inv.quantity - item.quantity, tenantId);
+        const itemTotal = item.price * item.quantity;
+        const itemRatio = totalAmount > 0 ? itemTotal / totalAmount : 1;
+        const itemPaid = paymentType === "cash" ? itemTotal : paymentType === "debt" ? 0 : Math.round(paidAmount * itemRatio);
         await storage.createDealerTransaction({
           tenantId,
           dealerId,
@@ -1945,14 +1998,15 @@ export async function registerRoutes(
           type: "sell",
           quantity: item.quantity,
           price: String(item.price),
-          total: (item.price * item.quantity).toFixed(2),
+          total: itemTotal.toFixed(2),
           customerName: customerName || null,
           customerPhone: customerPhone || null,
           notes: noteText,
+          dealerCustomerId: dealerCustomerId || null,
+          paidAmount: itemPaid.toFixed(2),
+          paymentType: paymentType,
         });
       }
-
-      const debtAmount = paymentType === "cash" ? 0 : paymentType === "debt" ? totalAmount : Math.max(0, totalAmount - paidAmount);
 
       if (debtAmount > 0 && dealerCustomerId) {
         const dc = await storage.getDealerCustomer(dealerCustomerId);
