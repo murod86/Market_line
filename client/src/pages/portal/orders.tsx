@@ -20,10 +20,10 @@ function formatCurrency(amount: number) {
 }
 
 const statusMap: Record<string, { label: string; color: string; icon: any }> = {
-  pending: { label: "Kutilmoqda", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200", icon: Clock },
-  completed: { label: "Tasdiqlangan", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200", icon: CheckCircle },
-  delivering: { label: "Yetkazilmoqda", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200", icon: Truck },
-  shipped: { label: "Topshirildi", color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200", icon: PackageCheck },
+  pending:   { label: "Kutilmoqda",     color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200", icon: Clock },
+  completed: { label: "Tasdiqlangan",   color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200", icon: CheckCircle },
+  delivering:{ label: "Yetkazilmoqda",  color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200", icon: Truck },
+  shipped:   { label: "Topshirildi",    color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200", icon: PackageCheck },
   delivered: { label: "Qabul qilingan", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200", icon: PackageCheck },
   cancelled: { label: "Bekor qilingan", color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200", icon: XCircle },
 };
@@ -233,7 +233,7 @@ export default function PortalOrders() {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className={`p-2 rounded-md ${order.status === "pending" ? "bg-yellow-100 dark:bg-yellow-900" : order.status === "completed" ? "bg-blue-100 dark:bg-blue-900" : order.status === "delivering" ? "bg-blue-100 dark:bg-blue-900" : order.status === "shipped" ? "bg-indigo-100 dark:bg-indigo-900" : order.status === "delivered" ? "bg-green-100 dark:bg-green-900" : "bg-red-100 dark:bg-red-900"}`}>
+                      <div className={`p-2 rounded-md ${order.status === "pending" ? "bg-yellow-100 dark:bg-yellow-900" : order.status === "completed" ? "bg-emerald-100 dark:bg-emerald-900" : order.status === "delivering" ? "bg-blue-100 dark:bg-blue-900" : order.status === "shipped" ? "bg-indigo-100 dark:bg-indigo-900" : order.status === "delivered" ? "bg-green-100 dark:bg-green-900" : "bg-red-100 dark:bg-red-900"}`}>
                         <StatusIcon className="h-5 w-5" />
                       </div>
                       <div className="min-w-0">

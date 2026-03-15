@@ -70,7 +70,7 @@ export default function Customers() {
   });
 
   const { data: payHistory } = useQuery<any[]>({
-    queryKey: ["/api/payments", "customer", payHistoryCustomer?.id],
+    queryKey: ["/api/customers", payHistoryCustomer?.id, "payments"],
     enabled: !!payHistoryCustomer,
   });
 

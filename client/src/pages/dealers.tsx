@@ -63,6 +63,8 @@ export default function Dealers() {
   const [payMethod, setPayMethod] = useState("cash");
   const [payNotes, setPayNotes] = useState("");
 
+  const [historyFilter, setHistoryFilter] = useState<"all" | "load" | "sell" | "return">("all");
+
   const [editTx, setEditTx] = useState<any | null>(null);
   const [editTxQty, setEditTxQty] = useState("");
   const [editTxNotes, setEditTxNotes] = useState("");
@@ -668,13 +670,53 @@ export default function Dealers() {
           </TabsContent>
 
           <TabsContent value="history" className="mt-4">
-            <div className="flex justify-end mb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div className="flex flex-wrap gap-1.5">
+                {(["all", "load", "sell", "return"] as const).map((f) => {
+                  const labels: Record<string, string> = { all: "Barchasi", load: "Yuklash", sell: "Sotish", return: "Qaytarish" };
+                  const counts: Record<string, number> = {
+                    all: transactions?.length || 0,
+                    load: transactions?.filter((t: any) => t.type === "load").length || 0,
+                    sell: transactions?.filter((t: any) => t.type === "sell").length || 0,
+                    return: transactions?.filter((t: any) => t.type === "return").length || 0,
+                  };
+                  return (
+                    <Button
+                      key={f}
+                      size="sm"
+                      variant={historyFilter === f ? "default" : "outline"}
+                      className={`h-7 text-xs ${f === "return" && historyFilter !== "return" ? "text-orange-600 border-orange-200" : ""}`}
+                      onClick={() => setHistoryFilter(f)}
+                      data-testid={`button-filter-history-${f}`}
+                    >
+                      {labels[f]}
+                      <span className="ml-1 opacity-70">({counts[f]})</span>
+                    </Button>
+                  );
+                })}
+              </div>
               <Button variant="outline" size="sm" onClick={printTransactions} disabled={!transactions?.length} data-testid="button-print-history">
                 <Printer className="h-4 w-4 mr-1" />
                 Chop etish
               </Button>
             </div>
-            {transactions && transactions.length > 0 ? (
+            {(() => {
+              const filtered = transactions
+                ? (historyFilter === "all" ? transactions : transactions.filter((t: any) => t.type === historyFilter))
+                : [];
+              if (!transactions || transactions.length === 0) return (
+                <div className="text-center py-12 text-muted-foreground">
+                  <History className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                  <p>Tarix mavjud emas</p>
+                </div>
+              );
+              if (filtered.length === 0) return (
+                <div className="text-center py-12 text-muted-foreground">
+                  <History className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                  <p>Bu turda transaksiya mavjud emas</p>
+                </div>
+              );
+              return (
               <Card>
                 <CardContent className="p-0">
                   <Table>
@@ -690,7 +732,7 @@ export default function Dealers() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {transactions.map((tx: any) => (
+                      {filtered.map((tx: any) => (
                         <TableRow key={tx.id} data-testid={`transaction-${tx.id}`}>
                           <TableCell className="text-xs">{format(new Date(tx.createdAt), "dd.MM.yyyy HH:mm")}</TableCell>
                           <TableCell>
@@ -738,12 +780,8 @@ export default function Dealers() {
                   </Table>
                 </CardContent>
               </Card>
-            ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                <History className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                <p>Tarix mavjud emas</p>
-              </div>
-            )}
+              );
+            })()}
           </TabsContent>
 
           <TabsContent value="payments" className="mt-4">

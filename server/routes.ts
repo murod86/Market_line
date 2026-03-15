@@ -591,6 +591,19 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/customers/:id/payments", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const customerId = (req.params['id'] as string);
+      const customer = await storage.getCustomer(customerId);
+      if (!verifyTenant(customer, tenantId)) return res.status(404).json({ message: "Mijoz topilmadi" });
+      const data = await storage.getPayments(tenantId, "customer", customerId);
+      res.json(data);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.post("/api/sales/:id/return", requireTenant, async (req, res) => {
     try {
       const tenantId = req.session.tenantId!;
