@@ -518,6 +518,25 @@ export async function registerRoutes(
     res.json(safe);
   });
 
+  app.delete("/api/customers/:id", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const customerId = req.params['id'] as string;
+      const existing = await storage.getCustomer(customerId);
+      if (!existing || (existing as any).tenantId !== tenantId) {
+        return res.status(404).json({ message: "Mijoz topilmadi" });
+      }
+      await pool.query(`DELETE FROM payments WHERE customer_id = $1 AND tenant_id = $2`, [customerId, tenantId]);
+      await pool.query(`DELETE FROM sale_items WHERE sale_id IN (SELECT id FROM sales WHERE customer_id = $1 AND tenant_id = $2)`, [customerId, tenantId]);
+      await pool.query(`DELETE FROM sales WHERE customer_id = $1 AND tenant_id = $2`, [customerId, tenantId]);
+      await pool.query(`DELETE FROM portal_sessions WHERE customer_id = $1`, [customerId]);
+      await pool.query(`DELETE FROM customers WHERE id = $1 AND tenant_id = $2`, [customerId, tenantId]);
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   // ===== SALES (POS) =====
   app.get("/api/sales", requireTenant, async (req, res) => {
     const data = await storage.getSales(req.session.tenantId!);

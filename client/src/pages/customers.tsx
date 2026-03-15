@@ -12,7 +12,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Customer } from "@shared/schema";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Edit, Phone, MapPin, Lock, QrCode, Download, Banknote, History, ShoppingCart, RotateCcw, AlertTriangle } from "lucide-react";
+import { Plus, Search, Edit, Phone, MapPin, Lock, QrCode, Download, Banknote, History, ShoppingCart, RotateCcw, AlertTriangle, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { QRCodeSVG } from "qrcode.react";
 import logoImg from "@assets/marketline_pro_logo_1.png";
@@ -34,6 +34,7 @@ export default function Customers() {
   const [payHistoryCustomer, setPayHistoryCustomer] = useState<Customer | null>(null);
   const [salesHistoryCustomer, setSalesHistoryCustomer] = useState<Customer | null>(null);
   const [returnSale, setReturnSale] = useState<any>(null);
+  const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
   const [form, setForm] = useState({
     fullName: "", phone: "", address: "", telegramId: "", password: "", dealerId: "",
   });
@@ -63,6 +64,21 @@ export default function Customers() {
       }
       setEditing(null);
       resetForm();
+    },
+    onError: (error: Error) => {
+      toast({ title: "Xatolik", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/customers/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Mijoz o'chirildi" });
+      setDeleteCustomer(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
     },
     onError: (error: Error) => {
       toast({ title: "Xatolik", description: error.message, variant: "destructive" });
@@ -394,6 +410,16 @@ export default function Customers() {
                         </Button>
                         <Button size="icon" variant="ghost" onClick={() => openEdit(customer)} data-testid={`button-edit-customer-${customer.id}`}>
                           <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setDeleteCustomer(customer)}
+                          data-testid={`button-delete-customer-${customer.id}`}
+                          title="O'chirish"
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -768,6 +794,35 @@ export default function Customers() {
               <p>To'lov tarixi mavjud emas</p>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* O'chirish tasdiqlash dialogi */}
+      <Dialog open={!!deleteCustomer} onOpenChange={(o) => !o && setDeleteCustomer(null)}>
+        <DialogContent data-testid="dialog-delete-customer">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Mijozni o'chirish
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">{deleteCustomer?.fullName}</span> mijozini o'chirishni tasdiqlaysizmi?
+            Barcha sotuv va to'lov tarixi ham o'chiriladi. Bu amalni ortga qaytarib bo'lmaydi.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteCustomer(null)} data-testid="button-cancel-delete-customer">
+              Bekor qilish
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => deleteCustomer && deleteMutation.mutate(deleteCustomer.id)}
+              data-testid="button-confirm-delete-customer"
+            >
+              {deleteMutation.isPending ? "O'chirilmoqda..." : "O'chirish"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
