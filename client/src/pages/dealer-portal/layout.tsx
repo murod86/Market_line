@@ -424,6 +424,53 @@ function DashboardTab({ dealer }: { dealer: any }) {
         );
       })()}
 
+      {/* To'lovlar tarixi */}
+      {payments && payments.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-sm text-muted-foreground flex items-center gap-2">
+              <Banknote className="h-4 w-4 text-green-500" />
+              Admin ga to'lovlar
+            </h3>
+            <Badge variant="outline" className="text-green-600 border-green-200">
+              Jami: {formatCurrency(totalPaid)}
+            </Badge>
+          </div>
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Sana</TableHead>
+                    <TableHead className="text-right">Summa</TableHead>
+                    <TableHead>Turi</TableHead>
+                    <TableHead>Izoh</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[...payments].reverse().slice(0, 10).map((p: any) => (
+                    <TableRow key={p.id} data-testid={`row-dash-payment-${p.id}`}>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {format(new Date(p.createdAt), "dd.MM.yyyy HH:mm")}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-green-600">
+                        {formatCurrency(Number(p.amount))}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-xs">
+                          {p.method === "cash" ? "Naqd" : p.method === "card" ? "Karta" : "O'tkazma"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{p.notes || "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Ko'rish dialogi */}
       <Dialog open={!!viewTx} onOpenChange={(o) => { if (!o) setViewTx(null); }}>
         <DialogContent className="sm:max-w-sm">
