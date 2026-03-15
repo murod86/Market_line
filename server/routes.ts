@@ -529,7 +529,6 @@ export async function registerRoutes(
       await pool.query(`DELETE FROM payments WHERE customer_id = $1 AND tenant_id = $2`, [customerId, tenantId]);
       await pool.query(`DELETE FROM sale_items WHERE sale_id IN (SELECT id FROM sales WHERE customer_id = $1 AND tenant_id = $2)`, [customerId, tenantId]);
       await pool.query(`DELETE FROM sales WHERE customer_id = $1 AND tenant_id = $2`, [customerId, tenantId]);
-      await pool.query(`DELETE FROM portal_sessions WHERE customer_id = $1`, [customerId]);
       await pool.query(`DELETE FROM customers WHERE id = $1 AND tenant_id = $2`, [customerId, tenantId]);
       res.json({ success: true });
     } catch (e: any) {
