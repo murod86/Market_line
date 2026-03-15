@@ -745,6 +745,46 @@ export default function Dealers() {
               </div>
             )}
           </TabsContent>
+
+          <TabsContent value="payments" className="mt-4">
+            {dealerPayments && dealerPayments.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Sana</TableHead>
+                    <TableHead>Miqdor</TableHead>
+                    <TableHead>Usul</TableHead>
+                    <TableHead>Izoh</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dealerPayments.map((p: any) => (
+                    <TableRow key={p.id} data-testid={`row-payment-${p.id}`}>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {format(new Date(p.createdAt), "dd.MM.yyyy HH:mm")}
+                      </TableCell>
+                      <TableCell className="font-bold text-green-600">
+                        {formatCurrency(Number(p.amount))}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {p.method === "cash" ? "Naqd" : p.method === "card" ? "Karta" : p.method === "transfer" ? "O'tkazma" : p.method || "Naqd"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {p.notes || "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <Banknote className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                <p>To'lovlar mavjud emas</p>
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
 
         {renderProductPickerDialog(
