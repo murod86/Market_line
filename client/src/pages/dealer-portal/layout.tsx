@@ -703,6 +703,7 @@ interface SellCartItem {
   buyUnit: string;
   boxQuantity: number;
   stockPieces: number;
+  customPrice?: number;
 }
 
 function SellTab() {
@@ -773,8 +774,8 @@ function SellTab() {
       const qtyLabel = item.buyUnit === "quti"
         ? `${item.quantity} quti (${item.stockPieces} ${item.unit})`
         : `${item.stockPieces} ${item.unit}`;
-      const unitPriceStr = item.price.toLocaleString();
-      const totalPriceStr = (item.price * item.stockPieces).toLocaleString();
+      const unitPriceStr = (item.customPrice ?? item.price).toLocaleString();
+      const totalPriceStr = ((item.customPrice ?? item.price) * item.stockPieces).toLocaleString();
       return `<tr>
         <td colspan="2" style="padding:4px 2px 1px 2px;font-weight:900;border-top:2px solid #000;font-size:1.05em">${item.name}</td>
       </tr>
@@ -945,11 +946,31 @@ function SellTab() {
     );
   };
 
+  const updateQtyDirect = (productId: string, val: string) => {
+    const newQty = Math.max(1, Number(val) || 1);
+    setCart((prev) =>
+      prev.map((c) => {
+        if (c.productId !== productId) return c;
+        const newPieces = c.buyUnit === "quti" ? newQty * c.boxQuantity : newQty;
+        if (newPieces > c.maxQty) {
+          toast({ title: "Omborda yetarli emas", variant: "destructive" });
+          return c;
+        }
+        return { ...c, quantity: newQty, stockPieces: newPieces };
+      })
+    );
+  };
+
+  const updateCartPrice = (productId: string, price: string) => {
+    const val = price === "" ? undefined : Number(price);
+    setCart((prev) => prev.map((c) => c.productId === productId ? { ...c, customPrice: val } : c));
+  };
+
   const removeFromCart = (productId: string) => {
     setCart((prev) => prev.filter((c) => c.productId !== productId));
   };
 
-  const subtotal = cart.reduce((s, c) => s + c.price * c.stockPieces, 0);
+  const subtotal = cart.reduce((s, c) => s + (c.customPrice ?? c.price) * c.stockPieces, 0);
   const discountNum = Math.max(0, Number(discountValue) || 0);
   const discountAmount = discountType === "percent"
     ? Math.min(Math.round(subtotal * discountNum / 100), subtotal)
@@ -966,7 +987,7 @@ function SellTab() {
       items: cart.map((c) => ({
         productId: c.productId,
         quantity: c.stockPieces,
-        price: c.price,
+        price: c.customPrice ?? c.price,
       })),
       customerName: customerName || null,
       customerPhone: customerPhone || null,
@@ -1271,9 +1292,24 @@ function SellTab() {
                       <div key={item.productId} className="flex items-center justify-between gap-2 py-2 border-b last:border-0">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{item.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatCurrency(item.price)} × {item.stockPieces} {item.unit} = {formatCurrency(item.price * item.stockPieces)}
-                          </p>
+                          <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                            <span className="text-[10px] text-muted-foreground">Narx:</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="100"
+                              value={item.customPrice ?? item.price}
+                              onChange={(e) => updateCartPrice(item.productId, e.target.value)}
+                              className="w-24 h-5 text-xs border rounded px-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                              data-testid={`input-sell-price-${item.productId}`}
+                            />
+                            {item.customPrice !== undefined && item.customPrice !== item.price && (
+                              <button type="button" onClick={() => updateCartPrice(item.productId, "")} className="text-[10px] text-orange-500 hover:text-orange-700" title="Asl narxga qaytarish">↺</button>
+                            )}
+                            <span className="text-xs font-medium text-primary ml-1">
+                              = {formatCurrency((item.customPrice ?? item.price) * item.stockPieces)}
+                            </span>
+                          </div>
                           {item.buyUnit === "quti" && item.boxQuantity > 1 && (
                             <p className="text-[10px] text-blue-600">
                               {item.quantity} quti × {item.boxQuantity} = {item.stockPieces} {item.unit}
@@ -1296,7 +1332,14 @@ function SellTab() {
                           <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateQty(item.productId, -1)}>
                             <Minus className="h-3 w-3" />
                           </Button>
-                          <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => updateQtyDirect(item.productId, e.target.value)}
+                            className="w-12 h-7 text-center text-sm font-medium border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                            data-testid={`input-sell-qty-${item.productId}`}
+                          />
                           <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateQty(item.productId, 1)}>
                             <Plus className="h-3 w-3" />
                           </Button>
@@ -1470,7 +1513,7 @@ function SellTab() {
                   {cart.map((item) => (
                     <div key={item.productId} className="flex justify-between text-sm">
                       <span>{item.name} × {item.buyUnit === "quti" ? `${item.quantity} quti (${item.stockPieces} ${item.unit})` : `${item.stockPieces} ${item.unit}`}</span>
-                      <span className="font-medium">{formatCurrency(item.price * item.stockPieces)}</span>
+                      <span className="font-medium">{formatCurrency((item.customPrice ?? item.price) * item.stockPieces)}</span>
                     </div>
                   ))}
                 </div>
