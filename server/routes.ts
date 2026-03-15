@@ -885,6 +885,13 @@ export async function registerRoutes(
     res.json(enriched);
   });
 
+  app.get("/api/dealers/:id/payments", requireTenant, async (req, res) => {
+    const dealer = await storage.getDealer((req.params['id'] as string));
+    if (!verifyTenant(dealer, req.session.tenantId!)) return res.status(404).json({ message: "Diller topilmadi" });
+    const data = await storage.getPayments(req.session.tenantId!, "dealer", (req.params['id'] as string));
+    res.json(data);
+  });
+
   app.post("/api/dealers/:id/load", requireTenant, async (req, res) => {
     try {
       const tenantId = req.session.tenantId!;

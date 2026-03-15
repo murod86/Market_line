@@ -105,7 +105,7 @@ export default function Dealers() {
   });
 
   const { data: dealerPayments } = useQuery<any[]>({
-    queryKey: ["/api/payments", "dealer", detailDealer?.id],
+    queryKey: ["/api/dealers", detailDealer?.id, "payments"],
     enabled: !!detailDealer,
   });
 
@@ -309,7 +309,7 @@ export default function Dealers() {
     onSuccess: () => {
       toast({ title: "To'lov qabul qilindi" });
       queryClient.invalidateQueries({ queryKey: ["/api/dealers"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/payments", "dealer", detailDealer?.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealers", detailDealer?.id, "payments"] });
       if (detailDealer) {
         const newDebt = Math.max(0, Number(detailDealer.debt) - Number(payAmount));
         setDetailDealer({ ...detailDealer, debt: newDebt.toFixed(2) });
