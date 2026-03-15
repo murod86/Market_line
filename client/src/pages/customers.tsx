@@ -35,6 +35,8 @@ export default function Customers() {
   const [salesHistoryCustomer, setSalesHistoryCustomer] = useState<Customer | null>(null);
   const [returnSale, setReturnSale] = useState<any>(null);
   const [returnItems, setReturnItems] = useState<Record<string, number>>({});
+  const [replaceProducts, setReplaceProducts] = useState<{ productId: string; productName: string; price: number; stock: number; unit: string; quantity: number }[]>([]);
+  const [replaceSearch, setReplaceSearch] = useState("");
   const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
   const [form, setForm] = useState({
     fullName: "", phone: "", address: "", telegramId: "", password: "", dealerId: "",
@@ -43,6 +45,7 @@ export default function Customers() {
   const qrRef = useRef<HTMLDivElement>(null);
 
   const { data: customers, isLoading } = useQuery<Customer[]>({ queryKey: ["/api/customers"] });
+  const { data: allProducts } = useQuery<any[]>({ queryKey: ["/api/products"] });
 
   const { data: tenant } = useQuery<any>({ queryKey: ["/api/auth/me"] });
 
@@ -97,17 +100,27 @@ export default function Customers() {
   });
 
   const partialReturnMutation = useMutation({
-    mutationFn: async ({ saleId, items }: { saleId: string; items: { itemId: string; quantity: number }[] }) => {
-      const res = await apiRequest("POST", `/api/sales/${saleId}/partial-return`, { items });
+    mutationFn: async ({ saleId, items, replacements }: {
+      saleId: string;
+      items: { itemId: string; quantity: number }[];
+      replacements: { productId: string; quantity: number }[];
+    }) => {
+      const res = await apiRequest("POST", `/api/sales/${saleId}/partial-return`, { items, replacements });
       return res.json();
     },
     onSuccess: (data: any) => {
-      toast({ title: data.allReturned ? "Barcha mahsulot qaytarildi" : "Tanlangan mahsulotlar qaytarildi" });
+      const hasReplace = replaceProducts.some(r => r.quantity > 0);
+      let msg = "Mahsulotlar qaytarildi";
+      if (hasReplace && data.netDiff > 0) msg += ` · Qo'shimcha qarz: ${formatCurrency(data.netDiff)}`;
+      else if (hasReplace && data.netDiff < 0) msg += ` · Qarz ${formatCurrency(Math.abs(data.netDiff))} ga kamaydi`;
+      toast({ title: msg });
       queryClient.invalidateQueries({ queryKey: ["/api/customers", salesHistoryCustomer?.id, "sales"] });
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       setReturnSale(null);
       setReturnItems({});
+      setReplaceProducts([]);
+      setReplaceSearch("");
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -717,13 +730,13 @@ export default function Customers() {
         </DialogContent>
       </Dialog>
 
-      {/* Qisman Qaytarish Dialogi */}
-      <Dialog open={!!returnSale} onOpenChange={(o) => { if (!o) { setReturnSale(null); setReturnItems({}); } }}>
-        <DialogContent className="sm:max-w-md">
+      {/* Qisman Qaytarish / Almashtirish Dialogi */}
+      <Dialog open={!!returnSale} onOpenChange={(o) => { if (!o) { setReturnSale(null); setReturnItems({}); setReplaceProducts([]); setReplaceSearch(""); } }}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-orange-600">
               <RotateCcw className="h-5 w-5" />
-              Mahsulot qaytarish
+              Mahsulot qaytarish / almashtirish
             </DialogTitle>
           </DialogHeader>
           {returnSale && (() => {
@@ -732,63 +745,139 @@ export default function Customers() {
               const qty = returnItems[item.id] || 0;
               return sum + qty * Number(item.price);
             }, 0);
-            const hasSelection = activeItems.some((i: any) => (returnItems[i.id] || 0) > 0);
+            const replacementAmount = replaceProducts.reduce((sum, r) => sum + r.price * r.quantity, 0);
+            const netDiff = replacementAmount - returnAmount;
+            const hasSelection = activeItems.some((i: any) => (returnItems[i.id] || 0) > 0) || replaceProducts.some(r => r.quantity > 0);
+
+            const filteredProducts = (allProducts || []).filter((p: any) =>
+              p.stock > 0 &&
+              p.name.toLowerCase().includes(replaceSearch.toLowerCase()) &&
+              !replaceProducts.find(r => r.productId === p.id)
+            ).slice(0, 8);
+
             return (
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">Qaytariladigan miqdorni kiriting (0 = qaytarmaslik):</p>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {activeItems.map((item: any) => {
-                    const maxRet = Number(item.quantity) - Number(item.returned_qty || 0);
-                    const val = returnItems[item.id] ?? maxRet;
-                    return (
-                      <div key={item.id} className="flex items-center gap-2 p-2 rounded border bg-muted/30">
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">{item.product_name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            Sotilgan: {item.quantity} {item.product_unit} · Qaytarish mumkin: {maxRet}
+              <div className="space-y-4">
+                {/* --- Qaytarish bo'limi --- */}
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Qaytariladigan mahsulotlar</p>
+                  <div className="space-y-2">
+                    {activeItems.map((item: any) => {
+                      const maxRet = Number(item.quantity) - Number(item.returned_qty || 0);
+                      const val = returnItems[item.id] ?? maxRet;
+                      return (
+                        <div key={item.id} className="flex items-center gap-2 p-2 rounded border bg-muted/30">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">{item.product_name}</div>
+                            <div className="text-xs text-muted-foreground">Qaytarish mumkin: {maxRet} {item.product_unit}</div>
                           </div>
+                          <Input
+                            type="number" min={0} max={maxRet} value={val}
+                            onChange={(e) => {
+                              const n = Math.min(maxRet, Math.max(0, Number(e.target.value) || 0));
+                              setReturnItems(prev => ({ ...prev, [item.id]: n }));
+                            }}
+                            className="w-20 h-8 text-center text-sm"
+                            data-testid={`input-return-qty-${item.id}`}
+                          />
                         </div>
-                        <Input
-                          type="number"
-                          min={0}
-                          max={maxRet}
-                          value={val}
-                          onChange={(e) => {
-                            const n = Math.min(maxRet, Math.max(0, Number(e.target.value) || 0));
-                            setReturnItems(prev => ({ ...prev, [item.id]: n }));
+                      );
+                    })}
+                    {activeItems.length === 0 && (
+                      <p className="text-sm text-center text-muted-foreground py-2">Barcha mahsulotlar allaqachon qaytarilgan</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* --- Almashtirish bo'limi --- */}
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">O'rniga beriladigan mahsulot (ixtiyoriy)</p>
+                  <Input
+                    placeholder="Mahsulot qidirish..."
+                    value={replaceSearch}
+                    onChange={(e) => setReplaceSearch(e.target.value)}
+                    className="h-8 text-sm mb-2"
+                    data-testid="input-replace-search"
+                  />
+                  {replaceSearch.length > 0 && filteredProducts.length > 0 && (
+                    <div className="border rounded-md divide-y mb-2 max-h-36 overflow-y-auto bg-background shadow-sm">
+                      {filteredProducts.map((p: any) => (
+                        <button key={p.id} className="w-full flex items-center justify-between px-3 py-1.5 hover:bg-muted text-sm text-left"
+                          onClick={() => {
+                            setReplaceProducts(prev => [...prev, { productId: p.id, productName: p.name, price: Number(p.price), stock: p.stock, unit: p.unit || "dona", quantity: 1 }]);
+                            setReplaceSearch("");
                           }}
-                          className="w-20 h-8 text-center text-sm"
-                          data-testid={`input-return-qty-${item.id}`}
-                        />
-                      </div>
-                    );
-                  })}
-                  {activeItems.length === 0 && (
-                    <p className="text-sm text-center text-muted-foreground py-4">Barcha mahsulotlar allaqachon qaytarilgan</p>
+                          data-testid={`button-add-replace-${p.id}`}
+                        >
+                          <span className="font-medium">{p.name}</span>
+                          <span className="text-muted-foreground text-xs">{formatCurrency(Number(p.price))} · {p.stock} {p.unit}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {replaceProducts.length > 0 && (
+                    <div className="space-y-2">
+                      {replaceProducts.map((r, idx) => (
+                        <div key={r.productId} className="flex items-center gap-2 p-2 rounded border bg-green-50 dark:bg-green-950/20">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">{r.productName}</div>
+                            <div className="text-xs text-muted-foreground">{formatCurrency(r.price)} / {r.unit} · Ombor: {r.stock}</div>
+                          </div>
+                          <Input
+                            type="number" min={1} max={r.stock} value={r.quantity}
+                            onChange={(e) => {
+                              const n = Math.min(r.stock, Math.max(1, Number(e.target.value) || 1));
+                              setReplaceProducts(prev => prev.map((x, i) => i === idx ? { ...x, quantity: n } : x));
+                            }}
+                            className="w-20 h-8 text-center text-sm"
+                            data-testid={`input-replace-qty-${r.productId}`}
+                          />
+                          <button className="text-destructive hover:text-destructive/80 p-1"
+                            onClick={() => setReplaceProducts(prev => prev.filter((_, i) => i !== idx))}>✕</button>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
-                {returnAmount > 0 && (
-                  <div className="p-2 rounded bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800">
-                    <div className="flex justify-between text-sm font-semibold text-orange-700 dark:text-orange-400">
-                      <span>Qaytariladigan summa:</span>
-                      <span>{formatCurrency(returnAmount)}</span>
-                    </div>
+
+                {/* --- Hisob xulosasi --- */}
+                {(returnAmount > 0 || replacementAmount > 0) && (
+                  <div className="p-3 rounded border space-y-1 text-sm bg-muted/30">
+                    {returnAmount > 0 && (
+                      <div className="flex justify-between text-orange-600">
+                        <span>Qaytariladi:</span><span>− {formatCurrency(returnAmount)}</span>
+                      </div>
+                    )}
+                    {replacementAmount > 0 && (
+                      <div className="flex justify-between text-green-700 dark:text-green-400">
+                        <span>Yangi mahsulot:</span><span>+ {formatCurrency(replacementAmount)}</span>
+                      </div>
+                    )}
+                    {returnAmount > 0 && replacementAmount > 0 && (
+                      <div className={`flex justify-between font-semibold border-t pt-1 ${netDiff > 0 ? "text-destructive" : "text-green-600"}`}>
+                        <span>{netDiff > 0 ? "Qo'shimcha qarz:" : "Qarz kamayishi:"}</span>
+                        <span>{formatCurrency(Math.abs(netDiff))}</span>
+                      </div>
+                    )}
                   </div>
                 )}
+
                 <DialogFooter className="gap-2">
-                  <Button variant="outline" onClick={() => { setReturnSale(null); setReturnItems({}); }}>Bekor</Button>
+                  <Button variant="outline" onClick={() => { setReturnSale(null); setReturnItems({}); setReplaceProducts([]); setReplaceSearch(""); }}>Bekor</Button>
                   <Button
                     className="bg-orange-500 hover:bg-orange-600 text-white"
-                    disabled={partialReturnMutation.isPending || !hasSelection || activeItems.length === 0}
+                    disabled={partialReturnMutation.isPending || !hasSelection}
                     onClick={() => {
                       const items = activeItems
                         .filter((i: any) => (returnItems[i.id] || 0) > 0)
                         .map((i: any) => ({ itemId: i.id, quantity: returnItems[i.id] || 0 }));
-                      partialReturnMutation.mutate({ saleId: returnSale.id, items });
+                      const replacements = replaceProducts
+                        .filter(r => r.quantity > 0)
+                        .map(r => ({ productId: r.productId, quantity: r.quantity }));
+                      partialReturnMutation.mutate({ saleId: returnSale.id, items, replacements });
                     }}
                     data-testid="button-confirm-return"
                   >
-                    {partialReturnMutation.isPending ? "Qaytarilmoqda..." : "Qaytarish"}
+                    {partialReturnMutation.isPending ? "Amalga oshirilmoqda..." : "Tasdiqlash"}
                   </Button>
                 </DialogFooter>
               </div>

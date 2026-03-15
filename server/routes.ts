@@ -675,7 +675,10 @@ export async function registerRoutes(
     try {
       const tenantId = req.session.tenantId!;
       const saleId = req.params['id'] as string;
-      const { items } = req.body as { items: { itemId: string; quantity: number }[] };
+      const { items, replacements = [] } = req.body as {
+        items: { itemId: string; quantity: number }[];
+        replacements?: { productId: string; quantity: number }[];
+      };
       if (!items || !items.length) return res.status(400).json({ message: "Mahsulotlar tanlanmadi" });
 
       const sale = await storage.getSale(saleId);
@@ -708,11 +711,29 @@ export async function registerRoutes(
         }
       }
 
+      // Process replacement products
+      let replacementAmount = 0;
+      for (const rp of replacements) {
+        if (!rp.quantity || rp.quantity <= 0) continue;
+        const product = await storage.getProduct(rp.productId);
+        if (!product || (product as any).tenantId !== tenantId) continue;
+        const qty = rp.quantity;
+        const unitPrice = Number((product as any).price || 0);
+        replacementAmount += unitPrice * qty;
+        const newStock = Math.max(0, (product.stock || 0) - qty);
+        await storage.updateProduct(rp.productId, { stock: newStock } as any);
+        await pool.query(
+          `INSERT INTO sale_items (id, sale_id, product_id, quantity, price, cost_price, total)
+           VALUES (gen_random_uuid()::varchar, $1, $2, $3, $4, $5, $6)`,
+          [saleId, rp.productId, qty, unitPrice, (product as any).costPrice || 0, unitPrice * qty]
+        );
+      }
+
       const updatedItems = await pool.query(
         `SELECT quantity, returned_qty FROM sale_items WHERE sale_id = $1`,
         [saleId]
       );
-      const allReturned = updatedItems.rows.every(
+      const allReturned = replacements.length === 0 && updatedItems.rows.every(
         (r: any) => Number(r.returned_qty || 0) >= Number(r.quantity)
       );
 
@@ -724,12 +745,21 @@ export async function registerRoutes(
       else if (salePaymentType === "partial") saleDebt = Math.max(0, totalAmount - paidAmount);
 
       const customerId = (sale as any).customerId;
-      if (customerId && saleDebt > 0 && returnAmount > 0) {
+      if (customerId) {
         const customer = await storage.getCustomer(customerId);
         if (customer) {
           const currentDebt = Number((customer as any).debt || 0);
-          const debtReduction = Math.min(returnAmount, currentDebt);
-          await storage.updateCustomer(customerId, { debt: Math.max(0, currentDebt - debtReduction).toFixed(2) } as any);
+          // net: positive means customer owes more, negative means debt reduced
+          const net = replacementAmount - returnAmount;
+          let newDebt: number;
+          if (net >= 0) {
+            // Customer takes more expensive items — add net to debt
+            newDebt = currentDebt + net;
+          } else {
+            // Customer returns more than they take — reduce debt
+            newDebt = Math.max(0, currentDebt + net);
+          }
+          await storage.updateCustomer(customerId, { debt: newDebt.toFixed(2) } as any);
         }
       }
 
@@ -737,7 +767,7 @@ export async function registerRoutes(
         await storage.updateSale(saleId, { status: "returned" } as any);
       }
 
-      res.json({ success: true, returnAmount, allReturned });
+      res.json({ success: true, returnAmount, replacementAmount, netDiff: replacementAmount - returnAmount, allReturned });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
