@@ -1539,6 +1539,20 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/dealer-portal/sell-history", requireDealer, async (req, res) => {
+    try {
+      const dealerId = req.session.dealerId!;
+      const allTxs = await storage.getDealerTransactions(dealerId);
+      const sellTxs = allTxs.filter((t) => t.type === "sell");
+      for (const tx of sellTxs) {
+        await storage.deleteDealerTransaction(tx.id);
+      }
+      res.json({ success: true, deleted: sellTxs.length });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   app.get("/api/dealer-portal/payments", requireDealer, async (req, res) => {
     const dealerId = req.session.dealerId!;
     const payments = await storage.getPayments(req.session.tenantId!);

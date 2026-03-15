@@ -13,7 +13,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Package, ShoppingCart, History, CreditCard, LogOut, Truck,
-  Minus, Plus, Trash2, User, Phone, LayoutDashboard, TrendingUp, TrendingDown, Wallet, ArrowDownToLine, ArrowUpFromLine, Banknote, UserPlus, QrCode, Download, Edit, Search, Printer, Users, AlertCircle
+  Minus, Plus, Trash2, User, Phone, LayoutDashboard, TrendingUp, TrendingDown, Wallet, ArrowDownToLine, ArrowUpFromLine, Banknote, UserPlus, QrCode, Download, Edit, Search, Printer, Users, AlertCircle, Eye
 } from "lucide-react";
 import { useRef, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
@@ -332,16 +332,20 @@ function DashboardTab({ dealer }: { dealer: any }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sellTxs.slice(-10).reverse().map((t: any) => {
+                  {[...sellTxs]
+                    .sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+                    .slice(0, 10)
+                    .map((t: any) => {
                     const pt = t.paymentType;
                     const payBadge = pt === "debt"
                       ? <Badge variant="outline" className="text-[10px] text-red-600 border-red-200 bg-red-50">Qarz</Badge>
                       : pt === "partial"
                       ? <Badge variant="outline" className="text-[10px] text-orange-600 border-orange-200 bg-orange-50">Qisman</Badge>
                       : <Badge variant="outline" className="text-[10px] text-green-600 border-green-200 bg-green-50">Naqd</Badge>;
+                    const dateStr = t.createdAt ? (() => { try { return format(new Date(t.createdAt), "dd.MM HH:mm"); } catch { return "—"; } })() : "—";
                     return (
                       <TableRow key={t.id} data-testid={`row-dash-sale-${t.id}`}>
-                        <TableCell className="text-xs">{format(new Date(t.createdAt), "dd.MM HH:mm")}</TableCell>
+                        <TableCell className="text-xs">{dateStr}</TableCell>
                         <TableCell className="text-sm font-medium">{t.productName || t.productId}</TableCell>
                         <TableCell>{t.quantity} {t.productUnit}</TableCell>
                         <TableCell className="font-medium text-green-600">{formatCurrency(Number(t.total))}</TableCell>
@@ -350,7 +354,7 @@ function DashboardTab({ dealer }: { dealer: any }) {
                         <TableCell>
                           <div className="flex gap-1">
                             <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewTx(t)} data-testid={`button-view-dash-sale-${t.id}`}>
-                              <Search className="h-3.5 w-3.5" />
+                              <Eye className="h-3.5 w-3.5" />
                             </Button>
                             <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(t)} data-testid={`button-edit-dash-sale-${t.id}`}>
                               <Edit className="h-3.5 w-3.5" />
@@ -2577,10 +2581,14 @@ function HistoryTab() {
     queryKey: ["/api/dealer-portal/transactions"],
   });
   const { toast } = useToast();
+  const [viewTx, setViewTx] = useState<any>(null);
   const [editTx, setEditTx] = useState<any>(null);
   const [deleteTx, setDeleteTx] = useState<any>(null);
+  const [clearConfirm, setClearConfirm] = useState(false);
   const [editQty, setEditQty] = useState("");
   const [editPrice, setEditPrice] = useState("");
+  const [editPayType, setEditPayType] = useState("cash");
+  const [editPaid, setEditPaid] = useState("");
   const [editCustName, setEditCustName] = useState("");
   const [editCustPhone, setEditCustPhone] = useState("");
   const [editNotes, setEditNotes] = useState("");
@@ -2589,6 +2597,8 @@ function HistoryTab() {
     setEditTx(tx);
     setEditQty(String(tx.quantity));
     setEditPrice(String(tx.price));
+    setEditPayType(tx.paymentType || "cash");
+    setEditPaid(String(tx.paidAmount || 0));
     setEditCustName(tx.customerName || "");
     setEditCustPhone(tx.customerPhone || "");
     setEditNotes(tx.notes || "");
@@ -2622,68 +2632,116 @@ function HistoryTab() {
     onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
   });
 
+  const clearMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", "/api/dealer-portal/sell-history");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Sotuv tarixi tozalandi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/inventory"] });
+      setClearConfirm(false);
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
   if (isLoading) return <Skeleton className="h-64 w-full" />;
 
-  const typeMap: Record<string, { label: string; color: string }> = {
-    load: { label: "Yuklash", color: "bg-blue-500/10 text-blue-600" },
-    sell: { label: "Sotish", color: "bg-green-500/10 text-green-600" },
-    return: { label: "Qaytarish", color: "bg-orange-500/10 text-orange-600" },
+  const sellTxs = [...(transactions?.filter((t: any) => t.type === "sell") || [])]
+    .sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+  const fmtDate = (d: any) => {
+    if (!d) return "—";
+    try { return format(new Date(d), "dd.MM.yyyy HH:mm"); } catch { return "—"; }
   };
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold" data-testid="text-history-title">Operatsiyalar tarixi</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold" data-testid="text-history-title">
+          Sotuvlar tarixi
+          {sellTxs.length > 0 && <span className="ml-2 text-sm font-normal text-muted-foreground">({sellTxs.length} ta)</span>}
+        </h2>
+        {sellTxs.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive border-destructive/30 hover:bg-destructive/10"
+            onClick={() => setClearConfirm(true)}
+            data-testid="button-clear-sell-history"
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+            Tarixni tozalash
+          </Button>
+        )}
+      </div>
 
-      {transactions && transactions.length > 0 ? (
+      {sellTxs.length > 0 ? (
         <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Sana</TableHead>
-                <TableHead>Turi</TableHead>
                 <TableHead>Mahsulot</TableHead>
                 <TableHead>Miqdor</TableHead>
+                <TableHead>Narx</TableHead>
                 <TableHead>Summa</TableHead>
+                <TableHead>To'lov</TableHead>
                 <TableHead>Mijoz</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
+                <TableHead className="w-[110px] text-center">Amallar</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.map((tx: any) => {
-                const config = typeMap[tx.type] || { label: tx.type, color: "" };
+              {sellTxs.map((tx: any) => {
+                const pt = tx.paymentType;
+                const payBadge = pt === "debt"
+                  ? <Badge variant="outline" className="text-[10px] text-red-600 border-red-200 bg-red-50">Qarz</Badge>
+                  : pt === "partial"
+                  ? <Badge variant="outline" className="text-[10px] text-orange-600 border-orange-200 bg-orange-50">Qisman</Badge>
+                  : <Badge variant="outline" className="text-[10px] text-green-600 border-green-200 bg-green-50">Naqd</Badge>;
                 return (
-                  <TableRow key={tx.id} data-testid={`row-transaction-${tx.id}`}>
-                    <TableCell className="text-xs whitespace-nowrap">{format(new Date(tx.createdAt), "dd.MM.yyyy HH:mm")}</TableCell>
-                    <TableCell>
-                      <Badge className={`${config.color} border-0 text-xs`}>{config.label}</Badge>
-                    </TableCell>
+                  <TableRow key={tx.id} data-testid={`row-sell-history-${tx.id}`}>
+                    <TableCell className="text-xs whitespace-nowrap text-muted-foreground">{fmtDate(tx.createdAt)}</TableCell>
                     <TableCell className="font-medium text-sm">{tx.productName}</TableCell>
                     <TableCell className="text-sm">{tx.quantity} {tx.productUnit}</TableCell>
-                    <TableCell className="text-sm font-medium">{formatCurrency(Number(tx.price) * tx.quantity)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{tx.customerName || "-"}</TableCell>
+                    <TableCell className="text-sm">{formatCurrency(Number(tx.price))}</TableCell>
+                    <TableCell className="text-sm font-semibold text-green-600">{formatCurrency(Number(tx.total) || Number(tx.price) * tx.quantity)}</TableCell>
+                    <TableCell>{payBadge}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{tx.customerName || "—"}</TableCell>
                     <TableCell>
-                      {tx.type === "sell" && (
-                        <div className="flex items-center gap-1">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7"
-                            onClick={() => openEdit(tx)}
-                            data-testid={`button-edit-transaction-${tx.id}`}
-                          >
-                            <Edit className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7 text-destructive hover:text-destructive"
-                            onClick={() => setDeleteTx(tx)}
-                            data-testid={`button-delete-transaction-${tx.id}`}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                          onClick={() => setViewTx(tx)}
+                          data-testid={`button-view-sell-${tx.id}`}
+                          title="Ko'rish"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => openEdit(tx)}
+                          data-testid={`button-edit-sell-${tx.id}`}
+                          title="Tahrirlash"
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setDeleteTx(tx)}
+                          data-testid={`button-delete-sell-${tx.id}`}
+                          title="O'chirish"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -2695,10 +2753,72 @@ function HistoryTab() {
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <History className="h-10 w-10 mx-auto mb-3 opacity-20" />
-            <p>Tarix mavjud emas</p>
+            <p>Sotuvlar tarixi mavjud emas</p>
           </CardContent>
         </Card>
       )}
+
+      {/* View Dialog */}
+      <Dialog open={!!viewTx} onOpenChange={(o) => { if (!o) setViewTx(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-4 w-4 text-blue-500" />
+              Sotuv tafsiloti
+            </DialogTitle>
+          </DialogHeader>
+          {viewTx && (
+            <div className="space-y-2 text-sm">
+              <div className="p-3 rounded-md bg-muted font-semibold text-base">{viewTx.productName}</div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2 rounded bg-muted/50">
+                  <p className="text-xs text-muted-foreground">Miqdor</p>
+                  <p className="font-medium">{viewTx.quantity} {viewTx.productUnit}</p>
+                </div>
+                <div className="p-2 rounded bg-muted/50">
+                  <p className="text-xs text-muted-foreground">Narx</p>
+                  <p className="font-medium">{formatCurrency(Number(viewTx.price))}</p>
+                </div>
+                <div className="p-2 rounded bg-muted/50">
+                  <p className="text-xs text-muted-foreground">Jami summa</p>
+                  <p className="font-semibold text-green-600">{formatCurrency(Number(viewTx.total) || Number(viewTx.price) * viewTx.quantity)}</p>
+                </div>
+                <div className="p-2 rounded bg-muted/50">
+                  <p className="text-xs text-muted-foreground">To'lov turi</p>
+                  <p className="font-medium">
+                    {viewTx.paymentType === "debt" ? "Qarz" : viewTx.paymentType === "partial" ? "Qisman" : "Naqd"}
+                  </p>
+                </div>
+                {viewTx.paymentType === "partial" && (
+                  <div className="p-2 rounded bg-muted/50">
+                    <p className="text-xs text-muted-foreground">To'langan</p>
+                    <p className="font-medium">{formatCurrency(Number(viewTx.paidAmount || 0))}</p>
+                  </div>
+                )}
+                <div className="p-2 rounded bg-muted/50">
+                  <p className="text-xs text-muted-foreground">Sana</p>
+                  <p className="font-medium">{fmtDate(viewTx.createdAt)}</p>
+                </div>
+              </div>
+              {viewTx.customerName && (
+                <div className="p-2 rounded bg-muted/50">
+                  <p className="text-xs text-muted-foreground">Mijoz</p>
+                  <p className="font-medium">{viewTx.customerName} {viewTx.customerPhone ? `• ${viewTx.customerPhone}` : ""}</p>
+                </div>
+              )}
+              {viewTx.notes && (
+                <div className="p-2 rounded bg-muted/50">
+                  <p className="text-xs text-muted-foreground">Izoh</p>
+                  <p>{viewTx.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setViewTx(null)}>Yopish</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={!!editTx} onOpenChange={(o) => { if (!o) setEditTx(null); }}>
@@ -2715,28 +2835,33 @@ function HistoryTab() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs">Miqdor ({editTx.productUnit})</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={editQty}
-                    onChange={(e) => setEditQty(e.target.value)}
-                    data-testid="input-edit-tx-qty"
-                  />
+                  <Input type="number" min="1" value={editQty} onChange={(e) => setEditQty(e.target.value)} data-testid="input-edit-tx-qty" />
                 </div>
                 <div>
-                  <Label className="text-xs">Narx (dona)</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={editPrice}
-                    onChange={(e) => setEditPrice(e.target.value)}
-                    data-testid="input-edit-tx-price"
-                  />
+                  <Label className="text-xs">Narx</Label>
+                  <Input type="number" min="0" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} data-testid="input-edit-tx-price" />
                 </div>
               </div>
               {editQty && editPrice && (
                 <div className="text-sm font-semibold text-primary text-right">
                   Jami: {formatCurrency(Number(editQty) * Number(editPrice))}
+                </div>
+              )}
+              <div>
+                <Label className="text-xs">To'lov turi</Label>
+                <Select value={editPayType} onValueChange={setEditPayType}>
+                  <SelectTrigger data-testid="select-edit-tx-paytype"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Naqd</SelectItem>
+                    <SelectItem value="debt">Qarz</SelectItem>
+                    <SelectItem value="partial">Qisman</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {editPayType === "partial" && (
+                <div>
+                  <Label className="text-xs">To'langan summa</Label>
+                  <Input type="number" min="0" value={editPaid} onChange={(e) => setEditPaid(e.target.value)} data-testid="input-edit-tx-paid" />
                 </div>
               )}
               <div>
@@ -2757,7 +2882,18 @@ function HistoryTab() {
             <Button variant="outline" onClick={() => setEditTx(null)}>Bekor</Button>
             <Button
               disabled={editMutation.isPending || !editQty || !editPrice || Number(editQty) < 1}
-              onClick={() => editMutation.mutate({ id: editTx.id, data: { quantity: Number(editQty), price: Number(editPrice), customerName: editCustName || null, customerPhone: editCustPhone || null, notes: editNotes || null } })}
+              onClick={() => editMutation.mutate({
+                id: editTx.id,
+                data: {
+                  quantity: Number(editQty),
+                  price: Number(editPrice),
+                  paymentType: editPayType,
+                  paidAmount: editPayType === "partial" ? Number(editPaid) : editPayType === "cash" ? Number(editQty) * Number(editPrice) : 0,
+                  customerName: editCustName || null,
+                  customerPhone: editCustPhone || null,
+                  notes: editNotes || null,
+                }
+              })}
               data-testid="button-save-edit-transaction"
             >
               {editMutation.isPending ? "Saqlanmoqda..." : "Saqlash"}
@@ -2791,9 +2927,40 @@ function HistoryTab() {
               variant="destructive"
               disabled={deleteMutation.isPending}
               onClick={() => deleteMutation.mutate(deleteTx.id)}
-              data-testid="button-confirm-delete-transaction"
+              data-testid="button-confirm-delete-sell"
             >
               {deleteMutation.isPending ? "O'chirilmoqda..." : "O'chirish"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Clear All History Confirm Dialog */}
+      <Dialog open={clearConfirm} onOpenChange={setClearConfirm}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-4 w-4" />
+              Tarixni tozalash
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Barcha <span className="font-semibold text-foreground">{sellTxs.length} ta sotuv</span> tarixi o'chiriladi. Bu amalni qaytarib bo'lmaydi!
+            </p>
+            <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded p-2">
+              Mahsulotlar omborga qaytarilmaydi — faqat tarix tozalanadi.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setClearConfirm(false)}>Bekor</Button>
+            <Button
+              variant="destructive"
+              disabled={clearMutation.isPending}
+              onClick={() => clearMutation.mutate()}
+              data-testid="button-confirm-clear-history"
+            >
+              {clearMutation.isPending ? "Tozalanmoqda..." : "Hammasini o'chirish"}
             </Button>
           </DialogFooter>
         </DialogContent>
