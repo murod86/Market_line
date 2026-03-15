@@ -18,7 +18,7 @@ function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
 }
 
-function formatDate(date: string) {
+function formatDate(date: string | Date) {
   return new Date(date).toLocaleDateString("uz-UZ", {
     year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
   });
@@ -57,7 +57,7 @@ export default function Purchases() {
   const { data: products } = useQuery<Product[]>({ queryKey: ["/api/products"] });
   const { data: categories } = useQuery<Category[]>({ queryKey: ["/api/categories"] });
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
-  const { data: purchaseDetail } = useQuery({
+  const { data: purchaseDetail } = useQuery<any>({
     queryKey: ["/api/purchases", selectedId],
     enabled: !!selectedId,
   });

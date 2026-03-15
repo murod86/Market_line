@@ -1152,7 +1152,7 @@ function SellTab() {
                 {filteredForDialog.length === 0 && customerDialogSearch ? (
                   <div className="px-3 py-4 text-center text-sm text-muted-foreground">
                     <p>Topilmadi</p>
-                    <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-primary" onClick={() => { setNewCustName(customerDialogSearch); setCreateCustomerMode(true); }}>
+                    <Button variant="ghost" size="sm" className="mt-1 h-auto p-0 text-primary hover:bg-transparent" onClick={() => { setNewCustName(customerDialogSearch); setCreateCustomerMode(true); }}>
                       + "{customerDialogSearch}" ni yaratish
                     </Button>
                   </div>
@@ -1160,7 +1160,7 @@ function SellTab() {
                   <div className="px-3 py-8 text-center text-sm text-muted-foreground">
                     <Users className="h-8 w-8 mx-auto mb-2 opacity-30" />
                     <p>Mijozlar yo'q</p>
-                    <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-primary" onClick={() => setCreateCustomerMode(true)}>
+                    <Button variant="ghost" size="sm" className="mt-1 h-auto p-0 text-primary hover:bg-transparent" onClick={() => setCreateCustomerMode(true)}>
                       + Yangi mijoz qo'shish
                     </Button>
                   </div>

@@ -366,16 +366,16 @@ export async function registerRoutes(
   });
 
   app.patch("/api/roles/:id", requireTenant, async (req, res) => {
-    const existing = await storage.getRole(req.params.id);
+    const existing = await storage.getRole((req.params['id'] as string));
     if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Role not found" });
-    const role = await storage.updateRole(req.params.id, req.body);
+    const role = await storage.updateRole((req.params['id'] as string), req.body);
     res.json(role);
   });
 
   app.delete("/api/roles/:id", requireTenant, async (req, res) => {
-    const existing = await storage.getRole(req.params.id);
+    const existing = await storage.getRole((req.params['id'] as string));
     if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Role not found" });
-    await storage.deleteRole(req.params.id);
+    await storage.deleteRole((req.params['id'] as string));
     res.json({ success: true });
   });
 
@@ -398,13 +398,13 @@ export async function registerRoutes(
 
   app.patch("/api/employees/:id", requireTenant, async (req, res) => {
     try {
-      const existing = await storage.getEmployee(req.params.id);
+      const existing = await storage.getEmployee((req.params['id'] as string));
       if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Employee not found" });
       const updateData = { ...req.body };
       if (updateData.password) {
         updateData.password = hashPassword(updateData.password);
       }
-      const employee = await storage.updateEmployee(req.params.id, updateData);
+      const employee = await storage.updateEmployee((req.params['id'] as string), updateData);
       if (!employee) return res.status(404).json({ message: "Employee not found" });
       res.json(stripPassword(employee));
     } catch (error: any) {
@@ -430,15 +430,15 @@ export async function registerRoutes(
 
   app.patch("/api/categories/:id", requireTenant, async (req, res) => {
     const existing = await storage.getCategories(req.session.tenantId!);
-    if (!existing.find(c => c.id === req.params.id)) return res.status(404).json({ message: "Category not found" });
-    const category = await storage.updateCategory(req.params.id, req.body);
+    if (!existing.find(c => c.id === (req.params['id'] as string))) return res.status(404).json({ message: "Category not found" });
+    const category = await storage.updateCategory((req.params['id'] as string), req.body);
     res.json(category);
   });
 
   app.delete("/api/categories/:id", requireTenant, async (req, res) => {
     const existing = await storage.getCategories(req.session.tenantId!);
-    if (!existing.find(c => c.id === req.params.id)) return res.status(404).json({ message: "Category not found" });
-    await storage.deleteCategory(req.params.id);
+    if (!existing.find(c => c.id === (req.params['id'] as string))) return res.status(404).json({ message: "Category not found" });
+    await storage.deleteCategory((req.params['id'] as string));
     res.json({ success: true });
   });
 
@@ -449,7 +449,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/products/:id", requireTenant, async (req, res) => {
-    const product = await storage.getProduct(req.params.id);
+    const product = await storage.getProduct((req.params['id'] as string));
     if (!verifyTenant(product, req.session.tenantId!)) return res.status(404).json({ message: "Product not found" });
     res.json(product);
   });
@@ -465,16 +465,16 @@ export async function registerRoutes(
   });
 
   app.patch("/api/products/:id", requireTenant, async (req, res) => {
-    const existing = await storage.getProduct(req.params.id);
+    const existing = await storage.getProduct((req.params['id'] as string));
     if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Product not found" });
-    const product = await storage.updateProduct(req.params.id, req.body);
+    const product = await storage.updateProduct((req.params['id'] as string), req.body);
     res.json(product);
   });
 
   app.delete("/api/products/:id", requireTenant, async (req, res) => {
-    const existing = await storage.getProduct(req.params.id);
+    const existing = await storage.getProduct((req.params['id'] as string));
     if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Product not found" });
-    await storage.deleteProduct(req.params.id);
+    await storage.deleteProduct((req.params['id'] as string));
     res.json({ success: true });
   });
 
@@ -485,9 +485,9 @@ export async function registerRoutes(
   });
 
   app.get("/api/customers/:id", requireTenant, async (req, res) => {
-    const customer = await storage.getCustomer(req.params.id);
+    const customer = await storage.getCustomer((req.params['id'] as string));
     if (!verifyTenant(customer, req.session.tenantId!)) return res.status(404).json({ message: "Customer not found" });
-    const { password: _, ...safe } = customer;
+    const { password: _, ...safe } = customer!;
     res.json(safe);
   });
 
@@ -506,13 +506,13 @@ export async function registerRoutes(
   });
 
   app.patch("/api/customers/:id", requireTenant, async (req, res) => {
-    const existing = await storage.getCustomer(req.params.id);
+    const existing = await storage.getCustomer((req.params['id'] as string));
     if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Customer not found" });
     const updateData = { ...req.body };
     if (updateData.password) {
       updateData.password = hashPassword(updateData.password);
     }
-    const customer = await storage.updateCustomer(req.params.id, updateData);
+    const customer = await storage.updateCustomer((req.params['id'] as string), updateData);
     if (!customer) return res.status(404).json({ message: "Customer not found" });
     const { password: _, ...safe } = customer;
     res.json(safe);
@@ -551,7 +551,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/sales/:id", requireTenant, async (req, res) => {
-    const sale = await storage.getSale(req.params.id);
+    const sale = await storage.getSale((req.params['id'] as string));
     if (!verifyTenant(sale, req.session.tenantId!)) return res.status(404).json({ message: "Sale not found" });
     const itemsResult = await pool.query(`
       SELECT si.id, si.product_id, si.quantity, si.price, si.cost_price, si.total,
@@ -559,14 +559,14 @@ export async function registerRoutes(
       FROM sale_items si
       LEFT JOIN products p ON p.id = si.product_id
       WHERE si.sale_id = $1
-    `, [req.params.id]);
+    `, [(req.params['id'] as string)]);
     res.json({ ...sale, items: itemsResult.rows });
   });
 
   app.patch("/api/sales/:id", requireTenant, async (req, res) => {
     try {
       const tenantId = req.session.tenantId!;
-      const sale = await storage.getSale(req.params.id);
+      const sale = await storage.getSale((req.params['id'] as string));
       if (!sale || (sale as any).tenantId !== tenantId) {
         return res.status(404).json({ message: "Sotuv topilmadi" });
       }
@@ -682,11 +682,12 @@ export async function registerRoutes(
   });
 
   app.get("/api/deliveries/:id/items", requireTenant, async (req, res) => {
-    const delivery = await storage.getDelivery(req.params.id);
+    const delivery = await storage.getDelivery((req.params['id'] as string));
     if (!verifyTenant(delivery, req.session.tenantId!)) return res.status(404).json({ message: "Yetkazib berish topilmadi" });
-    if (delivery.saleId) {
-      const sale = await storage.getSale(delivery.saleId);
-      const items = await storage.getSaleItems(delivery.saleId);
+    const del = delivery!;
+    if (del.saleId) {
+      const sale = await storage.getSale(del.saleId);
+      const items = await storage.getSaleItems(del.saleId);
       const allProducts = await storage.getProducts(req.session.tenantId!);
       const enrichedItems = items.map((item) => {
         const product = allProducts.find((p) => p.id === item.productId);
@@ -694,7 +695,7 @@ export async function registerRoutes(
       });
       res.json({ sale, items: enrichedItems });
     } else {
-      const items = await storage.getDeliveryItems(delivery.id);
+      const items = await storage.getDeliveryItems(del.id);
       const allProducts = await storage.getProducts(req.session.tenantId!);
       const enrichedItems = items.map((item) => {
         const product = allProducts.find((p) => p.id === item.productId);
@@ -769,11 +770,11 @@ export async function registerRoutes(
   });
 
   app.patch("/api/deliveries/:id", requireTenant, async (req, res) => {
-    const existing = await storage.getDelivery(req.params.id);
+    const existing = await storage.getDelivery((req.params['id'] as string));
     if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Delivery not found" });
-    const delivery = await storage.updateDelivery(req.params.id, req.body);
-    if (req.body.status === "delivered" && existing.saleId) {
-      const sale = await storage.getSale(existing.saleId);
+    const delivery = await storage.updateDelivery((req.params['id'] as string), req.body);
+    if (req.body.status === "delivered" && existing!.saleId) {
+      const sale = await storage.getSale(existing!.saleId);
       if (sale && sale.status === "delivering") {
         await storage.updateSale(sale.id, { status: "shipped" } as any);
       }
@@ -798,9 +799,9 @@ export async function registerRoutes(
   });
 
   app.patch("/api/suppliers/:id", requireTenant, async (req, res) => {
-    const existing = await storage.getSupplier(req.params.id);
+    const existing = await storage.getSupplier((req.params['id'] as string));
     if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Ta'minotchi topilmadi" });
-    const supplier = await storage.updateSupplier(req.params.id, req.body);
+    const supplier = await storage.updateSupplier((req.params['id'] as string), req.body);
     res.json(supplier);
   });
 
@@ -826,14 +827,14 @@ export async function registerRoutes(
   });
 
   app.patch("/api/dealers/:id", requireTenant, async (req, res) => {
-    const existing = await storage.getDealer(req.params.id);
+    const existing = await storage.getDealer((req.params['id'] as string));
     if (!verifyTenant(existing, req.session.tenantId!)) return res.status(404).json({ message: "Diller topilmadi" });
     const { name, phone, vehicleInfo, active, password } = req.body;
     const updateData: any = { name, phone, vehicleInfo, active };
     if (password) {
       updateData.password = hashPassword(password);
     }
-    const dealer = await storage.updateDealer(req.params.id, updateData);
+    const dealer = await storage.updateDealer((req.params['id'] as string), updateData);
     if (dealer) {
       const { password: _, ...safe } = dealer;
       res.json(safe);
@@ -844,9 +845,9 @@ export async function registerRoutes(
 
   app.delete("/api/dealers/:id", requireTenant, async (req, res) => {
     try {
-      const dealer = await storage.getDealer(req.params.id);
+      const dealer = await storage.getDealer((req.params['id'] as string));
       if (!verifyTenant(dealer, req.session.tenantId!)) return res.status(404).json({ message: "Diller topilmadi" });
-      await storage.deleteDealer(req.params.id);
+      await storage.deleteDealer((req.params['id'] as string));
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -854,9 +855,9 @@ export async function registerRoutes(
   });
 
   app.get("/api/dealers/:id/inventory", requireTenant, async (req, res) => {
-    const dealer = await storage.getDealer(req.params.id);
+    const dealer = await storage.getDealer((req.params['id'] as string));
     if (!verifyTenant(dealer, req.session.tenantId!)) return res.status(404).json({ message: "Diller topilmadi" });
-    const inventory = await storage.getDealerInventory(req.params.id);
+    const inventory = await storage.getDealerInventory((req.params['id'] as string));
     const allProducts = await storage.getProducts(req.session.tenantId!);
     const enriched = inventory.filter(i => i.quantity > 0).map((item) => {
       const product = allProducts.find((p) => p.id === item.productId);
@@ -873,9 +874,9 @@ export async function registerRoutes(
   });
 
   app.get("/api/dealers/:id/transactions", requireTenant, async (req, res) => {
-    const dealer = await storage.getDealer(req.params.id);
+    const dealer = await storage.getDealer((req.params['id'] as string));
     if (!verifyTenant(dealer, req.session.tenantId!)) return res.status(404).json({ message: "Diller topilmadi" });
-    const transactions = await storage.getDealerTransactions(req.params.id);
+    const transactions = await storage.getDealerTransactions((req.params['id'] as string));
     const allProducts = await storage.getProducts(req.session.tenantId!);
     const enriched = transactions.map((tx) => {
       const product = allProducts.find((p) => p.id === tx.productId);
@@ -887,7 +888,7 @@ export async function registerRoutes(
   app.post("/api/dealers/:id/load", requireTenant, async (req, res) => {
     try {
       const tenantId = req.session.tenantId!;
-      const dealer = await storage.getDealer(req.params.id);
+      const dealer = await storage.getDealer((req.params['id'] as string));
       if (!verifyTenant(dealer, tenantId)) return res.status(404).json({ message: "Diller topilmadi" });
 
       const loadSchema = z.object({
@@ -915,12 +916,12 @@ export async function registerRoutes(
         const product = await storage.getProduct(item.productId);
         if (!product) continue;
         await storage.updateProduct(item.productId, { stock: product.stock - item.quantity });
-        const existing = await storage.getDealerInventoryItem(req.params.id, item.productId);
+        const existing = await storage.getDealerInventoryItem((req.params['id'] as string), item.productId);
         const newQty = (existing?.quantity || 0) + item.quantity;
-        await storage.upsertDealerInventory(req.params.id, item.productId, newQty, tenantId);
+        await storage.upsertDealerInventory((req.params['id'] as string), item.productId, newQty, tenantId);
         await storage.createDealerTransaction({
           tenantId,
-          dealerId: req.params.id,
+          dealerId: (req.params['id'] as string),
           type: "load",
           productId: item.productId,
           quantity: item.quantity,
@@ -945,13 +946,13 @@ export async function registerRoutes(
 
       const debtAmount = paymentType === "cash" ? 0 : paymentType === "debt" ? totalLoaded : Math.max(0, totalLoaded - paidAmount);
       const currentDebt = Number(dealer!.debt);
-      await storage.updateDealer(req.params.id, { debt: (currentDebt + debtAmount).toFixed(2) });
+      await storage.updateDealer((req.params['id'] as string), { debt: (currentDebt + debtAmount).toFixed(2) });
 
       if (paymentType === "cash" || paymentType === "partial") {
         const paid = paymentType === "cash" ? totalLoaded : paidAmount;
         await storage.createPayment({
           tenantId,
-          dealerId: req.params.id,
+          dealerId: (req.params['id'] as string),
           amount: paid.toFixed(2),
           method: "cash",
           type: "dealer",
@@ -968,7 +969,7 @@ export async function registerRoutes(
   app.patch("/api/dealer-transactions/:txId", requireTenant, async (req, res) => {
     try {
       const tenantId = req.session.tenantId!;
-      const tx = await storage.getDealerTransaction(req.params.txId);
+      const tx = await storage.getDealerTransaction((req.params['txId'] as string));
       if (!tx || tx.tenantId !== tenantId) {
         return res.status(404).json({ message: "Tranzaksiya topilmadi" });
       }
@@ -1044,7 +1045,7 @@ export async function registerRoutes(
   app.delete("/api/dealer-transactions/:txId", requireTenant, async (req, res) => {
     try {
       const tenantId = req.session.tenantId!;
-      const tx = await storage.getDealerTransaction(req.params.txId);
+      const tx = await storage.getDealerTransaction((req.params['txId'] as string));
       if (!tx || tx.tenantId !== tenantId) {
         return res.status(404).json({ message: "Tranzaksiya topilmadi" });
       }
@@ -1079,7 +1080,7 @@ export async function registerRoutes(
   app.post("/api/dealers/:id/sell", requireTenant, async (req, res) => {
     try {
       const tenantId = req.session.tenantId!;
-      const dealer = await storage.getDealer(req.params.id);
+      const dealer = await storage.getDealer((req.params['id'] as string));
       if (!verifyTenant(dealer, tenantId)) return res.status(404).json({ message: "Diller topilmadi" });
 
       const sellSchema = z.object({
@@ -1094,7 +1095,7 @@ export async function registerRoutes(
       const { items, customerName, customerPhone, notes } = sellSchema.parse(req.body);
 
       for (const item of items) {
-        const inv = await storage.getDealerInventoryItem(req.params.id, item.productId);
+        const inv = await storage.getDealerInventoryItem((req.params['id'] as string), item.productId);
         if (!inv || inv.quantity < item.quantity) {
           const product = await storage.getProduct(item.productId);
           return res.status(400).json({ message: `${product?.name || "Mahsulot"}: dillerda yetarli emas` });
@@ -1104,12 +1105,12 @@ export async function registerRoutes(
       for (const item of items) {
         const product = await storage.getProduct(item.productId);
         if (!product) continue;
-        const inv = await storage.getDealerInventoryItem(req.params.id, item.productId);
+        const inv = await storage.getDealerInventoryItem((req.params['id'] as string), item.productId);
         const newQty = (inv?.quantity || 0) - item.quantity;
-        await storage.upsertDealerInventory(req.params.id, item.productId, newQty, tenantId);
+        await storage.upsertDealerInventory((req.params['id'] as string), item.productId, newQty, tenantId);
         await storage.createDealerTransaction({
           tenantId,
-          dealerId: req.params.id,
+          dealerId: (req.params['id'] as string),
           type: "sell",
           productId: item.productId,
           quantity: item.quantity,
@@ -1130,7 +1131,7 @@ export async function registerRoutes(
   app.post("/api/dealers/:id/return", requireTenant, async (req, res) => {
     try {
       const tenantId = req.session.tenantId!;
-      const dealer = await storage.getDealer(req.params.id);
+      const dealer = await storage.getDealer((req.params['id'] as string));
       if (!verifyTenant(dealer, tenantId)) return res.status(404).json({ message: "Diller topilmadi" });
 
       const returnSchema = z.object({
@@ -1143,7 +1144,7 @@ export async function registerRoutes(
       const { items, notes } = returnSchema.parse(req.body);
 
       for (const item of items) {
-        const inv = await storage.getDealerInventoryItem(req.params.id, item.productId);
+        const inv = await storage.getDealerInventoryItem((req.params['id'] as string), item.productId);
         if (!inv || inv.quantity < item.quantity) {
           const product = await storage.getProduct(item.productId);
           return res.status(400).json({ message: `${product?.name || "Mahsulot"}: dillerda yetarli emas` });
@@ -1153,13 +1154,13 @@ export async function registerRoutes(
       for (const item of items) {
         const product = await storage.getProduct(item.productId);
         if (!product) continue;
-        const inv = await storage.getDealerInventoryItem(req.params.id, item.productId);
+        const inv = await storage.getDealerInventoryItem((req.params['id'] as string), item.productId);
         const newQty = (inv?.quantity || 0) - item.quantity;
-        await storage.upsertDealerInventory(req.params.id, item.productId, newQty, tenantId);
+        await storage.upsertDealerInventory((req.params['id'] as string), item.productId, newQty, tenantId);
         await storage.updateProduct(item.productId, { stock: product.stock + item.quantity });
         await storage.createDealerTransaction({
           tenantId,
-          dealerId: req.params.id,
+          dealerId: (req.params['id'] as string),
           type: "return",
           productId: item.productId,
           quantity: item.quantity,
@@ -1175,7 +1176,7 @@ export async function registerRoutes(
         if (product) totalReturned += Number(product.price) * item.quantity;
       }
       const currentDebt = Number(dealer!.debt);
-      await storage.updateDealer(req.params.id, { debt: Math.max(0, currentDebt - totalReturned).toFixed(2) });
+      await storage.updateDealer((req.params['id'] as string), { debt: Math.max(0, currentDebt - totalReturned).toFixed(2) });
 
       res.json({ message: "Mahsulotlar omborga qaytarildi" });
     } catch (error: any) {
@@ -1279,9 +1280,9 @@ export async function registerRoutes(
   });
 
   app.get("/api/purchases/:id", requireTenant, async (req, res) => {
-    const purchase = await storage.getPurchase(req.params.id);
+    const purchase = await storage.getPurchase((req.params['id'] as string));
     if (!verifyTenant(purchase, req.session.tenantId!)) return res.status(404).json({ message: "Kirim topilmadi" });
-    const items = await storage.getPurchaseItems(req.params.id);
+    const items = await storage.getPurchaseItems((req.params['id'] as string));
     const allProducts = await storage.getProducts(req.session.tenantId!);
     const enrichedItems = items.map((item) => {
       const product = allProducts.find((p) => p.id === item.productId);
@@ -1653,7 +1654,7 @@ export async function registerRoutes(
           customerName: customer?.fullName || d.customerName || "Noma'lum",
           customerPhone: customer?.phone || d.customerPhone || "",
           customerAddress: customer?.address || d.address || "",
-          totalAmount: saleTotalAmount || d.totalAmount,
+          totalAmount: saleTotalAmount || (d as any).totalAmount || 0,
           discount: saleDiscount,
           items,
         });
@@ -1702,7 +1703,7 @@ export async function registerRoutes(
       const tenantId = req.session.tenantId!;
       const { status } = req.body;
 
-      const delivery = await storage.getDelivery(req.params.id);
+      const delivery = await storage.getDelivery((req.params['id'] as string));
       if (delivery && delivery.dealerId === dealerId) {
         const valid: Record<string, string[]> = {
           pending: ["in_transit"],
@@ -1770,7 +1771,7 @@ export async function registerRoutes(
 
       const saleCheck = await pool.query(
         `SELECT * FROM sales WHERE id = $1 AND dealer_id = $2 AND tenant_id = $3`,
-        [req.params.id, dealerId, tenantId]
+        [(req.params['id'] as string), dealerId, tenantId]
       );
       if (saleCheck.rows.length > 0) {
         const sale = saleCheck.rows[0];
@@ -1883,7 +1884,7 @@ export async function registerRoutes(
       let saleId: string | null = null;
       let customerId: string | null = null;
 
-      const delivery = await storage.getDelivery(req.params.id);
+      const delivery = await storage.getDelivery((req.params['id'] as string));
       if (delivery && delivery.dealerId === dealerId && delivery.tenantId === tenantId) {
         if (delivery.status !== "pending") {
           return res.status(400).json({ message: "Faqat kutilayotgan buyurtmani tahrirlash mumkin" });
@@ -1894,7 +1895,7 @@ export async function registerRoutes(
         const deliveryBySale = await pool.query(
           `SELECT d.id, d.sale_id, d.customer_id, d.status FROM deliveries d
            WHERE d.sale_id = $1 AND d.dealer_id = $2 AND d.tenant_id = $3`,
-          [req.params.id, dealerId, tenantId]
+          [(req.params['id'] as string), dealerId, tenantId]
         );
         if (deliveryBySale.rows.length > 0) {
           const row = deliveryBySale.rows[0];
@@ -1907,7 +1908,7 @@ export async function registerRoutes(
           const saleCheck = await pool.query(
             `SELECT id, status, customer_id FROM sales
              WHERE id = $1 AND dealer_id = $2 AND tenant_id = $3`,
-            [req.params.id, dealerId, tenantId]
+            [(req.params['id'] as string), dealerId, tenantId]
           );
           if (saleCheck.rows.length > 0) {
             const row = saleCheck.rows[0];
@@ -2087,7 +2088,7 @@ export async function registerRoutes(
   app.patch("/api/dealer-portal/customers/:id", requireDealer, async (req, res) => {
     try {
       const dealerId = req.session.dealerId!;
-      const dc = await storage.getDealerCustomer(req.params.id);
+      const dc = await storage.getDealerCustomer((req.params['id'] as string));
       if (!dc || dc.dealerId !== dealerId) return res.status(404).json({ message: "Mijoz topilmadi" });
       const updated = await storage.updateDealerCustomer(dc.id, req.body);
       res.json(updated);
@@ -2099,7 +2100,7 @@ export async function registerRoutes(
   app.delete("/api/dealer-portal/customers/:id", requireDealer, async (req, res) => {
     try {
       const dealerId = req.session.dealerId!;
-      const dc = await storage.getDealerCustomer(req.params.id);
+      const dc = await storage.getDealerCustomer((req.params['id'] as string));
       if (!dc || dc.dealerId !== dealerId) return res.status(404).json({ message: "Mijoz topilmadi" });
       if (Number(dc.debt) > 0) return res.status(400).json({ message: "Qarzdor mijozni o'chirib bo'lmaydi" });
       await storage.deleteDealerCustomer(dc.id);
@@ -2113,7 +2114,7 @@ export async function registerRoutes(
     try {
       const dealerId = req.session.dealerId!;
       const tenantId = req.session.tenantId!;
-      const dc = await storage.getDealerCustomer(req.params.id);
+      const dc = await storage.getDealerCustomer((req.params['id'] as string));
       if (!dc || dc.dealerId !== dealerId) return res.status(404).json({ message: "Mijoz topilmadi" });
 
       const { amount, method, notes } = req.body;
@@ -2553,11 +2554,11 @@ export async function registerRoutes(
     if (!req.session.customerId) {
       return res.status(401).json({ message: "Tizimga kirilmagan" });
     }
-    const sale = await storage.getSale(req.params.id);
+    const sale = await storage.getSale((req.params['id'] as string));
     if (!sale || sale.customerId !== req.session.customerId) {
       return res.status(404).json({ message: "Buyurtma topilmadi" });
     }
-    const items = await storage.getSaleItems(req.params.id);
+    const items = await storage.getSaleItems((req.params['id'] as string));
     const itemsWithProducts = await Promise.all(
       items.map(async (item) => {
         const product = await storage.getProduct(item.productId);
@@ -2648,14 +2649,14 @@ export async function registerRoutes(
       return res.status(401).json({ message: "Tizimga kirilmagan" });
     }
     try {
-      const sale = await storage.getSale(req.params.id);
+      const sale = await storage.getSale((req.params['id'] as string));
       if (!sale || sale.customerId !== req.session.customerId) {
         return res.status(404).json({ message: "Buyurtma topilmadi" });
       }
       if (sale.status !== "shipped") {
         return res.status(400).json({ message: "Faqat topshirilgan buyurtmani qabul qilish mumkin" });
       }
-      await storage.updateSale(req.params.id, { status: "delivered" });
+      await storage.updateSale((req.params['id'] as string), { status: "delivered" });
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -2692,7 +2693,7 @@ export async function registerRoutes(
         completed: ["delivering", "cancelled"],
         delivering: ["shipped", "cancelled"],
       };
-      const sale = await storage.getSale(req.params.id);
+      const sale = await storage.getSale((req.params['id'] as string));
       if (!sale || !verifyTenant(sale, tenantId)) {
         return res.status(404).json({ message: "Buyurtma topilmadi" });
       }
@@ -2800,10 +2801,10 @@ export async function registerRoutes(
 
   app.put("/api/expenses/:id", requireTenant, async (req, res) => {
     try {
-      const exp = await storage.getExpense(req.params.id);
+      const exp = await storage.getExpense((req.params['id'] as string));
       if (!exp || exp.tenantId !== req.session.tenantId) return res.status(404).json({ message: "Topilmadi" });
       const { title, amount, category, notes } = req.body;
-      const updated = await storage.updateExpense(req.params.id, { title, amount: String(amount), category, notes });
+      const updated = await storage.updateExpense((req.params['id'] as string), { title, amount: String(amount), category, notes });
       res.json(updated);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -2812,9 +2813,9 @@ export async function registerRoutes(
 
   app.delete("/api/expenses/:id", requireTenant, async (req, res) => {
     try {
-      const exp = await storage.getExpense(req.params.id);
+      const exp = await storage.getExpense((req.params['id'] as string));
       if (!exp || exp.tenantId !== req.session.tenantId) return res.status(404).json({ message: "Topilmadi" });
-      await storage.deleteExpense(req.params.id);
+      await storage.deleteExpense((req.params['id'] as string));
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -3131,15 +3132,15 @@ export async function registerRoutes(
 
   app.patch("/api/super/tenants/:id", requireSuperAdmin, async (req, res) => {
     try {
-      const tenant = await storage.getTenant(req.params.id);
+      const tenant = await storage.getTenant((req.params['id'] as string));
       if (!tenant) return res.status(404).json({ message: "Do'kon topilmadi" });
       const { active, plan } = req.body;
       const updateData: any = {};
       if (typeof active === "boolean") updateData.active = active;
       if (plan) updateData.plan = plan;
-      const updated = await storage.updateTenant(req.params.id, updateData);
+      const updated = await storage.updateTenant((req.params['id'] as string), updateData);
       if (!updated?.active) {
-        await pool.query(`DELETE FROM "session" WHERE "sess"::text LIKE $1`, [`%"tenantId":"${req.params.id}"%`]);
+        await pool.query(`DELETE FROM "session" WHERE "sess"::text LIKE $1`, [`%"tenantId":"${(req.params['id'] as string)}"%`]);
       }
       const { password: _, ...safe } = updated!;
       res.json(safe);
@@ -3150,10 +3151,10 @@ export async function registerRoutes(
 
   app.delete("/api/super/tenants/:id", requireSuperAdmin, async (req, res) => {
     try {
-      const tenant = await storage.getTenant(req.params.id);
+      const tenant = await storage.getTenant((req.params['id'] as string));
       if (!tenant) return res.status(404).json({ message: "Do'kon topilmadi" });
-      await pool.query(`DELETE FROM "session" WHERE "sess"::text LIKE $1`, [`%"tenantId":"${req.params.id}"%`]);
-      await storage.deleteTenant(req.params.id);
+      await pool.query(`DELETE FROM "session" WHERE "sess"::text LIKE $1`, [`%"tenantId":"${(req.params['id'] as string)}"%`]);
+      await storage.deleteTenant((req.params['id'] as string));
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -3193,7 +3194,7 @@ export async function registerRoutes(
     try {
       const parsed = planBodySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || "Noto'g'ri ma'lumot" });
-      const plan = await storage.updatePlan(req.params.id, parsed.data as any);
+      const plan = await storage.updatePlan((req.params['id'] as string), parsed.data as any);
       if (!plan) return res.status(404).json({ message: "Reja topilmadi" });
       res.json(plan);
     } catch (error: any) {
@@ -3202,7 +3203,7 @@ export async function registerRoutes(
   });
 
   app.delete("/api/super/plans/:id", requireSuperAdmin, async (req, res) => {
-    await storage.deletePlan(req.params.id);
+    await storage.deletePlan((req.params['id'] as string));
     res.json({ success: true });
   });
 
