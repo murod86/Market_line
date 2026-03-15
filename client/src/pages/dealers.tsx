@@ -40,6 +40,7 @@ interface CartItem {
   buyUnit: string;
   boxQuantity: number;
   stockPieces: number;
+  customPrice?: number;
 }
 
 const txTypeLabels: Record<string, { label: string; color: string }> = {
@@ -156,7 +157,7 @@ export default function Dealers() {
   const printLoadReceipt = (items: CartItem[], dealerName: string, ps: "58mm" | "80mm" | "A4" = "58mm") => {
     const now = new Date();
     const dateStr = format(now, "dd.MM.yyyy HH:mm");
-    const total = items.reduce((s, i) => s + i.price * i.stockPieces, 0);
+    const total = items.reduce((s, i) => s + (i.customPrice ?? i.price) * i.stockPieces, 0);
 
     const sizeMap = {
       "58mm": { pageSize: "58mm auto", bodyWidth: "54mm", fontSize: "11px", fontSizeSm: "10px", padding: "4px", winWidth: 300 },
@@ -169,8 +170,8 @@ export default function Dealers() {
       const qtyLabel = item.buyUnit === "quti"
         ? `${item.quantity} quti (${item.stockPieces} ${item.unit})`
         : `${item.stockPieces} ${item.unit}`;
-      const unitPrice = item.price.toLocaleString();
-      const totalPrice = (item.price * item.stockPieces).toLocaleString();
+      const unitPrice = (item.customPrice ?? item.price).toLocaleString();
+      const totalPrice = ((item.customPrice ?? item.price) * item.stockPieces).toLocaleString();
       return `<tr>
         <td colspan="2" style="padding:3px 2px 0px 2px;font-size:${sz.fontSize};font-weight:900;border-top:2px solid #000">${idx + 1}. ${item.name}</td>
       </tr>
@@ -481,7 +482,12 @@ export default function Dealers() {
     }));
   };
 
-  const cartTotal = cart.reduce((sum, i) => sum + i.price * i.stockPieces, 0);
+  const updateCartPrice = (productId: string, price: string) => {
+    const val = price === "" ? undefined : Number(price);
+    setCart(cart.map((i) => i.productId === productId ? { ...i, customPrice: val } : i));
+  };
+
+  const cartTotal = cart.reduce((sum, i) => sum + (i.customPrice ?? i.price) * i.stockPieces, 0);
 
   const filteredProducts = products?.filter((p) =>
     p.active && p.stock > 0 &&
@@ -517,7 +523,7 @@ export default function Dealers() {
   const submitSell = () => {
     if (cart.length === 0) return;
     sellMutation.mutate({
-      items: cart.map((i) => ({ productId: i.productId, quantity: Math.round(i.stockPieces) })),
+      items: cart.map((i) => ({ productId: i.productId, quantity: Math.round(i.stockPieces), price: i.customPrice ?? i.price })),
       customerName: sellCustomerName.trim() || null,
       customerPhone: sellCustomerPhone.trim() || null,
       notes: operationNotes.trim() || null,
@@ -1501,9 +1507,31 @@ export default function Dealers() {
                     <div key={item.productId} className="flex items-center gap-2 p-2 rounded-md border bg-muted/30" data-testid={`cart-item-${item.productId}`}>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatCurrency(item.price)} × {item.stockPieces} {item.unit} = {formatCurrency(item.price * item.stockPieces)}
-                        </p>
+                        {showCustomer ? (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-[10px] text-muted-foreground">Narx:</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="100"
+                              value={item.customPrice ?? item.price}
+                              onChange={(e) => updateCartPrice(item.productId, e.target.value)}
+                              className="w-20 h-5 text-xs border rounded px-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                              data-testid={`input-price-${item.productId}`}
+                            />
+                            <span className="text-[10px] text-muted-foreground">/{item.unit}</span>
+                            {item.customPrice !== undefined && item.customPrice !== item.price && (
+                              <button type="button" onClick={() => updateCartPrice(item.productId, "")} className="text-[10px] text-orange-500 hover:text-orange-700" title="Asl narxga qaytarish">↺</button>
+                            )}
+                            <span className="text-xs font-medium text-primary ml-1">
+                              = {formatCurrency((item.customPrice ?? item.price) * item.stockPieces)}
+                            </span>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            {formatCurrency(item.price)} × {item.stockPieces} {item.unit} = {formatCurrency(item.price * item.stockPieces)}
+                          </p>
+                        )}
                         {item.buyUnit === "quti" && item.boxQuantity > 1 && (
                           <p className="text-[10px] text-blue-600">
                             {item.quantity} quti × {item.boxQuantity} = {item.stockPieces} {item.unit}

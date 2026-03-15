@@ -36,6 +36,7 @@ interface CartItem {
   quantity: number;
   buyUnit: string;
   stockPieces: number;
+  customPrice?: number;
 }
 
 interface ReceiptData {
@@ -128,7 +129,7 @@ export default function POS() {
     },
     onSuccess: () => {
       const customer = customers?.find((c) => c.id === selectedCustomer);
-      const sub = cart.reduce((sum, item) => sum + item.stockPieces * Number(item.product.price), 0);
+      const sub = cart.reduce((sum, item) => sum + item.stockPieces * (item.customPrice ?? Number(item.product.price)), 0);
       const tot = sub - discount;
       const pd = paidAmount ? Number(paidAmount) : tot;
 
@@ -232,12 +233,19 @@ export default function POS() {
     );
   };
 
+  const updateCartPrice = (productId: string, price: string) => {
+    const val = price === "" ? undefined : Number(price);
+    setCart((prev) => prev.map((item) =>
+      item.product.id === productId ? { ...item, customPrice: val } : item
+    ));
+  };
+
   const removeFromCart = (productId: string) => {
     setCart((prev) => prev.filter((item) => item.product.id !== productId));
   };
 
   const subtotal = cart.reduce(
-    (sum, item) => sum + item.stockPieces * Number(item.product.price),
+    (sum, item) => sum + item.stockPieces * (item.customPrice ?? Number(item.product.price)),
     0
   );
   const discountNum = Math.max(0, Number(discountValue) || 0);
@@ -266,7 +274,7 @@ export default function POS() {
       items: cart.map((item) => ({
         productId: item.product.id,
         quantity: item.stockPieces,
-        price: Number(item.product.price),
+        price: item.customPrice ?? Number(item.product.price),
       })),
       customerId: selectedCustomer || null,
       discount,
@@ -305,7 +313,7 @@ export default function POS() {
     const line = `<div style="border-top:2px solid #000;margin:5px 0"></div>`;
 
     const itemsHtml = receiptData.items.map((item, idx) => {
-      const unitPrice = Number(item.product.price);
+      const unitPrice = item.customPrice ?? Number(item.product.price);
       const total = item.stockPieces * unitPrice;
       const qtyLabel = item.buyUnit === "quti"
         ? `${item.quantity} quti (${item.stockPieces} ${item.product.unit})`
@@ -542,13 +550,27 @@ export default function POS() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium leading-tight">{item.product.name}</p>
-                      <p className="text-xs text-foreground/60">
-                        <span className="font-semibold text-foreground/80">{formatCurrency(Number(item.product.price))}</span>
-                        <span className="mx-1 text-muted-foreground">/{item.product.unit}</span>
-                        {item.stockPieces > 1 && (
-                          <span className="text-muted-foreground">× {item.stockPieces}</span>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-[10px] text-muted-foreground">Narx:</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="100"
+                          value={item.customPrice ?? Number(item.product.price)}
+                          onChange={(e) => updateCartPrice(item.product.id, e.target.value)}
+                          className="w-20 h-5 text-xs border rounded px-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                          data-testid={`input-price-${item.product.id}`}
+                        />
+                        <span className="text-[10px] text-muted-foreground">/{item.product.unit}</span>
+                        {item.customPrice !== undefined && item.customPrice !== Number(item.product.price) && (
+                          <button
+                            type="button"
+                            onClick={() => updateCartPrice(item.product.id, "")}
+                            className="text-[10px] text-orange-500 hover:text-orange-700"
+                            title="Asl narxga qaytarish"
+                          >↺</button>
                         )}
-                      </p>
+                      </div>
                       {item.buyUnit === "quti" && (item.product.boxQuantity || 1) > 1 && (
                         <p className="text-[10px] text-blue-600">
                           {item.quantity} quti × {item.product.boxQuantity} = {item.stockPieces} {item.product.unit}
@@ -557,8 +579,13 @@ export default function POS() {
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm font-bold text-primary">
-                        {formatCurrency(item.stockPieces * Number(item.product.price))}
+                        {formatCurrency(item.stockPieces * (item.customPrice ?? Number(item.product.price)))}
                       </div>
+                      {item.customPrice !== undefined && item.customPrice !== Number(item.product.price) && (
+                        <div className="text-[10px] text-muted-foreground line-through">
+                          {formatCurrency(item.stockPieces * Number(item.product.price))}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
@@ -898,7 +925,7 @@ export default function POS() {
 
                   {/* Mahsulotlar */}
                   {receiptData.items.map((item, idx) => {
-                    const unitPrice = Number(item.product.price);
+                    const unitPrice = item.customPrice ?? Number(item.product.price);
                     const totalPrice = item.stockPieces * unitPrice;
                     const qtyLabel = item.buyUnit === "quti"
                       ? `${item.quantity} quti (${item.stockPieces} ${item.product.unit})`

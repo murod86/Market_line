@@ -1333,6 +1333,7 @@ export async function registerRoutes(
         items: z.array(z.object({
           productId: z.string().min(1),
           quantity: z.number().int().positive(),
+          price: z.number().positive().optional(),
         })).min(1),
         customerName: z.string().optional(),
         customerPhone: z.string().optional().nullable(),
@@ -1354,14 +1355,15 @@ export async function registerRoutes(
         const inv = await storage.getDealerInventoryItem((req.params['id'] as string), item.productId);
         const newQty = (inv?.quantity || 0) - item.quantity;
         await storage.upsertDealerInventory((req.params['id'] as string), item.productId, newQty, tenantId);
+        const sellPrice = item.price ?? Number(product.price);
         await storage.createDealerTransaction({
           tenantId,
           dealerId: (req.params['id'] as string),
           type: "sell",
           productId: item.productId,
           quantity: item.quantity,
-          price: product.price,
-          total: (Number(product.price) * item.quantity).toFixed(2),
+          price: sellPrice.toFixed(2),
+          total: (sellPrice * item.quantity).toFixed(2),
           customerName: customerName || null,
           customerPhone: customerPhone || null,
           notes: notes || null,
