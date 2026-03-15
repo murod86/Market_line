@@ -80,6 +80,7 @@ export default function Dealers() {
   const [editTxNotes, setEditTxNotes] = useState("");
   const [editTxPaymentType, setEditTxPaymentType] = useState("debt");
   const [editTxPaidAmount, setEditTxPaidAmount] = useState("");
+  const [editTxCustomerName, setEditTxCustomerName] = useState("");
   const [deleteTx, setDeleteTx] = useState<any | null>(null);
 
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -271,8 +272,8 @@ export default function Dealers() {
   });
 
   const editTxMutation = useMutation({
-    mutationFn: async ({ id, quantity, notes, paymentType, paidAmount }: { id: string; quantity?: number; notes?: string; paymentType?: string; paidAmount?: number }) => {
-      const res = await apiRequest("PATCH", `/api/dealer-transactions/${id}`, { quantity, notes, paymentType, paidAmount });
+    mutationFn: async ({ id, quantity, notes, customerName, paymentType, paidAmount }: { id: string; quantity?: number; notes?: string; customerName?: string; paymentType?: string; paidAmount?: number }) => {
+      const res = await apiRequest("PATCH", `/api/dealer-transactions/${id}`, { quantity, notes, customerName, paymentType, paidAmount });
       return res.json();
     },
     onSuccess: () => {
@@ -904,7 +905,7 @@ export default function Dealers() {
                           <TableCell>{formatCurrency(Number(tx.total))}</TableCell>
                           <TableCell className="text-sm">{tx.customerName || "-"}</TableCell>
                           <TableCell>
-                            {tx.type === "load" && (
+                            {(tx.type === "load" || tx.type === "sell") && (
                               <div className="flex gap-1">
                                 <Button
                                   size="icon"
@@ -914,6 +915,7 @@ export default function Dealers() {
                                     setEditTx(tx);
                                     setEditTxQty(String(tx.quantity));
                                     setEditTxNotes(tx.notes || "");
+                                    setEditTxCustomerName(tx.customerName || "");
                                     setEditTxPaymentType(tx.paymentType || "debt");
                                     setEditTxPaidAmount(tx.paidAmount ? String(Math.round(Number(tx.paidAmount))) : "");
                                   }}
@@ -1222,6 +1224,158 @@ export default function Dealers() {
               data-testid="button-confirm-delete-payment"
             >
               {deletePaymentMutation.isPending ? "O'chirilmoqda..." : "O'chirish"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit transaction dialog */}
+      <Dialog open={!!editTx} onOpenChange={() => setEditTx(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editTx?.type === "sell" ? "Sotuvni tahrirlash" : "Yuklashni tahrirlash"}</DialogTitle>
+          </DialogHeader>
+          {editTx && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/50">
+                <p className="text-sm font-medium">{editTx.productName}</p>
+                <p className="text-xs text-muted-foreground">
+                  Narxi: {formatCurrency(Number(editTx.price))} / {editTx.productUnit}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Hozirgi miqdor: {editTx.quantity} {editTx.productUnit}
+                </p>
+              </div>
+              <div>
+                <Label>Miqdor</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={editTxQty}
+                  onChange={(e) => setEditTxQty(e.target.value)}
+                  data-testid="input-edit-tx-qty"
+                />
+                {editTxQty && Number(editTxQty) > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Jami: {formatCurrency(Number(editTx.price) * Number(editTxQty))}
+                  </p>
+                )}
+              </div>
+              {editTx.type === "sell" ? (
+                <div>
+                  <Label>Mijoz ismi</Label>
+                  <Input
+                    value={editTxCustomerName}
+                    onChange={(e) => setEditTxCustomerName(e.target.value)}
+                    placeholder="Mijoz ismi (ixtiyoriy)"
+                    data-testid="input-edit-tx-customer-name"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <Label>To'lov turi</Label>
+                    <Select value={editTxPaymentType} onValueChange={v => { setEditTxPaymentType(v); if (v !== "partial") setEditTxPaidAmount(""); }}>
+                      <SelectTrigger data-testid="select-edit-tx-payment-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="debt">Qarzga</SelectItem>
+                        <SelectItem value="cash">Naqd (to'liq)</SelectItem>
+                        <SelectItem value="partial">Qisman</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {editTxPaymentType === "partial" && (
+                    <div>
+                      <Label>To'langan summa</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="To'langan miqdor"
+                        value={editTxPaidAmount}
+                        onChange={e => setEditTxPaidAmount(e.target.value)}
+                        data-testid="input-edit-tx-paid-amount"
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+              <div>
+                <Label>Izoh</Label>
+                <Textarea
+                  value={editTxNotes}
+                  onChange={(e) => setEditTxNotes(e.target.value)}
+                  placeholder="Izoh (ixtiyoriy)"
+                  className="resize-none"
+                  data-testid="input-edit-tx-notes"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTx(null)}>Bekor qilish</Button>
+            <Button
+              onClick={() => {
+                if (!editTx || !editTxQty || Number(editTxQty) <= 0) return;
+                if (editTx.type === "sell") {
+                  editTxMutation.mutate({
+                    id: editTx.id,
+                    quantity: Number(editTxQty),
+                    notes: editTxNotes || undefined,
+                    customerName: editTxCustomerName || undefined,
+                  });
+                } else {
+                  editTxMutation.mutate({
+                    id: editTx.id,
+                    quantity: Number(editTxQty),
+                    notes: editTxNotes || undefined,
+                    paymentType: editTxPaymentType,
+                    paidAmount: editTxPaymentType === "partial" ? (Number(editTxPaidAmount) || 0) : undefined,
+                  });
+                }
+              }}
+              disabled={editTxMutation.isPending || !editTxQty || Number(editTxQty) <= 0}
+              data-testid="button-save-edit-tx"
+            >
+              {editTxMutation.isPending ? "Saqlanmoqda..." : "Saqlash"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete transaction dialog */}
+      <Dialog open={!!deleteTx} onOpenChange={() => setDeleteTx(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{deleteTx?.type === "sell" ? "Sotuvni o'chirish" : "Yuklashni o'chirish"}</DialogTitle>
+          </DialogHeader>
+          {deleteTx && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Bu {deleteTx.type === "sell" ? "sotuvni" : "yuklashni"} o'chirmoqchimisiz?
+              </p>
+              <div className="p-3 rounded-lg bg-muted/50">
+                <p className="text-sm font-medium">{deleteTx.productName}</p>
+                <p className="text-xs">{deleteTx.quantity} {deleteTx.productUnit} — {formatCurrency(Number(deleteTx.total))}</p>
+                {deleteTx.customerName && <p className="text-xs text-muted-foreground">Mijoz: {deleteTx.customerName}</p>}
+              </div>
+              <p className="text-xs text-orange-600">
+                {deleteTx.type === "sell"
+                  ? "Mahsulotlar dillerning inventariga qaytariladi."
+                  : "Mahsulotlar omborga qaytariladi va diller qarzidan ayiriladi."}
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTx(null)}>Bekor qilish</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteTx && deleteTxMutation.mutate(deleteTx.id)}
+              disabled={deleteTxMutation.isPending}
+              data-testid="button-confirm-delete-tx"
+            >
+              {deleteTxMutation.isPending ? "O'chirilmoqda..." : "O'chirish"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1828,135 +1982,6 @@ export default function Dealers() {
               data-testid="button-confirm-delete-dealer"
             >
               {deleteMutation.isPending ? "O'chirilmoqda..." : "O'chirish"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!editTx} onOpenChange={() => setEditTx(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Yuklashni tahrirlash</DialogTitle>
-          </DialogHeader>
-          {editTx && (
-            <div className="space-y-4">
-              <div className="p-3 rounded-lg bg-muted/50">
-                <p className="text-sm font-medium">{editTx.productName}</p>
-                <p className="text-xs text-muted-foreground">
-                  Narxi: {formatCurrency(Number(editTx.price))} / {editTx.productUnit}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Hozirgi miqdor: {editTx.quantity} {editTx.productUnit}
-                </p>
-              </div>
-              <div>
-                <Label>Miqdor</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={editTxQty}
-                  onChange={(e) => setEditTxQty(e.target.value)}
-                  data-testid="input-edit-tx-qty"
-                />
-                {editTxQty && Number(editTxQty) > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Jami: {formatCurrency(Number(editTx.price) * Number(editTxQty))}
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label>To'lov turi</Label>
-                <Select value={editTxPaymentType} onValueChange={v => { setEditTxPaymentType(v); if (v !== "partial") setEditTxPaidAmount(""); }}>
-                  <SelectTrigger data-testid="select-edit-tx-payment-type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="debt">Qarzga</SelectItem>
-                    <SelectItem value="cash">Naqd (to'liq)</SelectItem>
-                    <SelectItem value="partial">Qisman</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {editTxPaymentType === "partial" && (
-                <div>
-                  <Label>To'langan summa</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    placeholder="To'langan miqdor"
-                    value={editTxPaidAmount}
-                    onChange={e => setEditTxPaidAmount(e.target.value)}
-                    data-testid="input-edit-tx-paid-amount"
-                  />
-                  {editTxPaidAmount && editTxQty && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Qarz: {formatCurrency(Math.max(0, Number(editTx.price) * Number(editTxQty) - Number(editTxPaidAmount)))}
-                    </p>
-                  )}
-                </div>
-              )}
-              <div>
-                <Label>Izoh</Label>
-                <Textarea
-                  value={editTxNotes}
-                  onChange={(e) => setEditTxNotes(e.target.value)}
-                  placeholder="Izoh (ixtiyoriy)"
-                  className="resize-none"
-                  data-testid="input-edit-tx-notes"
-                />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditTx(null)}>Bekor qilish</Button>
-            <Button
-              onClick={() => {
-                if (!editTx || !editTxQty || Number(editTxQty) <= 0) return;
-                editTxMutation.mutate({
-                  id: editTx.id,
-                  quantity: Number(editTxQty),
-                  notes: editTxNotes || undefined,
-                  paymentType: editTxPaymentType,
-                  paidAmount: editTxPaymentType === "partial" ? (Number(editTxPaidAmount) || 0) : undefined,
-                });
-              }}
-              disabled={editTxMutation.isPending || !editTxQty || Number(editTxQty) <= 0}
-              data-testid="button-save-edit-tx"
-            >
-              {editTxMutation.isPending ? "Saqlanmoqda..." : "Saqlash"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!deleteTx} onOpenChange={() => setDeleteTx(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Yuklashni o'chirish</DialogTitle>
-          </DialogHeader>
-          {deleteTx && (
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Bu yuklashni o'chirmoqchimisiz?
-              </p>
-              <div className="p-3 rounded-lg bg-muted/50">
-                <p className="text-sm font-medium">{deleteTx.productName}</p>
-                <p className="text-xs">{deleteTx.quantity} {deleteTx.productUnit} — {formatCurrency(Number(deleteTx.total))}</p>
-              </div>
-              <p className="text-xs text-orange-600">
-                Mahsulotlar omborga qaytariladi va diller qarzidan ayiriladi.
-              </p>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTx(null)}>Bekor qilish</Button>
-            <Button
-              variant="destructive"
-              onClick={() => deleteTx && deleteTxMutation.mutate(deleteTx.id)}
-              disabled={deleteTxMutation.isPending}
-              data-testid="button-confirm-delete-tx"
-            >
-              {deleteTxMutation.isPending ? "O'chirilmoqda..." : "O'chirish"}
             </Button>
           </DialogFooter>
         </DialogContent>

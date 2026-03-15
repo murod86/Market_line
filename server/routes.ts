@@ -1200,17 +1200,18 @@ export async function registerRoutes(
       if (!tx || tx.tenantId !== tenantId) {
         return res.status(404).json({ message: "Tranzaksiya topilmadi" });
       }
-      if (tx.type !== "load") {
-        return res.status(400).json({ message: "Faqat yuklash tranzaksiyalarini tahrirlash mumkin" });
+      if (tx.type !== "load" && tx.type !== "sell") {
+        return res.status(400).json({ message: "Faqat yuklash va sotuv tranzaksiyalarini tahrirlash mumkin" });
       }
 
       const editSchema = z.object({
         quantity: z.number().int().positive().optional(),
         notes: z.string().optional().nullable(),
+        customerName: z.string().optional().nullable(),
         paymentType: z.enum(["cash", "debt", "partial"]).optional(),
         paidAmount: z.number().min(0).optional(),
       });
-      const { quantity, notes, paymentType, paidAmount } = editSchema.parse(req.body);
+      const { quantity, notes, customerName, paymentType, paidAmount } = editSchema.parse(req.body);
       const oldQuantity = tx.quantity;
       const finalQuantity = quantity !== undefined ? quantity : oldQuantity;
       const diff = finalQuantity - oldQuantity;
@@ -1218,15 +1219,26 @@ export async function registerRoutes(
       const product = await storage.getProduct(tx.productId);
       if (!product) return res.status(400).json({ message: "Mahsulot topilmadi" });
 
-      if (diff > 0 && product.stock < diff) {
-        return res.status(400).json({ message: `Omborda yetarli emas (${product.stock} ${product.unit} bor)` });
-      }
-
-      if (diff !== 0) {
-        await storage.updateProduct(product.id, { stock: product.stock - diff });
-        const inv = await storage.getDealerInventoryItem(tx.dealerId, tx.productId);
-        const currentInvQty = inv?.quantity || 0;
-        await storage.upsertDealerInventory(tx.dealerId, tx.productId, Math.max(0, currentInvQty + diff), tenantId);
+      if (tx.type === "load") {
+        if (diff > 0 && product.stock < diff) {
+          return res.status(400).json({ message: `Omborda yetarli emas (${product.stock} ${product.unit} bor)` });
+        }
+        if (diff !== 0) {
+          await storage.updateProduct(product.id, { stock: product.stock - diff });
+          const inv = await storage.getDealerInventoryItem(tx.dealerId, tx.productId);
+          const currentInvQty = inv?.quantity || 0;
+          await storage.upsertDealerInventory(tx.dealerId, tx.productId, Math.max(0, currentInvQty + diff), tenantId);
+        }
+      } else {
+        // sell: diff > 0 means sold more → reduce dealer inv; diff < 0 means sold less → restore to dealer inv
+        if (diff !== 0) {
+          const inv = await storage.getDealerInventoryItem(tx.dealerId, tx.productId);
+          const currentInvQty = inv?.quantity || 0;
+          if (diff > 0 && currentInvQty < diff) {
+            return res.status(400).json({ message: `Dillerda yetarli mahsulot yo'q (${currentInvQty} ta bor)` });
+          }
+          await storage.upsertDealerInventory(tx.dealerId, tx.productId, Math.max(0, currentInvQty - diff), tenantId);
+        }
       }
 
       const newTotal = (Number(tx.price) * finalQuantity).toFixed(2);
@@ -1259,6 +1271,7 @@ export async function registerRoutes(
         quantity: finalQuantity,
         total: newTotal,
         notes: notes !== undefined ? notes : tx.notes,
+        customerName: customerName !== undefined ? customerName : (tx as any).customerName,
         paymentType: newPaymentType,
         paidAmount: newPaidAmount.toFixed(2),
       } as any);
@@ -1276,25 +1289,31 @@ export async function registerRoutes(
       if (!tx || tx.tenantId !== tenantId) {
         return res.status(404).json({ message: "Tranzaksiya topilmadi" });
       }
-      if (tx.type !== "load") {
-        return res.status(400).json({ message: "Faqat yuklash tranzaksiyalarini o'chirish mumkin" });
+      if (tx.type !== "load" && tx.type !== "sell") {
+        return res.status(400).json({ message: "Faqat yuklash va sotuv tranzaksiyalarini o'chirish mumkin" });
       }
 
-      const product = await storage.getProduct(tx.productId);
-      if (product) {
-        await storage.updateProduct(product.id, { stock: product.stock + tx.quantity });
-      }
-
-      const inv = await storage.getDealerInventoryItem(tx.dealerId, tx.productId);
-      if (inv) {
-        const newQty = Math.max(0, inv.quantity - tx.quantity);
-        await storage.upsertDealerInventory(tx.dealerId, tx.productId, newQty, tenantId);
-      }
-
-      const dealer = await storage.getDealer(tx.dealerId);
-      if (dealer) {
-        const newDebt = Math.max(0, Number(dealer.debt) - Number(tx.total));
-        await storage.updateDealer(tx.dealerId, { debt: newDebt.toFixed(2) });
+      if (tx.type === "load") {
+        // Load cancel: remove from warehouse stock, remove from dealer inventory
+        const product = await storage.getProduct(tx.productId);
+        if (product) {
+          await storage.updateProduct(product.id, { stock: product.stock + tx.quantity });
+        }
+        const inv = await storage.getDealerInventoryItem(tx.dealerId, tx.productId);
+        if (inv) {
+          const newQty = Math.max(0, inv.quantity - tx.quantity);
+          await storage.upsertDealerInventory(tx.dealerId, tx.productId, newQty, tenantId);
+        }
+        const dealer = await storage.getDealer(tx.dealerId);
+        if (dealer) {
+          const newDebt = Math.max(0, Number(dealer.debt) - Number(tx.total));
+          await storage.updateDealer(tx.dealerId, { debt: newDebt.toFixed(2) });
+        }
+      } else {
+        // Sell cancel: restore quantity back to dealer inventory (product stays with dealer, not warehouse)
+        const inv = await storage.getDealerInventoryItem(tx.dealerId, tx.productId);
+        const currentInvQty = inv?.quantity || 0;
+        await storage.upsertDealerInventory(tx.dealerId, tx.productId, currentInvQty + tx.quantity, tenantId);
       }
 
       await storage.deleteDealerTransaction(tx.id);
@@ -3246,7 +3265,8 @@ export async function registerRoutes(
       }
 
       const { password } = req.body;
-      const superPassword = process.env.SUPER_ADMIN_PASSWORD;
+      const dbPassword = await storage.getGlobalSetting("super_admin_password");
+      const superPassword = dbPassword?.value || process.env.SUPER_ADMIN_PASSWORD;
       if (!superPassword) {
         return res.status(500).json({ message: "Super admin parol sozlanmagan" });
       }
@@ -3358,6 +3378,7 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Ruxsat berilmadi. Avval OTP tasdiqlang." });
       }
       superResetVerified.delete(resetToken);
+      await storage.upsertGlobalSetting("super_admin_password", String(newPassword));
       process.env.SUPER_ADMIN_PASSWORD = String(newPassword);
       res.json({ success: true, message: "Parol muvaffaqiyatli o'zgartirildi" });
     } catch (error: any) {
@@ -3384,10 +3405,12 @@ export async function registerRoutes(
         return res.status(400).json({ message: parsed.error.errors[0].message });
       }
       const { currentPassword, newPassword } = parsed.data;
-      const superPassword = process.env.SUPER_ADMIN_PASSWORD || "admin2025";
+      const dbPassword = await storage.getGlobalSetting("super_admin_password");
+      const superPassword = dbPassword?.value || process.env.SUPER_ADMIN_PASSWORD || "admin2025";
       if (currentPassword !== superPassword) {
         return res.status(401).json({ message: "Joriy parol noto'g'ri" });
       }
+      await storage.upsertGlobalSetting("super_admin_password", newPassword);
       process.env.SUPER_ADMIN_PASSWORD = newPassword;
       res.json({ success: true, message: "Parol muvaffaqiyatli o'zgartirildi" });
     } catch (error: any) {
