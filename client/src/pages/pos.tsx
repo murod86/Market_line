@@ -588,9 +588,17 @@ export default function POS() {
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
-                      <span className="w-8 text-center text-sm font-medium">
-                        {item.quantity}
-                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={item.quantity}
+                        onChange={(e) => {
+                          const v = Math.max(1, Number(e.target.value) || 1);
+                          updateQuantity(item.product.id, v - item.quantity);
+                        }}
+                        className="w-14 h-7 text-center text-sm font-medium border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                        data-testid={`input-qty-${item.product.id}`}
+                      />
                       <Button
                         size="icon"
                         variant="outline"
