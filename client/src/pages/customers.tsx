@@ -39,7 +39,7 @@ export default function Customers() {
   const [replaceSearch, setReplaceSearch] = useState("");
   const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
   const [form, setForm] = useState({
-    fullName: "", phone: "", address: "", telegramId: "", password: "", dealerId: "",
+    fullName: "", phone: "", address: "", telegramId: "", password: "", dealerId: "", debt: "",
   });
   const { toast } = useToast();
   const qrRef = useRef<HTMLDivElement>(null);
@@ -160,7 +160,7 @@ export default function Customers() {
   const { data: dealers } = useQuery<any[]>({ queryKey: ["/api/dealers"] });
 
   const resetForm = () => {
-    setForm({ fullName: "", phone: "", address: "", telegramId: "", password: "", dealerId: "" });
+    setForm({ fullName: "", phone: "", address: "", telegramId: "", password: "", dealerId: "", debt: "" });
   };
 
   const openEdit = (customer: Customer) => {
@@ -172,6 +172,7 @@ export default function Customers() {
       telegramId: customer.telegramId || "",
       password: "",
       dealerId: customer.dealerId || "",
+      debt: Number(customer.debt || 0) > 0 ? String(customer.debt) : "",
     });
     setDialogOpen(true);
   };
@@ -185,6 +186,7 @@ export default function Customers() {
       toast({ title: "Parol majburiy", variant: "destructive" });
       return;
     }
+    const debtVal = form.debt !== "" ? Math.max(0, Number(form.debt) || 0) : undefined;
     const data: any = {
       fullName: form.fullName,
       phone: form.phone,
@@ -192,7 +194,9 @@ export default function Customers() {
       telegramId: form.telegramId || null,
       dealerId: form.dealerId || null,
       active: true,
-      debt: editing ? undefined : "0",
+      debt: editing
+        ? (debtVal !== undefined ? String(debtVal) : undefined)
+        : String(debtVal ?? 0),
     };
     if (form.password) {
       data.password = form.password;
@@ -504,6 +508,25 @@ export default function Customers() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block flex items-center gap-1">
+                {editing ? "Qarz (o'zgartirish)" : "Boshlang'ich qarz"}
+                <span className="text-xs font-normal text-muted-foreground ml-1">(ixtiyoriy, UZS)</span>
+              </label>
+              <Input
+                type="number"
+                min={0}
+                value={form.debt}
+                onChange={(e) => setForm({ ...form, debt: e.target.value })}
+                placeholder="0"
+                data-testid="input-customer-debt"
+              />
+              {editing && Number(form.debt) !== Number(editing?.debt || 0) && (
+                <p className="text-xs text-amber-600 mt-1">
+                  Hozirgi qarz: {formatCurrency(Number(editing?.debt || 0))} → Yangi: {formatCurrency(Math.max(0, Number(form.debt) || 0))}
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
