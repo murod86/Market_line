@@ -69,6 +69,12 @@ export default function Dealers() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
+  const [editPayment, setEditPayment] = useState<any | null>(null);
+  const [editPayAmount, setEditPayAmount] = useState("");
+  const [editPayMethod, setEditPayMethod] = useState("cash");
+  const [editPayNotes, setEditPayNotes] = useState("");
+  const [deletePayment, setDeletePayment] = useState<any | null>(null);
+
   const [editTx, setEditTx] = useState<any | null>(null);
   const [editTxQty, setEditTxQty] = useState("");
   const [editTxNotes, setEditTxNotes] = useState("");
@@ -324,6 +330,34 @@ export default function Dealers() {
       setPayAmount("");
       setPayMethod("cash");
       setPayNotes("");
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const editPaymentMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await apiRequest("PATCH", `/api/payments/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "To'lov tahrirlandi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealers", detailDealer?.id, "payments"] });
+      setEditPayment(null);
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const deletePaymentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/payments/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "To'lov o'chirildi, qarz qaytarildi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealers", detailDealer?.id, "payments"] });
+      setDeletePayment(null);
     },
     onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -926,6 +960,7 @@ export default function Dealers() {
                       <TableHead>Miqdor</TableHead>
                       <TableHead>Usul</TableHead>
                       <TableHead>Izoh</TableHead>
+                      <TableHead className="w-16"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -944,6 +979,29 @@ export default function Dealers() {
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {p.notes || "—"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button
+                              size="icon" variant="ghost" className="h-7 w-7"
+                              onClick={() => {
+                                setEditPayment(p);
+                                setEditPayAmount(String(Math.round(Number(p.amount))));
+                                setEditPayMethod(p.method || "cash");
+                                setEditPayNotes(p.notes || "");
+                              }}
+                              data-testid={`button-edit-payment-${p.id}`}
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="icon" variant="ghost" className="h-7 w-7 text-destructive"
+                              onClick={() => setDeletePayment(p)}
+                              data-testid={`button-delete-payment-${p.id}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1793,6 +1851,108 @@ export default function Dealers() {
               data-testid="button-confirm-delete-tx"
             >
               {deleteTxMutation.isPending ? "O'chirilmoqda..." : "O'chirish"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit payment dialog */}
+      <Dialog open={!!editPayment} onOpenChange={(o) => { if (!o) setEditPayment(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>To'lovni tahrirlash</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-sm font-medium mb-1 block">Summa (UZS)</Label>
+              <Input
+                type="number"
+                value={editPayAmount}
+                onChange={(e) => setEditPayAmount(e.target.value)}
+                placeholder="Summa"
+                data-testid="input-edit-payment-amount"
+              />
+            </div>
+            <div>
+              <Label className="text-sm font-medium mb-1 block">To'lov usuli</Label>
+              <Select value={editPayMethod} onValueChange={setEditPayMethod}>
+                <SelectTrigger data-testid="select-edit-payment-method">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Naqd</SelectItem>
+                  <SelectItem value="card">Karta</SelectItem>
+                  <SelectItem value="transfer">O'tkazma</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-sm font-medium mb-1 block">Izoh</Label>
+              <Input
+                value={editPayNotes}
+                onChange={(e) => setEditPayNotes(e.target.value)}
+                placeholder="Ixtiyoriy izoh"
+                data-testid="input-edit-payment-notes"
+              />
+            </div>
+            {editPayment && (
+              <p className="text-xs text-muted-foreground bg-muted/40 p-2 rounded">
+                Joriy: {formatCurrency(Number(editPayment.amount))}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditPayment(null)}>Bekor qilish</Button>
+            <Button
+              onClick={() => {
+                const amount = Number(editPayAmount);
+                if (!editPayment || isNaN(amount) || amount <= 0) return;
+                editPaymentMutation.mutate({
+                  id: editPayment.id,
+                  data: { amount, method: editPayMethod, notes: editPayNotes || null },
+                });
+              }}
+              disabled={editPaymentMutation.isPending}
+              data-testid="button-confirm-edit-payment"
+            >
+              {editPaymentMutation.isPending ? "Saqlanmoqda..." : "Saqlash"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete payment confirm dialog */}
+      <Dialog open={!!deletePayment} onOpenChange={() => setDeletePayment(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>To'lovni o'chirish</DialogTitle>
+          </DialogHeader>
+          {deletePayment && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Bu to'lovni o'chirmoqchimisiz?
+              </p>
+              <div className="p-3 rounded-lg bg-muted/50">
+                <p className="text-sm font-bold text-green-600">{formatCurrency(Number(deletePayment.amount))}</p>
+                <p className="text-xs text-muted-foreground">
+                  {deletePayment.method === "cash" ? "Naqd" : deletePayment.method === "card" ? "Karta" : "O'tkazma"} —
+                  {format(new Date(deletePayment.createdAt), " dd.MM.yyyy")}
+                </p>
+              </div>
+              <p className="text-xs text-orange-600">
+                O'chirilgandan so'ng diller qarziga qaytariladi.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletePayment(null)}>Bekor qilish</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deletePayment && deletePaymentMutation.mutate(deletePayment.id)}
+              disabled={deletePaymentMutation.isPending}
+              data-testid="button-confirm-delete-payment"
+            >
+              {deletePaymentMutation.isPending ? "O'chirilmoqda..." : "O'chirish"}
             </Button>
           </DialogFooter>
         </DialogContent>

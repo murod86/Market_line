@@ -1361,6 +1361,93 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/payments/:id", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const paymentId = (req.params['id'] as string);
+      const editSchema = z.object({
+        amount: z.number().positive(),
+        method: z.string().default("cash"),
+        notes: z.string().optional().nullable(),
+      });
+      const { amount, method, notes } = editSchema.parse(req.body);
+
+      const existing = await pool.query(
+        `SELECT * FROM payments WHERE id = $1 AND tenant_id = $2`,
+        [paymentId, tenantId]
+      );
+      if (existing.rows.length === 0) {
+        return res.status(404).json({ message: "To'lov topilmadi" });
+      }
+      const payment = existing.rows[0];
+      const oldAmount = Number(payment.amount);
+      const diff = amount - oldAmount;
+
+      if (payment.dealer_id) {
+        const dealer = await storage.getDealer(payment.dealer_id);
+        if (dealer) {
+          const newDebt = Number(dealer.debt) + diff;
+          if (newDebt < 0) {
+            return res.status(400).json({ message: "Yangi summa diller qarzidan oshib ketadi" });
+          }
+          await storage.updateDealer(payment.dealer_id, { debt: newDebt.toFixed(2) });
+        }
+      }
+      if (payment.customer_id) {
+        const customer = await storage.getCustomer(payment.customer_id);
+        if (customer) {
+          const newDebt = Math.max(0, Number((customer as any).debt || 0) + diff);
+          await storage.updateCustomer(payment.customer_id, { debt: newDebt.toFixed(2) } as any);
+        }
+      }
+
+      await pool.query(
+        `UPDATE payments SET amount = $1, method = $2, notes = $3 WHERE id = $4`,
+        [amount.toFixed(2), method, notes || null, paymentId]
+      );
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/payments/:id", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const paymentId = (req.params['id'] as string);
+
+      const existing = await pool.query(
+        `SELECT * FROM payments WHERE id = $1 AND tenant_id = $2`,
+        [paymentId, tenantId]
+      );
+      if (existing.rows.length === 0) {
+        return res.status(404).json({ message: "To'lov topilmadi" });
+      }
+      const payment = existing.rows[0];
+      const amount = Number(payment.amount);
+
+      if (payment.dealer_id) {
+        const dealer = await storage.getDealer(payment.dealer_id);
+        if (dealer) {
+          const newDebt = (Number(dealer.debt) + amount).toFixed(2);
+          await storage.updateDealer(payment.dealer_id, { debt: newDebt });
+        }
+      }
+      if (payment.customer_id) {
+        const customer = await storage.getCustomer(payment.customer_id);
+        if (customer) {
+          const newDebt = (Number((customer as any).debt || 0) + amount).toFixed(2);
+          await storage.updateCustomer(payment.customer_id, { debt: newDebt } as any);
+        }
+      }
+
+      await pool.query(`DELETE FROM payments WHERE id = $1`, [paymentId]);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // ===== PURCHASES (KIRIM) =====
   app.get("/api/purchases", requireTenant, async (req, res) => {
     const data = await storage.getPurchases(req.session.tenantId!);
