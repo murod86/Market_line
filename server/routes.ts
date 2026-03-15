@@ -627,7 +627,15 @@ export async function registerRoutes(
       }
       const totalAmount = Number((sale as any).totalAmount);
       const paidAmount = Number((sale as any).paidAmount || 0);
-      const saleDebt = Math.max(0, totalAmount - paidAmount);
+      const salePaymentType = (sale as any).paymentType || "cash";
+      let saleDebt: number;
+      if (salePaymentType === "debt") {
+        saleDebt = totalAmount;
+      } else if (salePaymentType === "partial") {
+        saleDebt = Math.max(0, totalAmount - paidAmount);
+      } else {
+        saleDebt = 0;
+      }
       const customerId = (sale as any).customerId;
       if (customerId && saleDebt > 0) {
         const customer = await storage.getCustomer(customerId);
@@ -707,14 +715,24 @@ export async function registerRoutes(
         }
         const finalTotal = totalAmount - (discount || 0);
 
+        const resolvedPaymentType = paymentType || "cash";
+        let savedPaidAmount: number;
+        if (resolvedPaymentType === "cash" || resolvedPaymentType === "card") {
+          savedPaidAmount = finalTotal;
+        } else if (resolvedPaymentType === "debt") {
+          savedPaidAmount = 0;
+        } else {
+          savedPaidAmount = Number(paidAmount) || 0;
+        }
+
         const [sale] = await tx.insert(sales).values({
           tenantId,
           customerId: customerId || null,
           employeeId: employeeId || null,
           totalAmount: finalTotal.toFixed(2),
           discount: (discount || 0).toFixed(2),
-          paidAmount: (paidAmount || finalTotal).toFixed(2),
-          paymentType: paymentType || "cash",
+          paidAmount: savedPaidAmount.toFixed(2),
+          paymentType: resolvedPaymentType,
           status: "completed",
         }).returning();
 
