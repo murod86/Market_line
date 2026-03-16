@@ -1333,10 +1333,13 @@ function SellTab() {
                             <Minus className="h-3 w-3" />
                           </Button>
                           <input
+                            key={item.quantity}
                             type="number"
                             min="1"
-                            value={item.quantity}
-                            onChange={(e) => updateQtyDirect(item.productId, e.target.value)}
+                            defaultValue={item.quantity}
+                            onFocus={(e) => e.target.select()}
+                            onBlur={(e) => updateQtyDirect(item.productId, e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                             className="w-12 h-7 text-center text-sm font-medium border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring"
                             data-testid={`input-sell-qty-${item.productId}`}
                           />

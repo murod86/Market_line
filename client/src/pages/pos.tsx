@@ -616,13 +616,16 @@ export default function POS() {
                         <Minus className="h-3 w-3" />
                       </Button>
                       <input
+                        key={item.quantity}
                         type="number"
                         min={1}
-                        value={item.quantity}
-                        onChange={(e) => {
+                        defaultValue={item.quantity}
+                        onFocus={(e) => e.target.select()}
+                        onBlur={(e) => {
                           const v = Math.max(1, Number(e.target.value) || 1);
-                          updateQuantity(item.product.id, v - item.quantity);
+                          if (v !== item.quantity) updateQuantity(item.product.id, v - item.quantity);
                         }}
+                        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                         className="w-14 h-7 text-center text-sm font-medium border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring"
                         data-testid={`input-qty-${item.product.id}`}
                       />
