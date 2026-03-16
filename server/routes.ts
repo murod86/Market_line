@@ -740,23 +740,27 @@ export async function registerRoutes(
       const totalAmount = Number((sale as any).totalAmount);
       const salePaymentType = (sale as any).paymentType || "cash";
       const paidAmount = Number((sale as any).paidAmount || 0);
-      let saleDebt = 0;
-      if (salePaymentType === "debt") saleDebt = totalAmount;
-      else if (salePaymentType === "partial") saleDebt = Math.max(0, totalAmount - paidAmount);
 
+      // Yangi sotuv jami (qaytarilgan miqdor ayirib, almashtirilgani qo'shib)
+      const newTotalAmount = Math.max(0, totalAmount - returnAmount + replacementAmount);
+      await pool.query(
+        `UPDATE sales SET total_amount = $1 WHERE id = $2`,
+        [newTotalAmount.toFixed(2), saleId]
+      );
+
+      // Mijoz qarzini yangilash (faqat qarz/qisman to'lov uchun)
       const customerId = (sale as any).customerId;
-      if (customerId && saleDebt > 0) {
+      if (customerId && (salePaymentType === "debt" || salePaymentType === "partial")) {
         const customer = await storage.getCustomer(customerId);
         if (customer) {
           const currentDebt = Number((customer as any).debt || 0);
-          // Qaysi ulush qarz edi (debt ratio)
-          const debtRatio = totalAmount > 0 ? saleDebt / totalAmount : 1;
-          // Qaytarilgan qarz ulushi
-          const returnedDebt = returnAmount * debtRatio;
-          // Almashtirish mahsulotlari uchun qarz (sotilgan narxida)
-          const addedDebt = replacementAmount;
-          const netDebtChange = addedDebt - returnedDebt;
-          const newDebt = Math.max(0, currentDebt + netDebtChange);
+          // Avvalgi qarz ushbu sotuv bo'yicha
+          const oldSaleDebt = salePaymentType === "debt" ? totalAmount : Math.max(0, totalAmount - paidAmount);
+          // Yangi qarz ushbu sotuv bo'yicha
+          const newSaleDebt = salePaymentType === "debt" ? newTotalAmount : Math.max(0, newTotalAmount - paidAmount);
+          // Farq
+          const debtDiff = newSaleDebt - oldSaleDebt;
+          const newDebt = Math.max(0, currentDebt + debtDiff);
           await storage.updateCustomer(customerId, { debt: newDebt.toFixed(2) } as any);
         }
       }
@@ -765,7 +769,7 @@ export async function registerRoutes(
         await storage.updateSale(saleId, { status: "returned" } as any);
       }
 
-      res.json({ success: true, returnAmount, replacementAmount, netDiff: replacementAmount - returnAmount, allReturned });
+      res.json({ success: true, returnAmount, replacementAmount, netDiff: replacementAmount - returnAmount, allReturned, newTotal: newTotalAmount });
     } catch (e: any) {
       res.status(500).json({ message: e.message });
     }
