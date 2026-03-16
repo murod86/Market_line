@@ -99,6 +99,20 @@ export default function Customers() {
     enabled: !!salesHistoryCustomer,
   });
 
+  const deleteSaleMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/sales/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Sotuv o'chirildi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers", salesHistoryCustomer?.id, "sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
   const partialReturnMutation = useMutation({
     mutationFn: async ({ saleId, items, replacements }: {
       saleId: string;
@@ -725,6 +739,19 @@ export default function Customers() {
                             Qaytarish
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => {
+                            if (confirm("Bu sotuvni o'chirmoqchimisiz? Stok qaytariladi va qarz kamayadi.")) {
+                              deleteSaleMutation.mutate(sale.id);
+                            }
+                          }}
+                          data-testid={`button-delete-sale-${sale.id}`}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
                     </div>
                     {sale.items && sale.items[0] && (

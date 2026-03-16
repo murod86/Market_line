@@ -745,20 +745,18 @@ export async function registerRoutes(
       else if (salePaymentType === "partial") saleDebt = Math.max(0, totalAmount - paidAmount);
 
       const customerId = (sale as any).customerId;
-      if (customerId) {
+      if (customerId && saleDebt > 0) {
         const customer = await storage.getCustomer(customerId);
         if (customer) {
           const currentDebt = Number((customer as any).debt || 0);
-          // net: positive means customer owes more, negative means debt reduced
-          const net = replacementAmount - returnAmount;
-          let newDebt: number;
-          if (net >= 0) {
-            // Customer takes more expensive items — add net to debt
-            newDebt = currentDebt + net;
-          } else {
-            // Customer returns more than they take — reduce debt
-            newDebt = Math.max(0, currentDebt + net);
-          }
+          // Qaysi ulush qarz edi (debt ratio)
+          const debtRatio = totalAmount > 0 ? saleDebt / totalAmount : 1;
+          // Qaytarilgan qarz ulushi
+          const returnedDebt = returnAmount * debtRatio;
+          // Almashtirish mahsulotlari uchun qarz (sotilgan narxida)
+          const addedDebt = replacementAmount;
+          const netDebtChange = addedDebt - returnedDebt;
+          const newDebt = Math.max(0, currentDebt + netDebtChange);
           await storage.updateCustomer(customerId, { debt: newDebt.toFixed(2) } as any);
         }
       }
@@ -820,6 +818,47 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/sales/:id", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const sale = await storage.getSale((req.params['id'] as string));
+      if (!sale || (sale as any).tenantId !== tenantId) {
+        return res.status(404).json({ message: "Sotuv topilmadi" });
+      }
+      const saleItems = await storage.getSaleItems(sale.id);
+      // Stokni qaytarish
+      for (const item of saleItems) {
+        const product = await storage.getProduct(item.productId);
+        if (product) {
+          await storage.updateProduct(item.productId, { stock: (product.stock || 0) + item.quantity } as any);
+        }
+      }
+      // Mijoz qarzini kamaytirish
+      const totalAmount = Number((sale as any).totalAmount);
+      const salePaidAmount = Number((sale as any).paidAmount || 0);
+      const salePaymentType = (sale as any).paymentType || "cash";
+      let saleDebt = 0;
+      if (salePaymentType === "debt") saleDebt = totalAmount;
+      else if (salePaymentType === "partial") saleDebt = Math.max(0, totalAmount - salePaidAmount);
+      const customerId = (sale as any).customerId;
+      if (customerId && saleDebt > 0) {
+        const customer = await storage.getCustomer(customerId);
+        if (customer) {
+          const newDebt = Math.max(0, Number((customer as any).debt || 0) - saleDebt);
+          await storage.updateCustomer(customerId, { debt: newDebt.toFixed(2) } as any);
+        }
+      }
+      // Sotuv elementlarini va sotuvni o'chirish
+      for (const item of saleItems) {
+        await storage.deleteSaleItem(item.id);
+      }
+      await pool.query(`DELETE FROM sales WHERE id = $1 AND tenant_id = $2`, [sale.id, tenantId]);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/sales", requireTenant, async (req, res) => {
     try {
       const { items, customerId, discount, paidAmount, paymentType, employeeId } = req.body;
@@ -875,14 +914,16 @@ export async function registerRoutes(
           }
         }
 
-        if (customerId && paymentType === "debt") {
+        if (customerId && (paymentType === "debt" || paymentType === "partial")) {
           const [customer] = await tx.select().from(customers).where(eq(customers.id, customerId));
           if (customer) {
-            const debtAmount = finalTotal - (paidAmount || 0);
-            const newDebt = Number(customer.debt) + debtAmount;
-            await tx.update(customers).set({
-              debt: newDebt.toFixed(2),
-            }).where(eq(customers.id, customerId));
+            const debtAmount = finalTotal - savedPaidAmount;
+            if (debtAmount > 0) {
+              const newDebt = Number(customer.debt) + debtAmount;
+              await tx.update(customers).set({
+                debt: newDebt.toFixed(2),
+              }).where(eq(customers.id, customerId));
+            }
           }
         }
 

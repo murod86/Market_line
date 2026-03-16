@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, TrendingUp, ShoppingCart, Banknote, CreditCard, Wallet, Eye, Calendar, Pencil } from "lucide-react";
+import { Search, TrendingUp, ShoppingCart, Banknote, CreditCard, Wallet, Eye, Calendar, Pencil, Trash2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -72,6 +72,7 @@ export default function SalesHistory() {
   const [editSale, setEditSale] = useState<SaleHistory | null>(null);
   const [editPaymentType, setEditPaymentType] = useState("cash");
   const [editPaidAmount, setEditPaidAmount] = useState("");
+  const [deleteSaleId, setDeleteSaleId] = useState<string | null>(null);
 
   const { data: sales, isLoading } = useQuery<SaleHistory[]>({
     queryKey: ["/api/sales-history"],
@@ -104,6 +105,21 @@ export default function SalesHistory() {
   const todayProfit = todaySales.reduce((s, x) => s + Number(x.profit), 0);
   const monthProfit = monthSales.reduce((s, x) => s + Number(x.profit), 0);
   const allProfit = filtered.reduce((s, x) => s + Number(x.profit), 0);
+
+  const deleteSaleMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/sales/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Sotuv o'chirildi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales-history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      setDeleteSaleId(null);
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
 
   const editSaleMutation = useMutation({
     mutationFn: async ({ id, paymentType, paidAmount }: { id: string; paymentType: string; paidAmount?: number }) => {
@@ -285,6 +301,9 @@ export default function SalesHistory() {
                           <Button variant="ghost" size="sm" onClick={() => openDetail(sale.id)} data-testid={`button-sale-detail-${sale.id}`}>
                             <Eye className="h-4 w-4" />
                           </Button>
+                          <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setDeleteSaleId(sale.id)} data-testid={`button-sale-delete-${sale.id}`}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </td>
                       </tr>
                     );
@@ -402,6 +421,23 @@ export default function SalesHistory() {
               </div>
             </div>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteSaleId} onOpenChange={() => setDeleteSaleId(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Sotuvni o'chirish</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Bu sotuvni o'chirmoqchimisiz? Mahsulot stoki qaytariladi va mijoz qarzi kamaytiriladi. Bu amalni ortga qaytarib bo'lmaydi.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteSaleId(null)}>Bekor qilish</Button>
+            <Button variant="destructive" disabled={deleteSaleMutation.isPending} onClick={() => deleteSaleId && deleteSaleMutation.mutate(deleteSaleId)} data-testid="button-confirm-delete-sale">
+              {deleteSaleMutation.isPending ? "O'chirilmoqda..." : "O'chirish"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
