@@ -619,10 +619,11 @@ export default function POS() {
                         key={item.quantity}
                         type="number"
                         min={1}
+                        step={1}
                         defaultValue={item.quantity}
                         onFocus={(e) => e.target.select()}
                         onBlur={(e) => {
-                          const v = Math.max(1, Number(e.target.value) || 1);
+                          const v = Math.max(1, Math.round(Number(e.target.value)) || 1);
                           if (v !== item.quantity) updateQuantity(item.product.id, v - item.quantity);
                         }}
                         onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
