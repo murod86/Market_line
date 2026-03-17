@@ -908,8 +908,10 @@ function SellTab() {
     });
   };
 
-  const getUnitOptions = (_item: SellCartItem) => {
-    return ["dona", "quti", "litr", "kg"];
+  const getUnitOptions = (item: SellCartItem) => {
+    const base = ["dona", "quti", "litr", "kg", "gram", "metr"];
+    if (!base.includes(item.unit)) return [...base, item.unit];
+    return base;
   };
 
   const changeCartUnit = (productId: string, newUnit: string) => {
