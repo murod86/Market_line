@@ -704,6 +704,7 @@ interface SellCartItem {
   boxQuantity: number;
   stockPieces: number;
   customPrice?: number;
+  failKey?: number;
 }
 
 function SellTab() {
@@ -937,7 +938,7 @@ function SellTab() {
           const newPieces = c.buyUnit === "quti" ? newQty * c.boxQuantity : newQty;
           if (newPieces > c.maxQty) {
             toast({ title: "Omborda yetarli emas", variant: "destructive" });
-            return c;
+            return { ...c, failKey: (c.failKey || 0) + 1 };
           }
           return { ...c, quantity: newQty, stockPieces: newPieces };
         }
@@ -954,7 +955,7 @@ function SellTab() {
         const newPieces = c.buyUnit === "quti" ? newQty * c.boxQuantity : newQty;
         if (newPieces > c.maxQty) {
           toast({ title: "Omborda yetarli emas", variant: "destructive" });
-          return c;
+          return { ...c, failKey: (c.failKey || 0) + 1 };
         }
         return { ...c, quantity: newQty, stockPieces: newPieces };
       })
@@ -1333,7 +1334,7 @@ function SellTab() {
                             <Minus className="h-3 w-3" />
                           </Button>
                           <input
-                            key={item.quantity}
+                            key={`${item.quantity}-${item.failKey || 0}`}
                             type="number"
                             min="1"
                             defaultValue={item.quantity}
@@ -1343,6 +1344,9 @@ function SellTab() {
                             className="w-12 h-7 text-center text-sm font-medium border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring"
                             data-testid={`input-sell-qty-${item.productId}`}
                           />
+                          {item.buyUnit !== "dona" && item.buyUnit !== "quti" && (
+                            <span className="text-[10px] text-muted-foreground">{item.buyUnit}</span>
+                          )}
                           <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateQty(item.productId, 1)}>
                             <Plus className="h-3 w-3" />
                           </Button>

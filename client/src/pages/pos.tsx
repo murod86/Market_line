@@ -37,6 +37,7 @@ interface CartItem {
   buyUnit: string;
   stockPieces: number;
   customPrice?: number;
+  failKey?: number;
 }
 
 interface ReceiptData {
@@ -223,7 +224,7 @@ export default function POS() {
             const newPieces = item.buyUnit === "quti" ? newQty * (item.product.boxQuantity || 1) : newQty;
             if (newPieces > item.product.stock) {
               toast({ title: "Stokda yetarli mahsulot yo'q", variant: "destructive" });
-              return item;
+              return { ...item, failKey: (item.failKey || 0) + 1 };
             }
             return { ...item, quantity: newQty, stockPieces: newPieces };
           }
@@ -616,7 +617,7 @@ export default function POS() {
                         <Minus className="h-3 w-3" />
                       </Button>
                       <input
-                        key={item.quantity}
+                        key={`${item.quantity}-${item.failKey || 0}`}
                         type="number"
                         min={1}
                         step={1}
@@ -630,6 +631,9 @@ export default function POS() {
                         className="w-14 h-7 text-center text-sm font-medium border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring"
                         data-testid={`input-qty-${item.product.id}`}
                       />
+                      {item.buyUnit !== "dona" && item.buyUnit !== "quti" && (
+                        <span className="text-[10px] text-muted-foreground -ml-0.5">{item.buyUnit}</span>
+                      )}
                       <Button
                         size="icon"
                         variant="outline"
