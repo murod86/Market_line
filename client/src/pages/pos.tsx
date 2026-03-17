@@ -176,12 +176,27 @@ export default function POS() {
         p.sku.toLowerCase().includes(search.toLowerCase()))
   );
 
+  // Returns stock-unit pieces from display qty+unit
+  const calcPieces = (qty: number, buyUnit: string, productUnit: string, boxQty: number): number => {
+    if (buyUnit === "quti") return Math.round(qty * boxQty);
+    if (buyUnit === "kg" && productUnit === "gram") return Math.round(qty * 1000);
+    return Math.round(qty);
+  };
+
+  // Cart unit options per product type
+  const getCartUnitOptions = (product: Product): string[] => {
+    if (product.unit === "gram") return ["gram", "kg"];
+    if (product.unit === "dona") return (product.boxQuantity || 1) > 1 ? ["dona", "quti"] : ["dona"];
+    if (product.unit === "quti") return ["quti", "dona"];
+    return [product.unit];
+  };
+
   const addToCart = (product: Product) => {
     setCart((prev) => {
       const existing = prev.find((item) => item.product.id === product.id);
       if (existing) {
         const newQty = existing.quantity + 1;
-        const newPieces = existing.buyUnit === "quti" ? newQty * (product.boxQuantity || 1) : newQty;
+        const newPieces = calcPieces(newQty, existing.buyUnit, product.unit, product.boxQuantity || 1);
         if (newPieces > product.stock) {
           toast({ title: "Stokda yetarli mahsulot yo'q", variant: "destructive" });
           return prev;
@@ -200,14 +215,21 @@ export default function POS() {
     setCart((prev) =>
       prev.map((item) => {
         if (item.product.id !== productId) return item;
-        let newQty = item.quantity;
         const bq = item.product.boxQuantity || 1;
+        const productUnit = item.product.unit;
+        let newQty = item.quantity;
+        // quti ↔ dona
         if (newUnit === "quti" && item.buyUnit !== "quti") {
-          newQty = Math.max(1, Math.floor(item.quantity / bq));
+          newQty = Math.max(1, Math.floor(item.stockPieces / bq));
         } else if (item.buyUnit === "quti" && newUnit !== "quti") {
-          newQty = item.quantity * bq;
+          newQty = item.stockPieces;
+        // gram ↔ kg  (stockPieces always stays in grams)
+        } else if (productUnit === "gram" && newUnit === "kg") {
+          newQty = parseFloat((item.stockPieces / 1000).toFixed(3));
+        } else if (productUnit === "gram" && newUnit === "gram") {
+          newQty = item.stockPieces;
         }
-        const newPieces = newUnit === "quti" ? newQty * bq : newQty;
+        const newPieces = calcPieces(newQty, newUnit, productUnit, bq);
         if (newPieces > item.product.stock) return item;
         return { ...item, buyUnit: newUnit, quantity: newQty, stockPieces: newPieces };
       })
@@ -221,7 +243,7 @@ export default function POS() {
           if (item.product.id === productId) {
             const newQty = item.quantity + delta;
             if (newQty <= 0) return null;
-            const newPieces = item.buyUnit === "quti" ? newQty * (item.product.boxQuantity || 1) : newQty;
+            const newPieces = calcPieces(newQty, item.buyUnit, item.product.unit, item.product.boxQuantity || 1);
             if (newPieces > item.product.stock) {
               toast({ title: "Stokda yetarli mahsulot yo'q", variant: "destructive" });
               return { ...item, failKey: (item.failKey || 0) + 1 };
@@ -316,9 +338,12 @@ export default function POS() {
     const itemsHtml = receiptData.items.map((item, idx) => {
       const unitPrice = item.customPrice ?? Number(item.product.price);
       const total = item.stockPieces * unitPrice;
+      const isKgGram = item.product.unit === "gram" && item.buyUnit === "kg";
       const qtyLabel = item.buyUnit === "quti"
         ? `${item.quantity} quti (${item.stockPieces} ${item.product.unit})`
-        : `${item.stockPieces} ${item.product.unit}`;
+        : isKgGram
+          ? `${item.quantity} kg (${item.stockPieces} gram)`
+          : `${item.stockPieces} ${item.product.unit}`;
       return `<div style="margin-bottom:5px">
         <div style="font-size:${sz.fs};font-weight:bold;color:#000;word-break:break-word">${idx + 1}. ${item.product.name}</div>
         ${row(`${qtyLabel} &times; ${fmt(unitPrice)} so'm`, `${fmt(total)} so'm`)}
@@ -577,6 +602,11 @@ export default function POS() {
                           {item.quantity} quti × {item.product.boxQuantity} = {item.stockPieces} {item.product.unit}
                         </p>
                       )}
+                      {item.product.unit === "gram" && item.buyUnit === "kg" && (
+                        <p className="text-[10px] text-emerald-600">
+                          {item.quantity} kg = {item.stockPieces} gram
+                        </p>
+                      )}
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm font-bold text-primary">
@@ -590,28 +620,32 @@ export default function POS() {
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
-                    <Select
-                      value={item.buyUnit}
-                      onValueChange={(val) => changeCartUnit(item.product.id, val)}
-                    >
-                      <SelectTrigger className="h-7 w-[70px] text-[10px] px-1.5" data-testid={`select-unit-${item.product.id}`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="dona">dona</SelectItem>
-                        <SelectItem value="quti">quti</SelectItem>
-                        <SelectItem value="kg">kg</SelectItem>
-                        <SelectItem value="gram">gram</SelectItem>
-                        <SelectItem value="litr">litr</SelectItem>
-                        <SelectItem value="metr">metr</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    {(() => {
+                      const unitOpts = getCartUnitOptions(item.product);
+                      return unitOpts.length > 1 ? (
+                        <Select value={item.buyUnit} onValueChange={(val) => changeCartUnit(item.product.id, val)}>
+                          <SelectTrigger className="h-7 w-[64px] text-[10px] px-1.5" data-testid={`select-unit-${item.product.id}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {unitOpts.map((u) => (
+                              <SelectItem key={u} value={u}>{u}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground w-[64px] text-center">{item.buyUnit}</span>
+                      );
+                    })()}
                     <div className="flex items-center gap-1">
                       <Button
                         size="icon"
                         variant="outline"
                         className="h-7 w-7"
-                        onClick={() => updateQuantity(item.product.id, -1)}
+                        onClick={() => {
+                          const isKgGram = item.product.unit === "gram" && item.buyUnit === "kg";
+                          updateQuantity(item.product.id, isKgGram ? -0.1 : -1);
+                        }}
                         data-testid={`button-minus-${item.product.id}`}
                       >
                         <Minus className="h-3 w-3" />
@@ -619,12 +653,15 @@ export default function POS() {
                       <input
                         key={`${item.quantity}-${item.failKey || 0}`}
                         type="number"
-                        min={1}
-                        step={1}
+                        min={item.product.unit === "gram" && item.buyUnit === "kg" ? 0.001 : 1}
+                        step={item.product.unit === "gram" && item.buyUnit === "kg" ? 0.001 : 1}
                         defaultValue={item.quantity}
                         onFocus={(e) => e.target.select()}
                         onBlur={(e) => {
-                          const v = Math.max(1, Math.round(Number(e.target.value)) || 1);
+                          const isKgGram = item.product.unit === "gram" && item.buyUnit === "kg";
+                          const v = isKgGram
+                            ? Math.max(0.001, parseFloat(parseFloat(e.target.value).toFixed(3)) || 0.001)
+                            : Math.max(1, Math.round(Number(e.target.value)) || 1);
                           if (v !== item.quantity) updateQuantity(item.product.id, v - item.quantity);
                         }}
                         onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
@@ -638,7 +675,10 @@ export default function POS() {
                         size="icon"
                         variant="outline"
                         className="h-7 w-7"
-                        onClick={() => updateQuantity(item.product.id, 1)}
+                        onClick={() => {
+                          const isKgGram = item.product.unit === "gram" && item.buyUnit === "kg";
+                          updateQuantity(item.product.id, isKgGram ? 0.1 : 1);
+                        }}
                         data-testid={`button-plus-${item.product.id}`}
                       >
                         <Plus className="h-3 w-3" />
@@ -935,9 +975,12 @@ export default function POS() {
                   {receiptData.items.map((item, idx) => {
                     const unitPrice = item.customPrice ?? Number(item.product.price);
                     const totalPrice = item.stockPieces * unitPrice;
+                    const isKgGram2 = item.product.unit === "gram" && item.buyUnit === "kg";
                     const qtyLabel = item.buyUnit === "quti"
                       ? `${item.quantity} quti (${item.stockPieces} ${item.product.unit})`
-                      : `${item.stockPieces} ${item.product.unit}`;
+                      : isKgGram2
+                        ? `${item.quantity} kg (${item.stockPieces} gram)`
+                        : `${item.stockPieces} ${item.product.unit}`;
                     return (
                       <div key={idx} style={{ marginBottom: "5px" }}>
                         <div style={{ fontSize: "12px", fontWeight: "bold", color: "#000", wordBreak: "break-word" }}>
