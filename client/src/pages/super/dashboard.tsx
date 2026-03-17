@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Store, Users, CreditCard, Shield, LogOut, Plus, Pencil, Trash2,
-  BarChart3, Building2, Loader2, AlertTriangle, Key, ImageIcon,
+  BarChart3, Building2, Loader2, AlertTriangle, Key, ImageIcon, CalendarClock,
 } from "lucide-react";
 import { DialogFooter } from "@/components/ui/dialog";
 
@@ -90,6 +90,8 @@ function TenantsTable() {
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [newTenant, setNewTenant] = useState({ name: "", ownerName: "", phone: "", password: "", plan: "free", telegramChatId: "", telegramImageChannel: "" });
+  const [trialExtend, setTrialExtend] = useState<any>(null);
+  const [trialDays, setTrialDays] = useState("30");
 
   const createTenantMut = useMutation({
     mutationFn: async (data: any) => {
@@ -157,6 +159,7 @@ function TenantsTable() {
                   <th className="text-left py-3 px-2">Telefon</th>
                   <th className="text-left py-3 px-2">Reja</th>
                   <th className="text-left py-3 px-2">Holat</th>
+                  <th className="text-left py-3 px-2">Sinov muddati</th>
                   <th className="text-left py-3 px-2">Sana</th>
                   <th className="text-left py-3 px-2">Amallar</th>
                 </tr>
@@ -195,10 +198,33 @@ function TenantsTable() {
                         data-testid={`switch-active-${t.id}`}
                       />
                     </td>
+                    <td className="py-3 px-2 text-xs">
+                      {t.trialEndsAt ? (
+                        new Date(t.trialEndsAt) > new Date() ? (
+                          <span className="text-yellow-400">
+                            {Math.ceil((new Date(t.trialEndsAt).getTime() - Date.now()) / 86400000)} kun qoldi
+                          </span>
+                        ) : (
+                          <span className="text-red-400">Tugagan</span>
+                        )
+                      ) : (
+                        <span className="text-white/30">—</span>
+                      )}
+                    </td>
                     <td className="py-3 px-2 text-white/40 text-xs">
                       {new Date(t.createdAt).toLocaleDateString("uz")}
                     </td>
-                    <td className="py-3 px-2">
+                    <td className="py-3 px-2 flex gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-blue-400/50 hover:text-blue-400 hover:bg-blue-500/10"
+                        title="Sinov muddatini belgilash"
+                        onClick={() => { setTrialExtend(t); setTrialDays("30"); }}
+                        data-testid={`button-trial-extend-${t.id}`}
+                      >
+                        <CalendarClock className="w-3.5 h-3.5" />
+                      </Button>
                       <Button
                         size="icon"
                         variant="ghost"
@@ -241,6 +267,52 @@ function TenantsTable() {
             >
               {deleteTenantMut.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               O'chirish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!trialExtend} onOpenChange={(open) => !open && setTrialExtend(null)}>
+        <DialogContent className="bg-slate-900 border-white/10 text-white max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-blue-300">
+              <CalendarClock className="w-5 h-5" />
+              Sinov muddatini belgilash
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-white/60 text-sm"><strong className="text-white">{trialExtend?.name}</strong> uchun sinov muddati:</p>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-white/70 text-xs">Necha kunlik sinov berish?</Label>
+              <Input
+                type="number"
+                min={0}
+                value={trialDays}
+                onChange={(e) => setTrialDays(e.target.value)}
+                className="bg-white/5 border-white/10 text-white mt-1"
+                placeholder="30"
+                data-testid="input-trial-days"
+              />
+              <p className="text-white/40 text-xs mt-1">0 kiritsangiz sinov muddati o'chiriladi</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" className="text-white/50 hover:text-white" onClick={() => setTrialExtend(null)}>
+              Bekor qilish
+            </Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={updateTenantMut.isPending}
+              onClick={() => {
+                if (!trialExtend) return;
+                const days = Number(trialDays) || 0;
+                const newTrialEndsAt = days > 0 ? new Date(Date.now() + days * 86400000).toISOString() : null;
+                updateTenantMut.mutate({ id: trialExtend.id, data: { trialEndsAt: newTrialEndsAt } });
+                setTrialExtend(null);
+              }}
+              data-testid="button-confirm-trial-extend"
+            >
+              Saqlash
             </Button>
           </DialogFooter>
         </DialogContent>

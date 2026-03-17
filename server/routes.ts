@@ -305,7 +305,9 @@ export async function registerRoutes(
 
     const hasTrial = tenant.trialEndsAt != null;
     const isTrialActive = hasTrial && new Date(tenant.trialEndsAt!) > new Date();
-    const trialExpired = hasTrial && new Date(tenant.trialEndsAt!) <= new Date();
+    // To'lov tarifida bo'lsa sinov muddati tugagan deb hisoblash shart emas
+    const isPaidPlan = currentPlan && Number(currentPlan.price) > 0;
+    const trialExpired = !isPaidPlan && hasTrial && new Date(tenant.trialEndsAt!) <= new Date();
 
     let allowedModules: string[] = allModuleKeys;
 
@@ -3586,10 +3588,28 @@ export async function registerRoutes(
     try {
       const tenant = await storage.getTenant((req.params['id'] as string));
       if (!tenant) return res.status(404).json({ message: "Do'kon topilmadi" });
-      const { active, plan } = req.body;
+      const { active, plan, trialEndsAt: trialEndsAtRaw } = req.body;
       const updateData: any = {};
       if (typeof active === "boolean") updateData.active = active;
-      if (plan) updateData.plan = plan;
+      if (plan) {
+        updateData.plan = plan;
+        const allPlans = await storage.getPlans();
+        const newPlan = allPlans.find(p => p.slug === plan);
+        if (newPlan && Number(newPlan.price) > 0) {
+          // To'lov tarifiga o'tganda sinov muddatini tozalash
+          updateData.trialEndsAt = null;
+        } else if (newPlan && newPlan.trialDays > 0) {
+          // Sinov bor tarif - yangi muddat belgilash
+          updateData.trialEndsAt = new Date(Date.now() + newPlan.trialDays * 86400000);
+        } else {
+          // Bepul tarif, sinov yo'q
+          updateData.trialEndsAt = null;
+        }
+      }
+      // Super admin manually sets trial end date
+      if (trialEndsAtRaw !== undefined) {
+        updateData.trialEndsAt = trialEndsAtRaw ? new Date(trialEndsAtRaw) : null;
+      }
       const updated = await storage.updateTenant((req.params['id'] as string), updateData);
       if (!updated?.active) {
         await pool.query(`DELETE FROM "session" WHERE "sess"::text LIKE $1`, [`%"tenantId":"${(req.params['id'] as string)}"%`]);
