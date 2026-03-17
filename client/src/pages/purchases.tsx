@@ -97,10 +97,27 @@ export default function Purchases() {
     (productSearch === "" || p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.sku?.toLowerCase().includes(productSearch.toLowerCase()))
   );
 
+  // Returns smart buy unit options based on product's native unit
+  const getBuyUnitOptions = (product: Product) => {
+    if (product.unit === "gram") return ["gram", "kg"];
+    if (product.unit === "dona" && (product.boxQuantity || 1) > 1) return ["dona", "quti"];
+    if (product.unit === "quti") return ["quti", "dona"];
+    return [product.unit]; // litr, kg, metr etc — only native unit
+  };
+
+  // Calc stockPieces (in product's native unit) from buy quantity + buy unit
+  const calcStockPieces = (qty: number, buyUnit: string, productUnit: string, boxQty: number) => {
+    if (buyUnit === "quti") return qty * boxQty;
+    if (buyUnit === "kg" && productUnit === "gram") return Math.round(qty * 1000);
+    if (buyUnit === "dona" && productUnit === "quti") return Math.round(qty / boxQty);
+    return qty;
+  };
+
   const selectProduct = (product: Product) => {
     setSelectedProductId(product.id);
     setItemCost(String(product.costPrice));
-    setItemBuyUnit(product.unit);
+    const defaultUnit = getBuyUnitOptions(product)[0];
+    setItemBuyUnit(defaultUnit);
     setItemBoxQty(String(product.boxQuantity || 1));
     setProductSearch("");
     setProductPickerOpen(false);
@@ -111,9 +128,9 @@ export default function Purchases() {
       toast({ title: "Mahsulot tanlang", variant: "destructive" });
       return;
     }
-    const qty = parseInt(itemQty);
+    const qty = parseFloat(itemQty);
     const cost = parseFloat(itemCost);
-    if (!qty || qty < 1 || isNaN(qty)) {
+    if (!qty || qty <= 0 || isNaN(qty)) {
       toast({ title: "Miqdor noto'g'ri", variant: "destructive" });
       return;
     }
@@ -128,8 +145,8 @@ export default function Purchases() {
     const product = products?.find((p) => p.id === selectedProductId);
     if (!product) return;
 
-    const boxQty = itemBuyUnit === "quti" ? (parseInt(itemBoxQty) || product.boxQuantity || 1) : 1;
-    const stockPieces = itemBuyUnit === "quti" ? qty * boxQty : qty;
+    const boxQty = itemBuyUnit === "quti" ? (parseInt(itemBoxQty) || product.boxQuantity || 1) : (product.boxQuantity || 1);
+    const stockPieces = calcStockPieces(qty, itemBuyUnit, product.unit, boxQty);
 
     const existing = cart.findIndex((c) => c.productId === selectedProductId && c.buyUnit === itemBuyUnit);
     if (existing >= 0) {
@@ -138,7 +155,7 @@ export default function Purchases() {
       updated[existing].quantity = newQty;
       updated[existing].costPrice = cost;
       updated[existing].boxQuantity = boxQty;
-      updated[existing].stockPieces = itemBuyUnit === "quti" ? newQty * boxQty : newQty;
+      updated[existing].stockPieces = calcStockPieces(newQty, itemBuyUnit, product.unit, boxQty);
       setCart(updated);
     } else {
       setCart([...cart, {
@@ -176,7 +193,11 @@ export default function Purchases() {
       items: cart.map((c) => ({
         productId: c.productId,
         quantity: Math.round(c.stockPieces),
-        costPrice: c.buyUnit === "quti" ? (c.costPrice / c.boxQuantity) : c.costPrice,
+        costPrice: c.buyUnit === "quti"
+          ? (c.costPrice / c.boxQuantity)
+          : c.buyUnit === "kg" && c.productUnit === "gram"
+            ? (c.costPrice / 1000)
+            : c.costPrice,
         displayQuantity: c.quantity,
         displayUnit: c.buyUnit,
         boxQuantity: c.boxQuantity,
@@ -358,18 +379,20 @@ export default function Purchases() {
                         if (v === "quti") {
                           const bq = itemBoxQty ? parseInt(itemBoxQty) : (selectedProduct.boxQuantity || 1);
                           setItemCost(String(Number(selectedProduct.costPrice) * bq));
+                        } else if (v === "kg" && selectedProduct.unit === "gram") {
+                          setItemCost(String(Number(selectedProduct.costPrice) * 1000));
                         } else {
                           setItemCost(String(selectedProduct.costPrice));
                         }
+                        setItemQty("1");
                       }}>
                         <SelectTrigger data-testid="select-purchase-unit">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="dona">dona</SelectItem>
-                          <SelectItem value="quti">quti</SelectItem>
-                          <SelectItem value="litr">litr</SelectItem>
-                          <SelectItem value="kg">kg</SelectItem>
+                          {getBuyUnitOptions(selectedProduct).map((u) => (
+                            <SelectItem key={u} value={u}>{u}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -392,8 +415,13 @@ export default function Purchases() {
                     )}
                   </div>
                   {itemBuyUnit === "quti" && itemBoxQty && parseInt(itemBoxQty) > 0 && (
-                    <div className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1">
+                    <div className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-950/30 rounded px-2 py-1">
                       1 quti = {itemBoxQty} {selectedProduct.unit}
+                    </div>
+                  )}
+                  {itemBuyUnit === "kg" && selectedProduct.unit === "gram" && (
+                    <div className="text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 rounded px-2 py-1">
+                      1 kg = 1000 gram omborga qo'shiladi
                     </div>
                   )}
                   <div className="grid grid-cols-3 gap-2 items-end">
@@ -404,7 +432,8 @@ export default function Purchases() {
                         value={itemQty}
                         onChange={(e) => setItemQty(e.target.value)}
                         placeholder="1"
-                        min="1"
+                        min="0"
+                        step={itemBuyUnit === "kg" && selectedProduct.unit === "gram" ? "0.001" : "1"}
                         data-testid="input-purchase-qty"
                       />
                     </div>
@@ -432,6 +461,11 @@ export default function Purchases() {
                   {itemQty || 0} quti × {selectedProduct.boxQuantity} {selectedProduct.unit} = {(Number(itemQty) || 0) * selectedProduct.boxQuantity} {selectedProduct.unit} omborga qo'shiladi
                 </p>
               )}
+              {selectedProductId && selectedProduct && itemBuyUnit === "kg" && selectedProduct.unit === "gram" && Number(itemQty) > 0 && (
+                <p className="text-xs text-emerald-600 mt-1">
+                  {itemQty} kg × 1000 = {Math.round(Number(itemQty) * 1000)} gram omborga qo'shiladi
+                </p>
+              )}
             </div>
 
             {cart.length > 0 && (
@@ -454,9 +488,17 @@ export default function Purchases() {
                           <span className="font-medium">{item.productName}</span>
                         </TableCell>
                         <TableCell className="text-right">
-                          {item.quantity} {item.buyUnit}{item.buyUnit === "quti" ? ` (${item.boxQuantity} ${item.productUnit})` : ""}
+                          <div>
+                            <span>{item.quantity} {item.buyUnit}</span>
+                            {item.buyUnit === "quti" && (
+                              <p className="text-[11px] text-blue-600">{item.boxQuantity} {item.productUnit}/quti</p>
+                            )}
+                            {item.buyUnit === "kg" && item.productUnit === "gram" && (
+                              <p className="text-[11px] text-emerald-600">= {Math.round(item.stockPieces)} gram</p>
+                            )}
+                          </div>
                         </TableCell>
-                        <TableCell className="text-right">{formatCurrency(item.costPrice)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.costPrice)}<span className="text-[10px] text-muted-foreground block">/{item.buyUnit}</span></TableCell>
                         <TableCell className="text-right font-medium">{formatCurrency(item.quantity * item.costPrice)}</TableCell>
                         <TableCell className="text-right">
                           <Badge variant="secondary" className="text-xs">
@@ -473,9 +515,13 @@ export default function Purchases() {
                   </TableBody>
                 </Table>
                 <div className="flex justify-between mt-3 items-center">
-                  <p className="text-sm text-muted-foreground">
-                    Jami omborga: <span className="font-medium text-foreground">{cartTotalPieces} dona</span>
-                  </p>
+                  <div className="text-sm text-muted-foreground space-y-0.5">
+                    <p>Jami omborga:</p>
+                    {Array.from(new Set(cart.map(i => i.productUnit))).map(unit => {
+                      const total = cart.filter(i => i.productUnit === unit).reduce((s, i) => s + i.stockPieces, 0);
+                      return <p key={unit} className="font-medium text-foreground">+{Math.round(total)} {unit}</p>;
+                    })}
+                  </div>
                   <div className="text-right">
                     <p className="text-sm text-muted-foreground">Jami summa:</p>
                     <p className="text-lg font-bold" data-testid="text-cart-total">{formatCurrency(cartTotal)}</p>
