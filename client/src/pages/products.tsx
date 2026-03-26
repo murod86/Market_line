@@ -290,12 +290,26 @@ export default function Products() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium mb-1 block">Narxi (UZS) *</label>
+                <label className="text-sm font-medium mb-1 block">
+                  Narxi (1 {form.unit} uchun UZS) *
+                </label>
                 <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} data-testid="input-product-price" />
+                {form.unit === "gram" && form.price && (
+                  <p className="text-[11px] text-emerald-600 mt-0.5">
+                    = {new Intl.NumberFormat("uz-UZ").format(Number(form.price) * 1000)} so'm/kg
+                  </p>
+                )}
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Tan narxi (UZS) *</label>
+                <label className="text-sm font-medium mb-1 block">
+                  Tan narxi (1 {form.unit} uchun UZS) *
+                </label>
                 <Input type="number" value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: e.target.value })} data-testid="input-product-cost" />
+                {form.unit === "gram" && form.costPrice && (
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    = {new Intl.NumberFormat("uz-UZ").format(Number(form.costPrice) * 1000)} so'm/kg
+                  </p>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

@@ -336,9 +336,11 @@ export default function POS() {
     const line = `<div style="border-top:2px solid #000;margin:5px 0"></div>`;
 
     const itemsHtml = receiptData.items.map((item, idx) => {
-      const unitPrice = item.customPrice ?? Number(item.product.price);
-      const total = item.stockPieces * unitPrice;
+      const unitPricePerGram = item.customPrice ?? Number(item.product.price);
+      const total = item.stockPieces * unitPricePerGram;
       const isKgGram = item.product.unit === "gram" && item.buyUnit === "kg";
+      const displayUnitPrice = isKgGram ? unitPricePerGram * 1000 : unitPricePerGram;
+      const displayUnit = isKgGram ? "kg" : item.product.unit;
       const qtyLabel = item.buyUnit === "quti"
         ? `${item.quantity} quti (${item.stockPieces} ${item.product.unit})`
         : isKgGram
@@ -346,7 +348,7 @@ export default function POS() {
           : `${item.stockPieces} ${item.product.unit}`;
       return `<div style="margin-bottom:5px">
         <div style="font-size:${sz.fs};font-weight:bold;color:#000;word-break:break-word">${idx + 1}. ${item.product.name}</div>
-        ${row(`${qtyLabel} &times; ${fmt(unitPrice)} so'm`, `${fmt(total)} so'm`)}
+        ${row(`${qtyLabel} &times; ${fmt(displayUnitPrice)} so'm/${displayUnit}`, `${fmt(total)} so'm`)}
       </div>`;
     }).join("");
 
@@ -520,7 +522,11 @@ export default function POS() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium text-sm leading-tight truncate">{product.name}</h3>
-                        <p className="text-xs font-semibold text-primary">{formatCurrency(Number(product.price))}</p>
+                        <p className="text-xs font-semibold text-primary">
+                          {product.unit === "gram"
+                            ? formatCurrency(Number(product.price) * 1000) + "/kg"
+                            : formatCurrency(Number(product.price)) + "/" + product.unit}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center justify-between gap-1">
@@ -578,24 +584,36 @@ export default function POS() {
                       <p className="text-sm font-medium leading-tight">{item.product.name}</p>
                       <div className="flex items-center gap-1 mt-0.5">
                         <span className="text-[10px] text-muted-foreground">Narx:</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="100"
-                          value={item.customPrice ?? Number(item.product.price)}
-                          onChange={(e) => updateCartPrice(item.product.id, e.target.value)}
-                          className="w-20 h-5 text-xs border rounded px-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                          data-testid={`input-price-${item.product.id}`}
-                        />
-                        <span className="text-[10px] text-muted-foreground">/{item.product.unit}</span>
-                        {item.customPrice !== undefined && item.customPrice !== Number(item.product.price) && (
-                          <button
-                            type="button"
-                            onClick={() => updateCartPrice(item.product.id, "")}
-                            className="text-[10px] text-orange-500 hover:text-orange-700"
-                            title="Asl narxga qaytarish"
-                          >↺</button>
-                        )}
+                        {(() => {
+                          const isKgGram = item.product.unit === "gram" && item.buyUnit === "kg";
+                          const basePricePerGram = item.customPrice ?? Number(item.product.price);
+                          const displayPrice = isKgGram ? basePricePerGram * 1000 : basePricePerGram;
+                          const displayUnit = isKgGram ? "kg" : item.product.unit;
+                          return (<>
+                            <input
+                              type="number"
+                              min="0"
+                              step={isKgGram ? "1000" : "100"}
+                              value={displayPrice}
+                              onChange={(e) => {
+                                const raw = Number(e.target.value);
+                                const perGram = isKgGram ? raw / 1000 : raw;
+                                updateCartPrice(item.product.id, String(perGram));
+                              }}
+                              className="w-20 h-5 text-xs border rounded px-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                              data-testid={`input-price-${item.product.id}`}
+                            />
+                            <span className="text-[10px] text-muted-foreground">/{displayUnit}</span>
+                            {item.customPrice !== undefined && item.customPrice !== Number(item.product.price) && (
+                              <button
+                                type="button"
+                                onClick={() => updateCartPrice(item.product.id, "")}
+                                className="text-[10px] text-orange-500 hover:text-orange-700"
+                                title="Asl narxga qaytarish"
+                              >↺</button>
+                            )}
+                          </>);
+                        })()}
                       </div>
                       {item.buyUnit === "quti" && (item.product.boxQuantity || 1) > 1 && (
                         <p className="text-[10px] text-blue-600">

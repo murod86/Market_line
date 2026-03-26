@@ -1316,18 +1316,31 @@ function SellTab() {
                           <p className="text-sm font-medium truncate">{item.name}</p>
                           <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                             <span className="text-[10px] text-muted-foreground">Narx:</span>
-                            <input
-                              type="number"
-                              min="0"
-                              step="100"
-                              value={item.customPrice ?? item.price}
-                              onChange={(e) => updateCartPrice(item.productId, e.target.value)}
-                              className="w-24 h-5 text-xs border rounded px-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                              data-testid={`input-sell-price-${item.productId}`}
-                            />
-                            {item.customPrice !== undefined && item.customPrice !== item.price && (
-                              <button type="button" onClick={() => updateCartPrice(item.productId, "")} className="text-[10px] text-orange-500 hover:text-orange-700" title="Asl narxga qaytarish">↺</button>
-                            )}
+                            {(() => {
+                              const isKgGram = item.unit === "gram" && item.buyUnit === "kg";
+                              const basePricePerGram = item.customPrice ?? item.price;
+                              const displayPrice = isKgGram ? basePricePerGram * 1000 : basePricePerGram;
+                              const displayUnit = isKgGram ? "kg" : item.unit;
+                              return (<>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step={isKgGram ? "1000" : "100"}
+                                  value={displayPrice}
+                                  onChange={(e) => {
+                                    const raw = Number(e.target.value);
+                                    const perGram = isKgGram ? raw / 1000 : raw;
+                                    updateCartPrice(item.productId, String(perGram));
+                                  }}
+                                  className="w-24 h-5 text-xs border rounded px-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                                  data-testid={`input-sell-price-${item.productId}`}
+                                />
+                                <span className="text-[10px] text-muted-foreground">/{displayUnit}</span>
+                                {item.customPrice !== undefined && item.customPrice !== item.price && (
+                                  <button type="button" onClick={() => updateCartPrice(item.productId, "")} className="text-[10px] text-orange-500 hover:text-orange-700" title="Asl narxga qaytarish">↺</button>
+                                )}
+                              </>);
+                            })()}
                             <span className="text-xs font-medium text-primary ml-1">
                               = {formatCurrency((item.customPrice ?? item.price) * item.stockPieces)}
                             </span>
