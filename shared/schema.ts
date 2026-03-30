@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, numeric, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, numeric, boolean, timestamp, jsonb, doublePrecision } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -99,8 +99,8 @@ export const products = pgTable("products", {
   sku: text("sku").notNull(),
   price: decimal("price", { precision: 12, scale: 2 }).notNull(),
   costPrice: decimal("cost_price", { precision: 12, scale: 2 }).notNull(),
-  stock: integer("stock").notNull().default(0),
-  minStock: integer("min_stock").notNull().default(5),
+  stock: doublePrecision("stock").notNull().default(0),
+  minStock: doublePrecision("min_stock").notNull().default(5),
   categoryId: varchar("category_id").references(() => categories.id),
   imageUrl: text("image_url"),
   unit: text("unit").notNull().default("dona"),
@@ -151,7 +151,7 @@ export const saleItems = pgTable("sale_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   saleId: varchar("sale_id").references(() => sales.id).notNull(),
   productId: varchar("product_id").references(() => products.id).notNull(),
-  quantity: integer("quantity").notNull(),
+  quantity: doublePrecision("quantity").notNull(),
   price: decimal("price", { precision: 12, scale: 2 }).notNull(),
   costPrice: decimal("cost_price", { precision: 12, scale: 2 }).notNull().default("0"),
   total: decimal("total", { precision: 12, scale: 2 }).notNull(),
@@ -183,7 +183,7 @@ export const deliveryItems = pgTable("delivery_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   deliveryId: varchar("delivery_id").references(() => deliveries.id).notNull(),
   productId: varchar("product_id").references(() => products.id).notNull(),
-  quantity: integer("quantity").notNull(),
+  quantity: doublePrecision("quantity").notNull(),
   price: numeric("price", { precision: 12, scale: 2 }).notNull(),
   total: numeric("total", { precision: 12, scale: 2 }).notNull(),
 });
@@ -213,7 +213,7 @@ export const dealerInventory = pgTable("dealer_inventory", {
   tenantId: varchar("tenant_id").references(() => tenants.id),
   dealerId: varchar("dealer_id").references(() => dealers.id).notNull(),
   productId: varchar("product_id").references(() => products.id).notNull(),
-  quantity: integer("quantity").notNull().default(0),
+  quantity: doublePrecision("quantity").notNull().default(0),
 });
 
 export const insertDealerInventorySchema = createInsertSchema(dealerInventory).omit({ id: true });
@@ -226,7 +226,7 @@ export const dealerTransactions = pgTable("dealer_transactions", {
   dealerId: varchar("dealer_id").references(() => dealers.id).notNull(),
   type: text("type").notNull(),
   productId: varchar("product_id").references(() => products.id).notNull(),
-  quantity: integer("quantity").notNull(),
+  quantity: doublePrecision("quantity").notNull(),
   price: decimal("price", { precision: 12, scale: 2 }).notNull().default("0"),
   total: decimal("total", { precision: 12, scale: 2 }).notNull().default("0"),
   customerName: text("customer_name"),
@@ -306,7 +306,7 @@ export const purchaseItems = pgTable("purchase_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   purchaseId: varchar("purchase_id").references(() => purchases.id).notNull(),
   productId: varchar("product_id").references(() => products.id).notNull(),
-  quantity: integer("quantity").notNull(),
+  quantity: doublePrecision("quantity").notNull(),
   costPrice: decimal("cost_price", { precision: 12, scale: 2 }).notNull(),
   total: decimal("total", { precision: 12, scale: 2 }).notNull(),
 });

@@ -38,6 +38,10 @@ import {
   productPriceLabel,
   stockToDisplayQty,
   qtyLabel,
+  qtyDelta,
+  qtyMin,
+  qtyInputStep,
+  isDecimalUnit,
 } from "@/lib/units";
 
 interface CartItem {
@@ -330,19 +334,27 @@ export default function POS() {
     const line = `<div style="border-top:2px solid #000;margin:5px 0"></div>`;
 
     const itemsHtml = receiptData.items.map((item, idx) => {
-      const unitPricePerGram = item.customPrice ?? Number(item.product.price);
-      const total = item.stockPieces * unitPricePerGram;
-      const isKgGram = item.product.unit === "gram" && item.buyUnit === "kg";
-      const displayUnitPrice = isKgGram ? unitPricePerGram * 1000 : unitPricePerGram;
-      const displayUnit = isKgGram ? "kg" : item.product.unit;
-      const qtyLabel = item.buyUnit === "quti"
-        ? `${item.quantity} quti (${item.stockPieces} ${item.product.unit})`
-        : isKgGram
-          ? `${item.quantity} kg (${item.stockPieces} gram)`
-          : `${item.stockPieces} ${item.product.unit}`;
+      const nativeUnitPrice = item.customPrice ?? Number(item.product.price);
+      const bq = item.product.boxQuantity || 1;
+      const total = item.stockPieces * nativeUnitPrice;
+      const displayUnitPrice = toDisplayPrice(nativeUnitPrice, item.buyUnit, item.product.unit, bq);
+      // Ko'rsatish birligi: gram mahsuloti kg ko'rinishida bo'lsa "kg", aks holda buyUnit
+      const displayUnit = (item.product.unit === "gram" && item.buyUnit === "kg") ? "kg" : item.buyUnit;
+      // Chekda miqdor ko'rsatish
+      let receiptQty = "";
+      if (item.buyUnit === "quti") {
+        receiptQty = `${item.quantity} quti (${item.stockPieces} ${item.product.unit})`;
+      } else if (item.product.unit === "gram" && item.buyUnit === "kg") {
+        receiptQty = `${item.quantity} kg (${item.stockPieces} gram)`;
+      } else if (item.product.unit === "gram" && item.buyUnit === "gram") {
+        receiptQty = `${item.stockPieces} gram`;
+      } else {
+        // kg, litr, metr: decimal ko'rinish
+        receiptQty = `${parseFloat(item.stockPieces.toFixed(3))} ${displayUnit}`;
+      }
       return `<div style="margin-bottom:5px">
         <div style="font-size:${sz.fs};font-weight:bold;color:#000;word-break:break-word">${idx + 1}. ${item.product.name}</div>
-        ${row(`${qtyLabel} &times; ${fmt(displayUnitPrice)} so'm/${displayUnit}`, `${fmt(total)} so'm`)}
+        ${row(`${receiptQty} &times; ${fmt(displayUnitPrice)} so'm/${displayUnit}`, `${fmt(total)} so'm`)}
       </div>`;
     }).join("");
 
@@ -647,10 +659,10 @@ export default function POS() {
                     })()}
                     <div className="flex items-center gap-1">
                       {(() => {
-                        const isDecimalUnit = item.buyUnit === "kg";
-                        const delta = isDecimalUnit ? 0.1 : 1;
-                        const minVal = isDecimalUnit ? 0.001 : 1;
-                        const stepVal = isDecimalUnit ? 0.001 : 1;
+                        const delta = qtyDelta(item.buyUnit);
+                        const minVal = qtyMin(item.buyUnit);
+                        const stepVal = qtyInputStep(item.buyUnit);
+                        const isDecimal = isDecimalUnit(item.buyUnit) || item.buyUnit === "kg";
                         return (<>
                           <Button
                             size="icon"
@@ -670,7 +682,7 @@ export default function POS() {
                             onFocus={(e) => e.target.select()}
                             onBlur={(e) => {
                               const parsed = parseFloat(e.target.value);
-                              const v = isDecimalUnit
+                              const v = isDecimal
                                 ? Math.max(minVal, parseFloat(parsed.toFixed(3)) || minVal)
                                 : Math.max(1, Math.round(parsed) || 1);
                               if (v !== item.quantity) updateQuantity(item.product.id, v - item.quantity);
