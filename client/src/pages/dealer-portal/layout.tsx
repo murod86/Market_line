@@ -19,6 +19,7 @@ import { useRef, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { format } from "date-fns";
 import logoImg from "@assets/marketline_pro_logo_1.png";
+import { getSellUnitOptions, toNativeQty, stockToDisplayQty, toDisplayPrice, toNativePrice, productPriceLabel } from "@/lib/units";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -665,10 +666,17 @@ function InventoryTab() {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{item.productName}</p>
-                    <p className="text-lg font-bold text-primary">{formatCurrency(Number(item.productPrice))}</p>
+                    <p className="text-lg font-bold text-primary">
+                      {productPriceLabel(Number(item.productPrice), item.productUnit)}
+                    </p>
                     <div className="flex items-center justify-between mt-1">
                       <Badge variant="outline" className="text-xs">
-                        {item.quantity} {item.productUnit}
+                        {(() => {
+                          const fakeP = { unit: item.productUnit, boxQuantity: item.boxQuantity || 1 } as any;
+                          const defUnit = getSellUnitOptions(fakeP)[0];
+                          const dispQty = stockToDisplayQty(item.quantity, defUnit, item.productUnit, item.boxQuantity || 1);
+                          return `${dispQty} ${defUnit}`;
+                        })()}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         {formatCurrency(item.quantity * Number(item.productPrice))}
@@ -773,19 +781,22 @@ function SellTab() {
 
     const itemsHtml = items.map(item => {
       const isKgGram = item.unit === "gram" && item.buyUnit === "kg";
-      const qtyLabel = item.buyUnit === "quti"
+      const ql = item.buyUnit === "quti"
         ? `${item.quantity} quti (${item.stockPieces} ${item.unit})`
         : isKgGram
           ? `${item.quantity} kg (${item.stockPieces} gram)`
           : `${item.stockPieces} ${item.unit}`;
-      const unitPriceStr = (item.customPrice ?? item.price).toLocaleString();
-      const totalPriceStr = ((item.customPrice ?? item.price) * item.stockPieces).toLocaleString();
+      const nativeUnitPrice = item.customPrice ?? item.price;
+      const dispUnitPrice = isKgGram ? nativeUnitPrice * 1000 : nativeUnitPrice;
+      const dispUnit = isKgGram ? "kg" : item.buyUnit;
+      const unitPriceStr = dispUnitPrice.toLocaleString();
+      const totalPriceStr = (nativeUnitPrice * item.stockPieces).toLocaleString();
       return `<tr>
         <td colspan="2" style="padding:4px 2px 1px 2px;font-weight:900;border-top:2px solid #000;font-size:1.05em">${item.name}</td>
       </tr>
       <tr>
-        <td style="padding:1px 2px;font-weight:700">${qtyLabel}</td>
-        <td style="padding:1px 2px;text-align:right;font-weight:700">${unitPriceStr}/dona</td>
+        <td style="padding:1px 2px;font-weight:700">${ql}</td>
+        <td style="padding:1px 2px;text-align:right;font-weight:700">${unitPriceStr}/${dispUnit}</td>
       </tr>
       <tr>
         <td style="padding:1px 2px 5px 2px;font-weight:900">= Jami:</td>
@@ -885,10 +896,13 @@ function SellTab() {
 
   const addToCart = (item: any) => {
     setCart((prev) => {
+      const bq = item.boxQuantity || 1;
+      const fakeProduct = { unit: item.productUnit, boxQuantity: bq } as any;
+      const defaultUnit = getSellUnitOptions(fakeProduct)[0];
       const existing = prev.find((c) => c.productId === item.productId);
       if (existing) {
         const newQty = existing.quantity + 1;
-        const newPieces = existing.buyUnit === "quti" ? newQty * existing.boxQuantity : newQty;
+        const newPieces = toNativeQty(newQty, existing.buyUnit, item.productUnit, bq);
         if (newPieces > item.quantity) {
           toast({ title: "Omborda yetarli emas", variant: "destructive" });
           return prev;
@@ -897,6 +911,11 @@ function SellTab() {
           c.productId === item.productId ? { ...c, quantity: newQty, stockPieces: newPieces } : c
         );
       }
+      const initPieces = toNativeQty(1, defaultUnit, item.productUnit, bq);
+      if (initPieces > item.quantity) {
+        toast({ title: "Omborda yetarli emas", variant: "destructive" });
+        return prev;
+      }
       return [...prev, {
         productId: item.productId,
         name: item.productName,
@@ -904,43 +923,24 @@ function SellTab() {
         unit: item.productUnit,
         quantity: 1,
         maxQty: item.quantity,
-        buyUnit: item.productUnit,
-        boxQuantity: item.boxQuantity || 1,
-        stockPieces: 1,
+        buyUnit: defaultUnit,
+        boxQuantity: bq,
+        stockPieces: initPieces,
       }];
     });
   };
 
-  const calcPieces = (qty: number, buyUnit: string, productUnit: string, boxQty: number): number => {
-    if (buyUnit === "quti") return Math.round(qty * boxQty);
-    if (buyUnit === "kg" && productUnit === "gram") return Math.round(qty * 1000);
-    return Math.round(qty);
-  };
-
   const getUnitOptions = (item: SellCartItem): string[] => {
-    if (item.unit === "gram") return ["gram", "kg"];
-    if (item.unit === "dona") return item.boxQuantity > 1 ? ["dona", "quti"] : ["dona"];
-    if (item.unit === "quti") return ["quti", "dona"];
-    return [item.unit];
+    const fakeProduct = { unit: item.unit, boxQuantity: item.boxQuantity } as any;
+    return getSellUnitOptions(fakeProduct);
   };
 
   const changeCartUnit = (productId: string, newUnit: string) => {
     setCart((prev) =>
       prev.map((c) => {
         if (c.productId !== productId) return c;
-        let newQty = c.quantity;
-        // quti ↔ dona
-        if (newUnit === "quti" && c.buyUnit !== "quti") {
-          newQty = Math.max(1, Math.floor(c.stockPieces / c.boxQuantity));
-        } else if (c.buyUnit === "quti" && newUnit !== "quti") {
-          newQty = c.stockPieces;
-        // gram ↔ kg
-        } else if (c.unit === "gram" && newUnit === "kg") {
-          newQty = parseFloat((c.stockPieces / 1000).toFixed(3));
-        } else if (c.unit === "gram" && newUnit === "gram") {
-          newQty = c.stockPieces;
-        }
-        const newPieces = calcPieces(newQty, newUnit, c.unit, c.boxQuantity);
+        const newQty = stockToDisplayQty(c.stockPieces, newUnit, c.unit, c.boxQuantity);
+        const newPieces = toNativeQty(newQty, newUnit, c.unit, c.boxQuantity);
         if (newPieces > c.maxQty) return c;
         return { ...c, buyUnit: newUnit, quantity: newQty, stockPieces: newPieces };
       })
@@ -951,9 +951,9 @@ function SellTab() {
     setCart((prev) =>
       prev.map((c) => {
         if (c.productId === productId) {
-          const newQty = c.quantity + delta;
+          const newQty = parseFloat((c.quantity + delta).toFixed(6));
           if (newQty <= 0) return c;
-          const newPieces = calcPieces(newQty, c.buyUnit, c.unit, c.boxQuantity);
+          const newPieces = toNativeQty(newQty, c.buyUnit, c.unit, c.boxQuantity);
           if (newPieces > c.maxQty) {
             toast({ title: "Omborda yetarli emas", variant: "destructive" });
             return { ...c, failKey: (c.failKey || 0) + 1 };
@@ -969,11 +969,11 @@ function SellTab() {
     setCart((prev) =>
       prev.map((c) => {
         if (c.productId !== productId) return c;
-        const isKgGram = c.unit === "gram" && c.buyUnit === "kg";
-        const newQty = isKgGram
+        const isDecimalUnit = c.buyUnit === "kg";
+        const newQty = isDecimalUnit
           ? Math.max(0.001, parseFloat(parseFloat(val).toFixed(3)) || 0.001)
           : Math.max(1, Math.round(Number(val)) || 1);
-        const newPieces = calcPieces(newQty, c.buyUnit, c.unit, c.boxQuantity);
+        const newPieces = toNativeQty(newQty, c.buyUnit, c.unit, c.boxQuantity);
         if (newPieces > c.maxQty) {
           toast({ title: "Omborda yetarli emas", variant: "destructive" });
           return { ...c, failKey: (c.failKey || 0) + 1 };
@@ -1317,25 +1317,23 @@ function SellTab() {
                           <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                             <span className="text-[10px] text-muted-foreground">Narx:</span>
                             {(() => {
-                              const isKgGram = item.unit === "gram" && item.buyUnit === "kg";
-                              const basePricePerGram = item.customPrice ?? item.price;
-                              const displayPrice = isKgGram ? basePricePerGram * 1000 : basePricePerGram;
-                              const displayUnit = isKgGram ? "kg" : item.unit;
+                              const nativePrice = item.customPrice ?? item.price;
+                              const dispPrice = toDisplayPrice(nativePrice, item.buyUnit, item.unit, item.boxQuantity);
                               return (<>
                                 <input
                                   type="number"
                                   min="0"
-                                  step={isKgGram ? "1000" : "100"}
-                                  value={displayPrice}
+                                  step="100"
+                                  value={dispPrice}
                                   onChange={(e) => {
                                     const raw = Number(e.target.value);
-                                    const perGram = isKgGram ? raw / 1000 : raw;
-                                    updateCartPrice(item.productId, String(perGram));
+                                    const native = toNativePrice(raw, item.buyUnit, item.unit, item.boxQuantity);
+                                    updateCartPrice(item.productId, String(native));
                                   }}
                                   className="w-24 h-5 text-xs border rounded px-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                                   data-testid={`input-sell-price-${item.productId}`}
                                 />
-                                <span className="text-[10px] text-muted-foreground">/{displayUnit}</span>
+                                <span className="text-[10px] text-muted-foreground">/{item.buyUnit}</span>
                                 {item.customPrice !== undefined && item.customPrice !== item.price && (
                                   <button type="button" onClick={() => updateCartPrice(item.productId, "")} className="text-[10px] text-orange-500 hover:text-orange-700" title="Asl narxga qaytarish">↺</button>
                                 )}
@@ -1345,14 +1343,9 @@ function SellTab() {
                               = {formatCurrency((item.customPrice ?? item.price) * item.stockPieces)}
                             </span>
                           </div>
-                          {item.buyUnit === "quti" && item.boxQuantity > 1 && (
-                            <p className="text-[10px] text-blue-600">
-                              {item.quantity} quti × {item.boxQuantity} = {item.stockPieces} {item.unit}
-                            </p>
-                          )}
-                          {item.unit === "gram" && item.buyUnit === "kg" && (
-                            <p className="text-[10px] text-emerald-600">
-                              {item.quantity} kg = {item.stockPieces} gram
+                          {item.buyUnit !== item.unit && (
+                            <p className={`text-[10px] ${item.buyUnit === "kg" ? "text-emerald-600" : "text-blue-600"}`}>
+                              {item.buyUnit === "kg" ? `${item.quantity} kg (${item.stockPieces} gram)` : `${item.quantity} quti (${item.stockPieces} ${item.unit})`}
                             </p>
                           )}
                         </div>
@@ -1369,33 +1362,33 @@ function SellTab() {
                               </SelectContent>
                             </Select>
                           )}
-                          <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => {
-                              const isKgGram = item.unit === "gram" && item.buyUnit === "kg";
-                              updateQty(item.productId, isKgGram ? -0.1 : -1);
-                            }}>
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <input
-                            key={`${item.quantity}-${item.failKey || 0}`}
-                            type="number"
-                            min={item.unit === "gram" && item.buyUnit === "kg" ? 0.001 : 1}
-                            step={item.unit === "gram" && item.buyUnit === "kg" ? 0.001 : 1}
-                            defaultValue={item.quantity}
-                            onFocus={(e) => e.target.select()}
-                            onBlur={(e) => updateQtyDirect(item.productId, e.target.value)}
-                            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                            className="w-12 h-7 text-center text-sm font-medium border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                            data-testid={`input-sell-qty-${item.productId}`}
-                          />
-                          {item.buyUnit !== "dona" && item.buyUnit !== "quti" && (
-                            <span className="text-[10px] text-muted-foreground">{item.buyUnit}</span>
-                          )}
-                          <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => {
-                              const isKgGram = item.unit === "gram" && item.buyUnit === "kg";
-                              updateQty(item.productId, isKgGram ? 0.1 : 1);
-                            }}>
-                            <Plus className="h-3 w-3" />
-                          </Button>
+                          {(() => {
+                            const isDecimalUnit = item.buyUnit === "kg";
+                            const delta = isDecimalUnit ? 0.1 : 1;
+                            const minV = isDecimalUnit ? 0.001 : 1;
+                            const stepV = isDecimalUnit ? 0.001 : 1;
+                            return (<>
+                              <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateQty(item.productId, -delta)}>
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <input
+                                key={`${item.quantity}-${item.failKey || 0}`}
+                                type="number"
+                                min={minV}
+                                step={stepV}
+                                defaultValue={item.quantity}
+                                onFocus={(e) => e.target.select()}
+                                onBlur={(e) => updateQtyDirect(item.productId, e.target.value)}
+                                onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                                className="w-12 h-7 text-center text-sm font-medium border rounded bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                                data-testid={`input-sell-qty-${item.productId}`}
+                              />
+                              <span className="text-[10px] text-muted-foreground w-8">{item.buyUnit}</span>
+                              <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateQty(item.productId, delta)}>
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </>);
+                          })()}
                           <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => removeFromCart(item.productId)}>
                             <Trash2 className="h-3 w-3" />
                           </Button>

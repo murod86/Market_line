@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Product, Supplier, Purchase, Category } from "@shared/schema";
 import { Plus, Trash2, Package, Eye, Search, ChevronDown, ChevronRight, Layers } from "lucide-react";
+import { getBuyUnitOptions as libGetBuyUnitOptions, toNativeQty } from "@/lib/units";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -97,21 +98,9 @@ export default function Purchases() {
     (productSearch === "" || p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.sku?.toLowerCase().includes(productSearch.toLowerCase()))
   );
 
-  // Returns smart buy unit options based on product's native unit
-  const getBuyUnitOptions = (product: Product) => {
-    if (product.unit === "gram") return ["gram", "kg"];
-    if (product.unit === "dona" && (product.boxQuantity || 1) > 1) return ["dona", "quti"];
-    if (product.unit === "quti") return ["quti", "dona"];
-    return [product.unit]; // litr, kg, metr etc — only native unit
-  };
-
-  // Calc stockPieces (in product's native unit) from buy quantity + buy unit
-  const calcStockPieces = (qty: number, buyUnit: string, productUnit: string, boxQty: number) => {
-    if (buyUnit === "quti") return qty * boxQty;
-    if (buyUnit === "kg" && productUnit === "gram") return Math.round(qty * 1000);
-    if (buyUnit === "dona" && productUnit === "quti") return Math.round(qty / boxQty);
-    return qty;
-  };
+  const getBuyUnitOptions = (product: Product) => libGetBuyUnitOptions(product);
+  const calcStockPieces = (qty: number, buyUnit: string, productUnit: string, boxQty: number) =>
+    toNativeQty(qty, buyUnit, productUnit, boxQty);
 
   const selectProduct = (product: Product) => {
     setSelectedProductId(product.id);

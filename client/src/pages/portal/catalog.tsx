@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Product, Category } from "@shared/schema";
 import { Search, Package, ShoppingCart, Plus, Minus } from "lucide-react";
+import { getSellUnitOptions, stockToDisplayQty, productPriceLabel } from "@/lib/units";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -136,8 +137,12 @@ export default function PortalCatalog({ cart, onAddToCart, onUpdateQuantity, onC
                   <h3 className="font-semibold text-xs leading-tight line-clamp-2 min-h-[2rem]">{product.name}</h3>
 
                   <div className="flex items-baseline justify-between gap-1">
-                    <span className="font-bold text-sm text-primary">{formatCurrency(Number(product.price))}</span>
-                    <span className="text-[10px] text-muted-foreground">{product.stock} {product.unit}</span>
+                    <span className="font-bold text-sm text-primary">{productPriceLabel(Number(product.price), product.unit)}</span>
+                    <span className="text-[10px] text-muted-foreground">{(() => {
+                      const defUnit = getSellUnitOptions(product)[0];
+                      const dispQty = stockToDisplayQty(product.stock, defUnit, product.unit, product.boxQuantity || 1);
+                      return `${dispQty} ${defUnit}`;
+                    })()}</span>
                   </div>
 
                   {product.stock > 0 && (
