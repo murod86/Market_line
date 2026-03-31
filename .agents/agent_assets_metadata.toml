@@ -90,3 +90,21 @@ id = "EcvvKmy1K_dXh4G2nztZS"
 uri = "file://attached_assets/logo_blue_3.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "Kfj4MiMcVWp_dNYmS1o2l"
+uri = "file://attached_assets/logo_glass_1.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "GMyJkYKifleVdqPfE3mff"
+uri = "file://attached_assets/logo_glass_2.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "nCNgXX-U_8tetkqGl4N0a"
+uri = "file://attached_assets/logo_glass_3.png"
+type = "image"
+title = "generated_image"
