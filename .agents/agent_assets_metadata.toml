@@ -1,0 +1,20 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "On4l_X6rsrsLO2qTsRfW5"
+uri = "file://attached_assets/logo_v1.png"
+type = "image"
+title = "market line logo v1"
+
+[[generated]]
+id = "x3nbnJ8LLZaNARPfPvRav"
+uri = "file://attached_assets/logo_v2.png"
+type = "image"
+title = "market line logo v2"
+
+[[generated]]
+id = "syKxcogYGsdv2XgD4XiVr"
+uri = "file://attached_assets/logo_v3.png"
+type = "image"
+title = "market line logo v3"
