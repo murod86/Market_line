@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Phone, Lock, ArrowLeft, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import logoImg from "@assets/logo_chosen_b.png";
+import logoImg from "@assets/logo_chosen_b_transparent.png";
 
 export default function OwnerLogin() {
   const [, setLocation] = useLocation();

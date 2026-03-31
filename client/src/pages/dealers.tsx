@@ -24,7 +24,7 @@ import {
 import { format } from "date-fns";
 import { useRef, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import logoImg from "@assets/logo_chosen_b.png";
+import logoImg from "@assets/logo_chosen_b_transparent.png";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
