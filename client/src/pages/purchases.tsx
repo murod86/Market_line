@@ -583,7 +583,7 @@ export default function Purchases() {
                       <div className="flex-1">
                         <p className="text-sm font-medium">{item.productName}</p>
                         <p className="text-xs text-muted-foreground">
-                          {item.quantity} × {formatCurrency(Number(item.costPrice))}
+                          {item.quantity} {item.productUnit || "dona"} × {formatCurrency(Number(item.costPrice))}/{item.productUnit || "dona"}
                         </p>
                       </div>
                       <p className="text-sm font-bold">{formatCurrency(Number(item.total))}</p>

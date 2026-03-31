@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Product, Category } from "@shared/schema";
 import { Search, Package, AlertTriangle } from "lucide-react";
-import { stockBadge } from "@/lib/units";
+import { stockBadge, productPriceLabel } from "@/lib/units";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -55,7 +55,7 @@ export default function Warehouse() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Jami stok</p>
-                <p className="text-xl font-bold" data-testid="text-total-stock">{totalStock} dona</p>
+                <p className="text-xl font-bold" data-testid="text-total-stock">{products?.length ?? 0} ta tur</p>
               </div>
             </div>
           </CardContent>
@@ -147,7 +147,7 @@ export default function Warehouse() {
                           <Badge variant="destructive" className="text-xs shrink-0">Kam</Badge>
                         )}
                       </div>
-                      <p className="text-xs font-semibold text-primary">{formatCurrency(Number(product.price))}</p>
+                      <p className="text-xs font-semibold text-primary">{productPriceLabel(Number(product.price), product.unit)}</p>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -156,7 +156,7 @@ export default function Warehouse() {
                     )}
                     <div className="flex items-center justify-between gap-1 pt-1">
                       <span className="font-bold text-sm text-primary">
-                        {formatCurrency(Number(product.price))}
+                        {productPriceLabel(Number(product.price), product.unit)}
                       </span>
                       <span className={`text-sm font-medium ${isLow ? "text-destructive" : "text-muted-foreground"}`}>
                         {stockBadge(product.stock, product.unit, product.boxQuantity || 1)}

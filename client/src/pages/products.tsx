@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Product, Category } from "@shared/schema";
 import { Plus, Search, Package, Edit, X, Image as ImageIcon, Link, Trash2 } from "lucide-react";
-import { qtyInputStep, isDecimalUnit, stockBadge } from "@/lib/units";
+import { qtyInputStep, isDecimalUnit, stockBadge, productPriceLabel } from "@/lib/units";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 function formatCurrency(amount: number) {
@@ -207,8 +207,8 @@ export default function Products() {
                       <TableCell>
                         {category ? <Badge variant="secondary">{category.name}</Badge> : "-"}
                       </TableCell>
-                      <TableCell>{formatCurrency(Number(product.price))}</TableCell>
-                      <TableCell className="text-muted-foreground">{formatCurrency(Number(product.costPrice))}</TableCell>
+                      <TableCell>{productPriceLabel(Number(product.price), product.unit)}</TableCell>
+                      <TableCell className="text-muted-foreground">{productPriceLabel(Number(product.costPrice), product.unit)}</TableCell>
                       <TableCell>
                         <span className={isLow ? "text-destructive font-medium" : ""}>
                           {stockBadge(product.stock, product.unit, product.boxQuantity || 1)}

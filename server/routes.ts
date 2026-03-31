@@ -1668,7 +1668,7 @@ export async function registerRoutes(
     const allProducts = await storage.getProducts(req.session.tenantId!);
     const enrichedItems = items.map((item) => {
       const product = allProducts.find((p) => p.id === item.productId);
-      return { ...item, productName: product?.name, productImage: product?.imageUrl };
+      return { ...item, productName: product?.name, productImage: product?.imageUrl, productUnit: product?.unit || "dona" };
     });
     res.json({ ...purchase, items: enrichedItems });
   });
@@ -1685,7 +1685,7 @@ export async function registerRoutes(
         if (!item.productId || typeof item.productId !== "string") {
           return res.status(400).json({ message: "Mahsulot ID noto'g'ri" });
         }
-        if (!item.quantity || Number(item.quantity) < 1) {
+        if (!item.quantity || Number(item.quantity) <= 0) {
           return res.status(400).json({ message: "Miqdor musbat son bo'lishi kerak" });
         }
         if (!item.costPrice || Number(item.costPrice) <= 0) {
