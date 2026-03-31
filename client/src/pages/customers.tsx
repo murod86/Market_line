@@ -252,7 +252,7 @@ export default function Customers() {
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 20px Arial";
       ctx.textAlign = "left";
-      ctx.fillText("MARKET_LINE", (w - logoW - 130) / 2 + logoW + 10, 42);
+      ctx.fillText(tenant?.name || "MARKET_LINE", (w - logoW - 130) / 2 + logoW + 10, 42);
       ctx.textAlign = "center";
 
       drawQrPart();
@@ -263,7 +263,7 @@ export default function Customers() {
       ctx.fillStyle = "#ffffff";
       ctx.font = "bold 22px Arial";
       ctx.textAlign = "center";
-      ctx.fillText("MARKET_LINE", w / 2, 40);
+      ctx.fillText(tenant?.name || "MARKET_LINE", w / 2, 40);
 
       drawQrPart();
     };

@@ -38,32 +38,31 @@ export default function Settings() {
   }, [settings]);
 
   const saveMutation = useMutation({
-    mutationFn: async ({ key, value }: { key: string; value: string }) => {
-      const res = await apiRequest("POST", "/api/settings", { key, value });
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/settings/batch", {
+        settings: [
+          { key: "company_name", value: companyName },
+          { key: "company_phone", value: companyPhone },
+          { key: "company_address", value: companyAddress },
+          { key: "receipt_footer", value: receiptFooter },
+          { key: "currency", value: currency },
+          { key: "telegram_bot_token", value: telegramToken },
+          { key: "telegram_chat_id", value: telegramChatId },
+          { key: "telegram_image_channel", value: telegramImageChannel },
+        ],
+      });
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+      toast({ title: "Sozlamalar saqlandi" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Xatolik", description: error.message, variant: "destructive" });
     },
   });
 
-  const handleSave = async () => {
-    try {
-      await Promise.all([
-        saveMutation.mutateAsync({ key: "company_name", value: companyName }),
-        saveMutation.mutateAsync({ key: "company_phone", value: companyPhone }),
-        saveMutation.mutateAsync({ key: "company_address", value: companyAddress }),
-        saveMutation.mutateAsync({ key: "receipt_footer", value: receiptFooter }),
-        saveMutation.mutateAsync({ key: "currency", value: currency }),
-        saveMutation.mutateAsync({ key: "telegram_bot_token", value: telegramToken }),
-        saveMutation.mutateAsync({ key: "telegram_chat_id", value: telegramChatId }),
-        saveMutation.mutateAsync({ key: "telegram_image_channel", value: telegramImageChannel }),
-      ]);
-      toast({ title: "Sozlamalar saqlandi" });
-    } catch (error: any) {
-      toast({ title: "Xatolik", description: error.message, variant: "destructive" });
-    }
-  };
+  const handleSave = () => saveMutation.mutate();
 
   if (isLoading) {
     return (

@@ -7,12 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ALL_PERMISSIONS, type Role, type Permission } from "@shared/schema";
-import { Plus, Shield, Edit, Trash2 } from "lucide-react";
+import { Plus, Shield, Edit, Trash2, CheckSquare, Square } from "lucide-react";
 
 const permissionGroups: Record<string, { label: string; permissions: Permission[] }> = {
   pos: {
@@ -80,6 +81,7 @@ export default function Roles() {
   const [editing, setEditing] = useState<Role | null>(null);
   const [name, setName] = useState("");
   const [selectedPerms, setSelectedPerms] = useState<string[]>([]);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { data: roles, isLoading } = useQuery<Role[]>({ queryKey: ["/api/roles"] });
@@ -129,6 +131,23 @@ export default function Roles() {
     );
   };
 
+  const toggleGroupPerms = (groupKey: string) => {
+    const groupPerms = permissionGroups[groupKey].permissions as string[];
+    const allSelected = groupPerms.every((p) => selectedPerms.includes(p));
+    if (allSelected) {
+      setSelectedPerms((prev) => prev.filter((p) => !groupPerms.includes(p)));
+    } else {
+      setSelectedPerms((prev) => Array.from(new Set([...prev, ...groupPerms])));
+    }
+  };
+
+  const selectAllPerms = () => {
+    const allPerms = Object.values(permissionGroups).flatMap((g) => g.permissions as string[]);
+    setSelectedPerms(allPerms);
+  };
+
+  const clearAllPerms = () => setSelectedPerms([]);
+
   const handleSubmit = () => {
     if (!name) {
       toast({ title: "Rol nomi majburiy", variant: "destructive" });
@@ -174,7 +193,7 @@ export default function Roles() {
                       <Button size="icon" variant="ghost" onClick={() => openEdit(role)} data-testid={`button-edit-role-${role.id}`}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="text-destructive" onClick={() => deleteMutation.mutate(role.id)} data-testid={`button-delete-role-${role.id}`}>
+                      <Button size="icon" variant="ghost" className="text-destructive" onClick={() => setDeleteId(role.id)} data-testid={`button-delete-role-${role.id}`}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -182,11 +201,11 @@ export default function Roles() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-1">
-                    {perms.slice(0, 5).map((p) => (
-                      <Badge key={p} variant="secondary" className="text-xs">{p}</Badge>
+                    {perms.slice(0, 6).map((p) => (
+                      <Badge key={p} variant="secondary" className="text-xs">{permissionLabels[p] || p}</Badge>
                     ))}
-                    {perms.length > 5 && (
-                      <Badge variant="secondary" className="text-xs">+{perms.length - 5}</Badge>
+                    {perms.length > 6 && (
+                      <Badge variant="outline" className="text-xs">+{perms.length - 6} ta</Badge>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">{perms.length} ta ruxsat</p>
@@ -208,29 +227,52 @@ export default function Roles() {
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Masalan: Kassir" data-testid="input-role-name" />
             </div>
             <div>
-              <label className="text-sm font-medium mb-2 block">Ruxsatlar</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium">Ruxsatlar</label>
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={selectAllPerms} className="h-7 text-xs" data-testid="button-select-all-perms">
+                    <CheckSquare className="h-3 w-3 mr-1" />
+                    Barchasini tanlash
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={clearAllPerms} className="h-7 text-xs" data-testid="button-clear-all-perms">
+                    <Square className="h-3 w-3 mr-1" />
+                    Tozalash
+                  </Button>
+                </div>
+              </div>
               <ScrollArea className="h-64 rounded-md border p-3">
-                {Object.entries(permissionGroups).map(([key, group]) => (
-                  <div key={key} className="mb-4">
-                    <h4 className="text-sm font-semibold mb-2 text-muted-foreground">{group.label}</h4>
-                    <div className="space-y-2 ml-2">
-                      {group.permissions.map((perm) => (
-                        <div key={perm} className="flex items-center gap-2">
-                          <Checkbox
-                            id={perm}
-                            checked={selectedPerms.includes(perm)}
-                            onCheckedChange={() => togglePerm(perm)}
-                            data-testid={`checkbox-perm-${perm}`}
-                          />
-                          <label htmlFor={perm} className="text-sm cursor-pointer">
-                            {permissionLabels[perm] || perm}
-                          </label>
-                        </div>
-                      ))}
+                {Object.entries(permissionGroups).map(([key, group]) => {
+                  const allGroupSelected = group.permissions.every((p) => selectedPerms.includes(p));
+                  const someGroupSelected = group.permissions.some((p) => selectedPerms.includes(p));
+                  return (
+                    <div key={key} className="mb-4">
+                      <div className="flex items-center gap-2 mb-2 cursor-pointer" onClick={() => toggleGroupPerms(key)} data-testid={`button-group-${key}`}>
+                        <Checkbox
+                          checked={allGroupSelected}
+                          onCheckedChange={() => toggleGroupPerms(key)}
+                          className={someGroupSelected && !allGroupSelected ? "opacity-60" : ""}
+                        />
+                        <h4 className="text-sm font-semibold text-foreground select-none">{group.label}</h4>
+                      </div>
+                      <div className="space-y-2 ml-6">
+                        {group.permissions.map((perm) => (
+                          <div key={perm} className="flex items-center gap-2">
+                            <Checkbox
+                              id={perm}
+                              checked={selectedPerms.includes(perm)}
+                              onCheckedChange={() => togglePerm(perm)}
+                              data-testid={`checkbox-perm-${perm}`}
+                            />
+                            <label htmlFor={perm} className="text-sm cursor-pointer">
+                              {permissionLabels[perm] || perm}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                      <Separator className="mt-3" />
                     </div>
-                    <Separator className="mt-3" />
-                  </div>
-                ))}
+                  );
+                })}
               </ScrollArea>
             </div>
           </div>
@@ -242,6 +284,27 @@ export default function Roles() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rolni o'chirish</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bu amalni bekor qilib bo'lmaydi. Bu rolga biriktirilgan hodimlar rolsiz qoladi.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-role">Bekor qilish</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteId && deleteMutation.mutate(deleteId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-role"
+            >
+              O'chirish
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

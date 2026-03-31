@@ -10,7 +10,6 @@ import {
   DollarSign,
   CreditCard,
   BarChart3,
-  TrendingDown,
   Wallet,
   PiggyBank,
 } from "lucide-react";
@@ -93,7 +92,7 @@ export default function Dashboard() {
       title: "Bugungi daromad",
       value: formatCurrency(stats?.todayRevenue || 0),
       subtitle: `${stats?.todaySales || 0} ta savdo`,
-      icon: TrendingDown,
+      icon: TrendingUp,
       color: "text-green-600 dark:text-green-400",
       bgColor: "bg-green-500/10",
     },

@@ -81,7 +81,6 @@ export default function Employees() {
       active: form.active,
     };
     if (form.password) data.password = form.password;
-    else if (editing) data.password = editing.password;
     mutation.mutate(data);
   };
 

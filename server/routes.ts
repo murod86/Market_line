@@ -874,6 +874,17 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Items are required" });
       }
 
+      // Pre-validate stock availability before opening transaction
+      for (const item of items) {
+        const product = await storage.getProduct(item.productId);
+        if (!product) {
+          return res.status(400).json({ message: `Mahsulot topilmadi` });
+        }
+        if (product.stock < item.quantity) {
+          return res.status(400).json({ message: `"${product.name}": omborda yetarli emas (${product.stock} ${product.unit} qolgan)` });
+        }
+      }
+
       const result = await db.transaction(async (tx) => {
         let totalAmount = 0;
         for (const item of items) {
@@ -915,7 +926,7 @@ export async function registerRoutes(
 
           if (product) {
             await tx.update(products).set({
-              stock: product.stock - item.quantity,
+              stock: Math.max(0, product.stock - item.quantity),
             }).where(eq(products.id, item.productId));
           }
         }
@@ -1028,7 +1039,7 @@ export async function registerRoutes(
           price: product.price,
           total: total.toFixed(2),
         });
-        await storage.updateProduct(product.id, { stock: product.stock - item.quantity });
+        await storage.updateProduct(product.id, { stock: Math.max(0, product.stock - item.quantity) });
       }
       res.json(delivery);
     } catch (error: any) {
@@ -1189,7 +1200,7 @@ export async function registerRoutes(
       for (const item of items) {
         const product = await storage.getProduct(item.productId);
         if (!product) continue;
-        await storage.updateProduct(item.productId, { stock: product.stock - item.quantity });
+        await storage.updateProduct(item.productId, { stock: Math.max(0, product.stock - item.quantity) });
         const existing = await storage.getDealerInventoryItem((req.params['id'] as string), item.productId);
         const newQty = (existing?.quantity || 0) + item.quantity;
         await storage.upsertDealerInventory((req.params['id'] as string), item.productId, newQty, tenantId);
@@ -1755,6 +1766,23 @@ export async function registerRoutes(
     }
     const setting = await storage.upsertSetting(key, value, req.session.tenantId!);
     res.json(setting);
+  });
+
+  app.post("/api/settings/batch", requireTenant, async (req, res) => {
+    try {
+      const { settings: batchSettings } = req.body;
+      if (!Array.isArray(batchSettings)) {
+        return res.status(400).json({ message: "settings array required" });
+      }
+      const results = await Promise.all(
+        batchSettings.map(({ key, value }: { key: string; value: string }) =>
+          storage.upsertSetting(key, value, req.session.tenantId!)
+        )
+      );
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
   });
 
   app.get("/api/tenants/public", async (_req, res) => {
@@ -3065,7 +3093,7 @@ export async function registerRoutes(
             total: (item.quantity * Number(product!.price)).toFixed(2),
           });
           await tx.update(products).set({
-            stock: product!.stock - item.quantity,
+            stock: Math.max(0, product!.stock - item.quantity),
           }).where(eq(products.id, item.productId));
         }
 
