@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import * as XLSX from "xlsx";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -69,6 +69,15 @@ export default function Dealers() {
   const [historyFilter, setHistoryFilter] = useState<"all" | "load" | "sell" | "return">("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [expandedAdminGroups, setExpandedAdminGroups] = useState<Set<string>>(new Set());
+
+  const toggleAdminGroup = (key: string) => {
+    setExpandedAdminGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   const [editPayment, setEditPayment] = useState<any | null>(null);
   const [editPayAmount, setEditPayAmount] = useState("");
@@ -261,6 +270,52 @@ export default function Dealers() {
     </body></html>`;
     const w = window.open("", "_blank", "width=320,height=600");
     if (w) { w.document.write(html); w.document.close(); }
+  };
+
+  const printGroupTxReceiptForDealer = (items: any[], dealerName: string) => {
+    if (!items.length) return;
+    const first = items[0];
+    const dateStr = format(new Date(), "dd.MM.yyyy HH:mm");
+    const totalAmt = items.reduce((s, tx) => s + (Number(tx.total) || Number(tx.price) * tx.quantity), 0);
+    const paidAmt = items.reduce((s, tx) => s + Number(tx.paidAmount || 0), 0);
+    const pt = first.paymentType;
+    const debtAmt = pt === "debt" ? totalAmt : pt === "partial" ? Math.max(0, totalAmt - paidAmt) : 0;
+    const itemsHtml = items.map((tx) => {
+      const itemTotal = Number(tx.total) || Number(tx.price) * tx.quantity;
+      return `<div style="font-weight:900;font-size:1.02em;padding:3px 0 1px 0;border-top:1px solid #ccc">${tx.productName}</div>
+        <div style="display:flex;justify-content:space-between"><span>${tx.quantity} ${tx.productUnit || "dona"} x ${Number(tx.price).toLocaleString()}</span><span>${itemTotal.toLocaleString()} UZS</span></div>`;
+    }).join("");
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+      <style>
+        @page { size: 58mm auto; margin: 0; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html, body { width:54mm; font-family:'Courier New',monospace; font-size:11px; font-weight:700; line-height:1.5; padding:1mm 2mm; color:#000; -webkit-print-color-adjust:exact; }
+        .center { text-align:center; }
+        .bold { font-weight:900; }
+        .divider { border-top:2px solid #000; margin:5px 0; }
+        .row { display:flex; justify-content:space-between; }
+        div,span,b { color:#000; }
+        b { font-weight:900; }
+      </style></head><body>
+      <div class="center bold" style="font-size:1.4em;margin-bottom:2px;letter-spacing:1px">MARKET_LINE</div>
+      <div class="center bold" style="font-size:1em;margin-bottom:5px">Sotuv cheki (nusxa)</div>
+      <div class="divider"></div>
+      <div><b>Diller:</b> ${dealerName}</div>
+      ${first.customerName ? `<div><b>Mijoz:</b> ${first.customerName}</div>` : ""}
+      <div style="margin-bottom:4px"><b>Sana:</b> ${dateStr}</div>
+      <div class="divider"></div>
+      ${itemsHtml}
+      <div class="divider"></div>
+      <div class="row bold" style="font-size:1.3em;border-top:2px solid #000;padding-top:3px"><span>JAMI:</span><span>${totalAmt.toLocaleString()} UZS</span></div>
+      ${pt === "cash" ? `<div style="margin-top:4px"><b>To'lov:</b> Naqd</div>` : ""}
+      ${pt === "debt" ? `<div style="margin-top:4px"><b>Qarz:</b> ${totalAmt.toLocaleString()} UZS</div>` : ""}
+      ${pt === "partial" ? `<div style="margin-top:4px"><b>To'langan:</b> ${paidAmt.toLocaleString()} UZS</div><div><b>Qarz:</b> ${debtAmt.toLocaleString()} UZS</div>` : ""}
+      <div class="divider"></div>
+      <div class="center" style="margin-top:5px;font-size:9px">MARKET_LINE &bull; ${dateStr}</div>
+      <script>window.onload=function(){setTimeout(function(){window.print();window.onafterprint=function(){window.close()};setTimeout(function(){window.close()},8000)},300)}<\/script>
+    </body></html>`;
+    const w2 = window.open("", "_blank", "width=320,height=600");
+    if (w2) { w2.document.write(html); w2.document.close(); }
   };
 
   const loadMutation = useMutation({
@@ -924,12 +979,36 @@ export default function Dealers() {
                   <p>{dateFrom || dateTo ? "Tanlangan sanada ma'lumot yo'q" : "Bu turda transaksiya mavjud emas"}</p>
                 </div>
               );
+              // Build display rows: sell txs grouped, load/return individual
+              type DisplayRow =
+                | { kind: "single"; tx: any }
+                | { kind: "group"; items: any[]; key: string; date: string };
+              const displayRows: DisplayRow[] = [];
+              const sellGroups = new Map<string, any[]>();
+              for (const tx of filtered) {
+                if (tx.type === "sell") {
+                  const key = tx.saleGroupId || tx.id;
+                  if (!sellGroups.has(key)) sellGroups.set(key, []);
+                  sellGroups.get(key)!.push(tx);
+                } else {
+                  displayRows.push({ kind: "single", tx });
+                }
+              }
+              Array.from(sellGroups.entries()).forEach(([key, items]) => {
+                displayRows.push({ kind: "group", items, key, date: items[0].createdAt });
+              });
+              displayRows.sort((a, b) => {
+                const dA = a.kind === "single" ? a.tx.createdAt : a.date;
+                const dB = b.kind === "single" ? b.tx.createdAt : b.date;
+                return new Date(dB || 0).getTime() - new Date(dA || 0).getTime();
+              });
               return (
               <Card>
                 <CardContent className="p-0">
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-7"></TableHead>
                         <TableHead>Sana</TableHead>
                         <TableHead>Turi</TableHead>
                         <TableHead>Mahsulot</TableHead>
@@ -940,61 +1019,125 @@ export default function Dealers() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filtered.map((tx: any) => (
-                        <TableRow key={tx.id} data-testid={`transaction-${tx.id}`}>
-                          <TableCell className="text-xs">{format(new Date(tx.createdAt), "dd.MM.yyyy HH:mm")}</TableCell>
-                          <TableCell>
-                            <Badge variant={tx.type === "load" ? "default" : tx.type === "sell" ? "secondary" : "outline"}>
-                              {txTypeLabels[tx.type]?.label || tx.type}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="font-medium">{tx.productName}</TableCell>
-                          <TableCell>{tx.quantity} {tx.productUnit}</TableCell>
-                          <TableCell>{formatCurrency(Number(tx.total))}</TableCell>
-                          <TableCell className="text-sm">{tx.customerName || "-"}</TableCell>
-                          <TableCell>
-                            {(tx.type === "load" || tx.type === "sell") && (
-                              <div className="flex gap-1">
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-7 w-7 text-purple-500 hover:text-purple-600 hover:bg-purple-50"
-                                  onClick={() => printSingleTxReceipt(tx, detailDealer?.name || "Diller")}
-                                  data-testid={`button-reprint-tx-${tx.id}`}
-                                  title="Chekni qayta chiqarish"
-                                >
-                                  <Printer className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-7 w-7"
-                                  onClick={() => {
-                                    setEditTx(tx);
-                                    setEditTxQty(String(tx.quantity));
-                                    setEditTxNotes(tx.notes || "");
-                                    setEditTxCustomerName(tx.customerName || "");
-                                    setEditTxPaymentType(tx.paymentType || "debt");
-                                    setEditTxPaidAmount(tx.paidAmount ? String(Math.round(Number(tx.paidAmount))) : "");
-                                  }}
-                                  data-testid={`button-edit-tx-${tx.id}`}
-                                >
-                                  <Edit className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-7 w-7 text-destructive"
-                                  onClick={() => setDeleteTx(tx)}
-                                  data-testid={`button-delete-tx-${tx.id}`}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {displayRows.map((row) => {
+                        if (row.kind === "single") {
+                          const tx = row.tx;
+                          return (
+                            <TableRow key={tx.id} data-testid={`transaction-${tx.id}`}>
+                              <TableCell></TableCell>
+                              <TableCell className="text-xs">{format(new Date(tx.createdAt), "dd.MM.yyyy HH:mm")}</TableCell>
+                              <TableCell>
+                                <Badge variant={tx.type === "load" ? "default" : "outline"}>
+                                  {txTypeLabels[tx.type]?.label || tx.type}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="font-medium">{tx.productName}</TableCell>
+                              <TableCell>{tx.quantity} {tx.productUnit}</TableCell>
+                              <TableCell>{formatCurrency(Number(tx.total))}</TableCell>
+                              <TableCell className="text-sm">{tx.customerName || "-"}</TableCell>
+                              <TableCell>
+                                {tx.type === "load" && (
+                                  <div className="flex gap-1">
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-purple-500 hover:text-purple-600 hover:bg-purple-50"
+                                      onClick={() => printSingleTxReceipt(tx, detailDealer?.name || "Diller")}
+                                      data-testid={`button-reprint-tx-${tx.id}`} title="Chekni qayta chiqarish">
+                                      <Printer className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7"
+                                      onClick={() => { setEditTx(tx); setEditTxQty(String(tx.quantity)); setEditTxNotes(tx.notes || ""); setEditTxCustomerName(tx.customerName || ""); setEditTxPaymentType(tx.paymentType || "debt"); setEditTxPaidAmount(tx.paidAmount ? String(Math.round(Number(tx.paidAmount))) : ""); }}
+                                      data-testid={`button-edit-tx-${tx.id}`}>
+                                      <Edit className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
+                                      onClick={() => setDeleteTx(tx)} data-testid={`button-delete-tx-${tx.id}`}>
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        }
+                        // Group row (sell transactions)
+                        const { items, key } = row;
+                        const first = items[0];
+                        const isExpanded = expandedAdminGroups.has(key);
+                        const groupTotal = items.reduce((s, tx) => s + (Number(tx.total) || Number(tx.price) * tx.quantity), 0);
+                        const pt = first.paymentType;
+                        const payBadge = pt === "debt"
+                          ? <Badge variant="outline" className="text-[10px] text-red-600 border-red-200 bg-red-50">Qarz</Badge>
+                          : pt === "partial"
+                          ? <Badge variant="outline" className="text-[10px] text-orange-600 border-orange-200 bg-orange-50">Qisman</Badge>
+                          : <Badge variant="outline" className="text-[10px] text-green-600 border-green-200 bg-green-50">Naqd</Badge>;
+                        return (
+                          <Fragment key={key}>
+                            <TableRow
+                              className="cursor-pointer hover:bg-muted/40"
+                              data-testid={`transaction-group-${key}`}
+                              onClick={() => toggleAdminGroup(key)}
+                            >
+                              <TableCell className="pl-3 pr-0">
+                                <span className="text-muted-foreground text-xs">{isExpanded ? "▼" : "▶"}</span>
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{format(new Date(first.createdAt), "dd.MM.yyyy HH:mm")}</TableCell>
+                              <TableCell>
+                                <Badge variant="secondary">{txTypeLabels["sell"]?.label || "Sotish"}</Badge>
+                              </TableCell>
+                              <TableCell className="font-medium text-sm">
+                                {items.length === 1 ? items[0].productName : `${items.length} ta mahsulot`}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {items.length === 1 ? `${items[0].quantity} ${items[0].productUnit}` : "—"}
+                              </TableCell>
+                              <TableCell className="font-semibold text-green-600">{formatCurrency(groupTotal)}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">{first.customerName || "-"}</TableCell>
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <div className="flex gap-1">
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-purple-500 hover:text-purple-600 hover:bg-purple-50"
+                                    onClick={() => items.length === 1 ? printSingleTxReceipt(items[0], detailDealer?.name || "Diller") : printGroupTxReceiptForDealer(items, detailDealer?.name || "Diller")}
+                                    data-testid={`button-reprint-group-${key}`} title="Chekni qayta chiqarish">
+                                    <Printer className="h-3.5 w-3.5" />
+                                  </Button>
+                                  {items.length === 1 && (
+                                    <Button size="icon" variant="ghost" className="h-7 w-7"
+                                      onClick={() => { setEditTx(items[0]); setEditTxQty(String(items[0].quantity)); setEditTxNotes(items[0].notes || ""); setEditTxCustomerName(items[0].customerName || ""); setEditTxPaymentType(items[0].paymentType || "debt"); setEditTxPaidAmount(items[0].paidAmount ? String(Math.round(Number(items[0].paidAmount))) : ""); }}
+                                      data-testid={`button-edit-group-${key}`}>
+                                      <Edit className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
+                                    onClick={() => setDeleteTx(items.length === 1 ? items[0] : { ...items[0], _groupIds: items.map((t: any) => t.id) })}
+                                    data-testid={`button-delete-group-${key}`}>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                            {isExpanded && items.map((tx: any) => (
+                              <TableRow key={tx.id} className="bg-muted/20" data-testid={`transaction-item-${tx.id}`}>
+                                <TableCell></TableCell>
+                                <TableCell></TableCell>
+                                <TableCell></TableCell>
+                                <TableCell className="text-sm pl-4">
+                                  <span className="text-muted-foreground mr-1">•</span>{tx.productName}
+                                </TableCell>
+                                <TableCell className="text-sm">{tx.quantity} {tx.productUnit}</TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                  {formatCurrency(Number(tx.total) || Number(tx.price) * tx.quantity)}
+                                </TableCell>
+                                <TableCell></TableCell>
+                                <TableCell>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7"
+                                    onClick={() => { setEditTx(tx); setEditTxQty(String(tx.quantity)); setEditTxNotes(tx.notes || ""); setEditTxCustomerName(tx.customerName || ""); setEditTxPaymentType(tx.paymentType || "debt"); setEditTxPaidAmount(tx.paidAmount ? String(Math.round(Number(tx.paidAmount))) : ""); }}
+                                    data-testid={`button-edit-item-${tx.id}`}>
+                                    <Edit className="h-3.5 w-3.5" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </Fragment>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </CardContent>

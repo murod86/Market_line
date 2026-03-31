@@ -235,6 +235,7 @@ export const dealerTransactions = pgTable("dealer_transactions", {
   dealerCustomerId: varchar("dealer_customer_id"),
   paidAmount: decimal("paid_amount", { precision: 12, scale: 2 }).default("0"),
   paymentType: text("payment_type").default("cash"),
+  saleGroupId: varchar("sale_group_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

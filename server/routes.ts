@@ -2060,6 +2060,8 @@ export async function registerRoutes(
 
       const debtAmount = paymentType === "cash" ? 0 : paymentType === "debt" ? totalAmount : Math.max(0, totalAmount - paidAmount);
 
+      const saleGroupId = crypto.randomUUID();
+
       for (const item of items) {
         const inv = await storage.getDealerInventoryItem(dealerId, item.productId);
         if (!inv) continue;
@@ -2081,6 +2083,7 @@ export async function registerRoutes(
           dealerCustomerId: dealerCustomerId || null,
           paidAmount: itemPaid.toFixed(2),
           paymentType: paymentType,
+          saleGroupId,
         });
       }
 

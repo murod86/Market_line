@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -128,6 +128,61 @@ export default function DealerLayout({ onLogout }: DealerLayoutProps) {
       </main>
     </div>
   );
+}
+
+function printGroupTxReceipt(items: any[]) {
+  if (!items.length) return;
+  const first = items[0];
+  const now = format(new Date(), "dd.MM.yyyy HH:mm");
+  const totalAmt = items.reduce((s, tx) => s + (Number(tx.total) || Number(tx.price) * tx.quantity), 0);
+  const paidAmt = items.reduce((s, tx) => s + Number(tx.paidAmount || 0), 0);
+  const pt = first.paymentType;
+  const debtAmt = pt === "debt" ? totalAmt : pt === "partial" ? Math.max(0, totalAmt - paidAmt) : 0;
+
+  const itemsHtml = items.map((tx) => {
+    const itemTotal = Number(tx.total) || Number(tx.price) * tx.quantity;
+    return `<tr>
+      <td colspan="2" style="padding:3px 2px 1px 2px;font-weight:900;border-top:1px solid #ccc;font-size:1.02em">${tx.productName}</td>
+    </tr>
+    <tr>
+      <td style="padding:1px 2px;font-weight:700">${tx.quantity} ${tx.productUnit || "dona"} x ${Number(tx.price).toLocaleString()}</td>
+      <td style="padding:1px 2px;text-align:right;font-weight:700">${itemTotal.toLocaleString()} UZS</td>
+    </tr>`;
+  }).join("");
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+    <style>
+      @page { size: 58mm auto; margin: 0; }
+      * { margin:0; padding:0; box-sizing:border-box; }
+      html, body { width:54mm; font-family:'Courier New',monospace; font-size:11px; font-weight:700; line-height:1.5; padding:1mm 2mm; color:#000; -webkit-print-color-adjust:exact; }
+      .center { text-align:center; }
+      .bold { font-weight:900; }
+      .divider { border-top:2px solid #000; margin:5px 0; }
+      .row { display:flex; justify-content:space-between; }
+      table { width:100%; border-collapse:collapse; }
+      td { color:#000; }
+      div,span,p,b { color:#000; }
+      b { font-weight:900; }
+    </style></head><body>
+    <div class="center bold" style="font-size:1.4em;margin-bottom:2px;letter-spacing:1px">MARKET_LINE</div>
+    <div class="center bold" style="font-size:1em;margin-bottom:5px">Sotuv cheki (nusxa)</div>
+    <div class="divider"></div>
+    ${first.customerName ? `<div><b>Mijoz:</b> ${first.customerName}</div>` : ""}
+    ${first.customerPhone ? `<div><b>Tel:</b> ${first.customerPhone}</div>` : ""}
+    <div style="margin-bottom:4px"><b>Sana:</b> ${now}</div>
+    <div class="divider"></div>
+    <table>${itemsHtml}</table>
+    <div class="divider"></div>
+    <div class="row bold" style="font-size:1.3em;border-top:2px solid #000;padding-top:3px"><span>JAMI:</span><span>${totalAmt.toLocaleString()} UZS</span></div>
+    ${pt === "cash" ? `<div style="margin-top:4px"><b>To'lov:</b> Naqd</div>` : ""}
+    ${pt === "debt" ? `<div style="margin-top:4px"><b>Qarz:</b> ${totalAmt.toLocaleString()} UZS</div>` : ""}
+    ${pt === "partial" ? `<div style="margin-top:4px"><b>To'langan:</b> ${paidAmt.toLocaleString()} UZS</div><div><b>Qarz:</b> ${debtAmt.toLocaleString()} UZS</div>` : ""}
+    <div class="divider"></div>
+    <div class="center bold" style="margin-top:5px">Xaridingiz uchun rahmat!</div>
+    <script>window.onload=function(){setTimeout(function(){window.print();window.onafterprint=function(){window.close()};setTimeout(function(){window.close()},8000)},300)}<\/script>
+  </body></html>`;
+  const w = window.open("", "_blank", "width=320,height=600");
+  if (w) { w.document.write(html); w.document.close(); }
 }
 
 function printDealerTxReceipt(tx: any) {
@@ -355,68 +410,73 @@ function DashboardTab({ dealer }: { dealer: any }) {
         );
       })()}
 
-      {sellTxs.length > 0 && (
-        <div>
-          <h3 className="font-semibold text-sm text-muted-foreground mb-3">Oxirgi sotuvlar</h3>
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Sana</TableHead>
-                    <TableHead>Mahsulot</TableHead>
-                    <TableHead>Soni</TableHead>
-                    <TableHead>Summa</TableHead>
-                    <TableHead>To'lov</TableHead>
-                    <TableHead>Mijoz</TableHead>
-                    <TableHead className="w-[80px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {[...sellTxs]
-                    .sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-                    .slice(0, 10)
-                    .map((t: any) => {
-                    const pt = t.paymentType;
-                    const payBadge = pt === "debt"
-                      ? <Badge variant="outline" className="text-[10px] text-red-600 border-red-200 bg-red-50">Qarz</Badge>
-                      : pt === "partial"
-                      ? <Badge variant="outline" className="text-[10px] text-orange-600 border-orange-200 bg-orange-50">Qisman</Badge>
-                      : <Badge variant="outline" className="text-[10px] text-green-600 border-green-200 bg-green-50">Naqd</Badge>;
-                    const dateStr = t.createdAt ? (() => { try { return format(new Date(t.createdAt), "dd.MM HH:mm"); } catch { return "—"; } })() : "—";
-                    return (
-                      <TableRow key={t.id} data-testid={`row-dash-sale-${t.id}`}>
-                        <TableCell className="text-xs">{dateStr}</TableCell>
-                        <TableCell className="text-sm font-medium">{t.productName || t.productId}</TableCell>
-                        <TableCell>{t.quantity} {t.productUnit}</TableCell>
-                        <TableCell className="font-medium text-green-600">{formatCurrency(Number(t.total))}</TableCell>
-                        <TableCell>{payBadge}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{t.customerName || "-"}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewTx(t)} data-testid={`button-view-dash-sale-${t.id}`}>
-                              <Eye className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-purple-500 hover:text-purple-600 hover:bg-purple-50" onClick={() => printDealerTxReceipt(t)} data-testid={`button-reprint-dash-sale-${t.id}`} title="Chekni chiqarish">
-                              <Printer className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(t)} data-testid={`button-edit-dash-sale-${t.id}`}>
-                              <Edit className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTx(t)} data-testid={`button-delete-dash-sale-${t.id}`}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {sellTxs.length > 0 && (() => {
+        const dashGroups: any[][] = (() => {
+          const map = new Map<string, any[]>();
+          for (const tx of [...sellTxs].sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())) {
+            const key = tx.saleGroupId || tx.id;
+            if (!map.has(key)) map.set(key, []);
+            map.get(key)!.push(tx);
+          }
+          return Array.from(map.values()).slice(0, 10);
+        })();
+        return (
+          <div>
+            <h3 className="font-semibold text-sm text-muted-foreground mb-3">Oxirgi sotuvlar</h3>
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Sana</TableHead>
+                      <TableHead>Mahsulotlar</TableHead>
+                      <TableHead>Summa</TableHead>
+                      <TableHead>To'lov</TableHead>
+                      <TableHead>Mijoz</TableHead>
+                      <TableHead className="w-[90px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {dashGroups.map((items: any[]) => {
+                      const first = items[0];
+                      const groupKey = first.saleGroupId || first.id;
+                      const groupTotal = items.reduce((s, tx) => s + (Number(tx.total) || Number(tx.price) * tx.quantity), 0);
+                      const pt = first.paymentType;
+                      const payBadge = pt === "debt"
+                        ? <Badge variant="outline" className="text-[10px] text-red-600 border-red-200 bg-red-50">Qarz</Badge>
+                        : pt === "partial"
+                        ? <Badge variant="outline" className="text-[10px] text-orange-600 border-orange-200 bg-orange-50">Qisman</Badge>
+                        : <Badge variant="outline" className="text-[10px] text-green-600 border-green-200 bg-green-50">Naqd</Badge>;
+                      const dateStr = first.createdAt ? (() => { try { return format(new Date(first.createdAt), "dd.MM HH:mm"); } catch { return "—"; } })() : "—";
+                      return (
+                        <TableRow key={groupKey} data-testid={`row-dash-sale-${groupKey}`}>
+                          <TableCell className="text-xs text-muted-foreground">{dateStr}</TableCell>
+                          <TableCell className="text-sm font-medium">
+                            {items.length === 1 ? items[0].productName : `${items.length} ta mahsulot`}
+                          </TableCell>
+                          <TableCell className="font-medium text-green-600">{formatCurrency(groupTotal)}</TableCell>
+                          <TableCell>{payBadge}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{first.customerName || "-"}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewTx(items.length === 1 ? items[0] : items)} data-testid={`button-view-dash-sale-${groupKey}`}>
+                                <Eye className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-purple-500 hover:text-purple-600 hover:bg-purple-50" onClick={() => items.length === 1 ? printDealerTxReceipt(items[0]) : printGroupTxReceipt(items)} data-testid={`button-reprint-dash-sale-${groupKey}`} title="Chekni chiqarish">
+                                <Printer className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
 
       {(() => {
         const debtSells = sellTxs.filter((t: any) => {
@@ -535,19 +595,67 @@ function DashboardTab({ dealer }: { dealer: any }) {
 
       {/* Ko'rish dialogi */}
       <Dialog open={!!viewTx} onOpenChange={(o) => { if (!o) setViewTx(null); }}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Search className="h-4 w-4" />
+              <Eye className="h-4 w-4 text-blue-500" />
               Sotuv tafsiloti
             </DialogTitle>
           </DialogHeader>
-          {viewTx && (
+          {viewTx && Array.isArray(viewTx) ? (() => {
+            const first = viewTx[0];
+            const groupTotal = viewTx.reduce((s: number, tx: any) => s + (Number(tx.total) || Number(tx.price) * tx.quantity), 0);
+            const paidSum = viewTx.reduce((s: number, tx: any) => s + Number(tx.paidAmount || 0), 0);
+            return (
+              <div className="space-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 rounded bg-muted/50">
+                    <p className="text-xs text-muted-foreground">Sana</p>
+                    <p className="font-medium">{first.createdAt ? (() => { try { return format(new Date(first.createdAt), "dd.MM.yyyy HH:mm"); } catch { return "—"; } })() : "—"}</p>
+                  </div>
+                  <div className="p-2 rounded bg-muted/50">
+                    <p className="text-xs text-muted-foreground">To'lov turi</p>
+                    <p className="font-medium">{first.paymentType === "debt" ? "Qarz" : first.paymentType === "partial" ? "Qisman" : "Naqd"}</p>
+                  </div>
+                  {first.customerName && (
+                    <div className="p-2 rounded bg-muted/50 col-span-2">
+                      <p className="text-xs text-muted-foreground">Mijoz</p>
+                      <p className="font-medium">{first.customerName} {first.customerPhone ? `• ${first.customerPhone}` : ""}</p>
+                    </div>
+                  )}
+                </div>
+                <div className="rounded-md border overflow-hidden">
+                  <div className="bg-muted/40 px-3 py-1.5 text-xs font-semibold text-muted-foreground">Mahsulotlar ({viewTx.length} ta)</div>
+                  {viewTx.map((tx: any, i: number) => {
+                    const itemTotal = Number(tx.total) || Number(tx.price) * tx.quantity;
+                    return (
+                      <div key={tx.id} className={`px-3 py-2 flex items-center justify-between gap-2 ${i > 0 ? "border-t" : ""}`}>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium truncate">{tx.productName}</p>
+                          <p className="text-xs text-muted-foreground">{tx.quantity} {tx.productUnit} × {formatCurrency(Number(tx.price))}</p>
+                        </div>
+                        <p className="font-semibold text-green-600 shrink-0">{formatCurrency(itemTotal)}</p>
+                      </div>
+                    );
+                  })}
+                  <div className="border-t px-3 py-2 flex items-center justify-between bg-muted/20">
+                    <span className="font-bold">JAMI:</span>
+                    <span className="font-bold text-green-600">{formatCurrency(groupTotal)}</span>
+                  </div>
+                  {first.paymentType !== "cash" && (
+                    <div className="px-3 py-1.5 flex items-center justify-between text-sm text-red-600 border-t">
+                      <span>Qarz:</span><span className="font-medium">{formatCurrency(first.paymentType === "debt" ? groupTotal : Math.max(0, groupTotal - paidSum))}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })() : viewTx && (
             <div className="space-y-3 text-sm">
               <div className="p-3 rounded-lg bg-muted/60 font-semibold text-base">{viewTx.productName}</div>
               <div className="grid grid-cols-2 gap-y-2">
                 <span className="text-muted-foreground">Sana:</span>
-                <span className="font-medium">{format(new Date(viewTx.createdAt), "dd.MM.yyyy HH:mm")}</span>
+                <span className="font-medium">{viewTx.createdAt ? (() => { try { return format(new Date(viewTx.createdAt), "dd.MM.yyyy HH:mm"); } catch { return "—"; } })() : "—"}</span>
                 <span className="text-muted-foreground">Miqdor:</span>
                 <span className="font-medium">{viewTx.quantity} {viewTx.productUnit}</span>
                 <span className="text-muted-foreground">Narxi:</span>
@@ -581,7 +689,7 @@ function DashboardTab({ dealer }: { dealer: any }) {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setViewTx(null)}>Yopish</Button>
-            {viewTx && (
+            {viewTx && !Array.isArray(viewTx) && (
               <Button onClick={() => { openEdit(viewTx); setViewTx(null); }}>
                 <Edit className="h-4 w-4 mr-1" /> Tahrirlash
               </Button>
@@ -2810,7 +2918,6 @@ function HistoryTab() {
     queryKey: ["/api/dealer-portal/transactions"],
   });
   const { toast } = useToast();
-  const [viewTx, setViewTx] = useState<any>(null);
   const [editTx, setEditTx] = useState<any>(null);
   const [deleteTx, setDeleteTx] = useState<any>(null);
   const [clearConfirm, setClearConfirm] = useState(false);
@@ -2824,6 +2931,8 @@ function HistoryTab() {
   const [historySearch, setHistorySearch] = useState("");
   const [histPage, setHistPage] = useState(1);
   const [filterPayType, setFilterPayType] = useState<"all" | "cash" | "debt" | "partial">("all");
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [viewGroup, setViewGroup] = useState<any[] | null>(null);
 
 
   const openEdit = (tx: any) => {
@@ -2896,20 +3005,56 @@ function HistoryTab() {
     return s;
   }, 0);
 
-  const sellTxs = allSellTxs.filter((t: any) => {
+  const allGroups: any[][] = (() => {
+    const map = new Map<string, any[]>();
+    for (const tx of allSellTxs) {
+      const key = tx.saleGroupId || tx.id;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(tx);
+    }
+    return Array.from(map.values());
+  })();
+
+  const filteredGroups = allGroups.filter((items) => {
     const q = historySearch.toLowerCase();
-    const matchSearch = !q || t.productName?.toLowerCase().includes(q) || t.customerName?.toLowerCase().includes(q) || t.customerPhone?.includes(q);
-    const matchPayType = filterPayType === "all" || t.paymentType === filterPayType;
+    const first = items[0];
+    const matchSearch = !q || items.some((tx: any) => tx.productName?.toLowerCase().includes(q)) ||
+      (first.customerName || "").toLowerCase().includes(q) ||
+      (first.customerPhone || "").includes(q);
+    const matchPayType = filterPayType === "all" || first.paymentType === filterPayType;
     return matchSearch && matchPayType;
   });
 
-  const totalPages = Math.max(1, Math.ceil(sellTxs.length / PAGE_SIZE));
-  const pageTxs = sellTxs.slice((histPage - 1) * PAGE_SIZE, histPage * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filteredGroups.length / PAGE_SIZE));
+  const pageGroups = filteredGroups.slice((histPage - 1) * PAGE_SIZE, histPage * PAGE_SIZE);
 
   const fmtDate = (d: any) => {
     if (!d) return "—";
     try { return format(new Date(d), "dd.MM.yyyy HH:mm"); } catch { return "—"; }
   };
+
+  const toggleGroup = (key: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const deleteGroupMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      for (const id of ids) {
+        await apiRequest("DELETE", `/api/dealer-portal/transactions/${id}`);
+      }
+    },
+    onSuccess: () => {
+      toast({ title: "Sotuv o'chirildi" });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer-portal/inventory"] });
+      setDeleteTx(null);
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
 
   return (
     <div className="space-y-4">
@@ -2987,85 +3132,110 @@ function HistoryTab() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-8"></TableHead>
                 <TableHead>Sana</TableHead>
-                <TableHead>Mahsulot</TableHead>
-                <TableHead>Miqdor</TableHead>
-                <TableHead>Narx</TableHead>
-                <TableHead>Summa</TableHead>
+                <TableHead>Mahsulotlar</TableHead>
+                <TableHead>Jami summa</TableHead>
                 <TableHead>To'lov</TableHead>
                 <TableHead>Mijoz</TableHead>
-                <TableHead className="w-[140px] text-center">Amallar</TableHead>
+                <TableHead className="w-[100px] text-center">Amallar</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pageTxs.length === 0 ? (
+              {pageGroups.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                     <Search className="h-6 w-6 mx-auto mb-2 opacity-30" />
                     <p className="text-sm">Natija topilmadi</p>
                   </TableCell>
                 </TableRow>
-              ) : pageTxs.map((tx: any) => {
-                const pt = tx.paymentType;
+              ) : pageGroups.map((items: any[]) => {
+                const first = items[0];
+                const groupKey = first.saleGroupId || first.id;
+                const isExpanded = expandedGroups.has(groupKey);
+                const groupTotal = items.reduce((s, tx) => s + (Number(tx.total) || Number(tx.price) * tx.quantity), 0);
+                const pt = first.paymentType;
                 const payBadge = pt === "debt"
-                  ? <Badge variant="outline" className="text-[10px] text-red-600 border-red-200 bg-red-50">Qarz</Badge>
+                  ? <Badge variant="outline" className="text-[10px] text-red-600 border-red-200 bg-red-50 dark:bg-red-950/20">Qarz</Badge>
                   : pt === "partial"
-                  ? <Badge variant="outline" className="text-[10px] text-orange-600 border-orange-200 bg-orange-50">Qisman</Badge>
-                  : <Badge variant="outline" className="text-[10px] text-green-600 border-green-200 bg-green-50">Naqd</Badge>;
+                  ? <Badge variant="outline" className="text-[10px] text-orange-600 border-orange-200 bg-orange-50 dark:bg-orange-950/20">Qisman</Badge>
+                  : <Badge variant="outline" className="text-[10px] text-green-600 border-green-200 bg-green-50 dark:bg-green-950/20">Naqd</Badge>;
                 return (
-                  <TableRow key={tx.id} data-testid={`row-sell-history-${tx.id}`}>
-                    <TableCell className="text-xs whitespace-nowrap text-muted-foreground">{fmtDate(tx.createdAt)}</TableCell>
-                    <TableCell className="font-medium text-sm">{tx.productName}</TableCell>
-                    <TableCell className="text-sm">{tx.quantity} {tx.productUnit}</TableCell>
-                    <TableCell className="text-sm">{formatCurrency(Number(tx.price))}</TableCell>
-                    <TableCell className="text-sm font-semibold text-green-600">{formatCurrency(Number(tx.total) || Number(tx.price) * tx.quantity)}</TableCell>
-                    <TableCell>{payBadge}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{tx.customerName || "—"}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-center gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
-                          onClick={() => setViewTx(tx)}
-                          data-testid={`button-view-sell-${tx.id}`}
-                          title="Ko'rish"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-purple-500 hover:text-purple-600 hover:bg-purple-50"
-                          onClick={() => printDealerTxReceipt(tx)}
-                          data-testid={`button-reprint-sell-${tx.id}`}
-                          title="Chekni chiqarish"
-                        >
-                          <Printer className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => openEdit(tx)}
-                          data-testid={`button-edit-sell-${tx.id}`}
-                          title="Tahrirlash"
-                        >
-                          <Edit className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => setDeleteTx(tx)}
-                          data-testid={`button-delete-sell-${tx.id}`}
-                          title="O'chirish"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <Fragment key={groupKey}>
+                    <TableRow
+                      className="cursor-pointer hover:bg-muted/40"
+                      data-testid={`row-sell-group-${groupKey}`}
+                      onClick={() => toggleGroup(groupKey)}
+                    >
+                      <TableCell className="pl-3 pr-0">
+                        {isExpanded
+                          ? <span className="text-muted-foreground text-xs">▼</span>
+                          : <span className="text-muted-foreground text-xs">▶</span>}
+                      </TableCell>
+                      <TableCell className="text-xs whitespace-nowrap text-muted-foreground">{fmtDate(first.createdAt)}</TableCell>
+                      <TableCell className="font-medium text-sm">
+                        {items.length === 1
+                          ? items[0].productName
+                          : <span>{items.length} ta mahsulot <span className="text-xs text-muted-foreground font-normal">(bosing)</span></span>}
+                      </TableCell>
+                      <TableCell className="font-semibold text-green-600">{formatCurrency(groupTotal)}</TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>{payBadge}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{first.customerName || "—"}</TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            size="icon" variant="ghost"
+                            className="h-7 w-7 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                            onClick={() => setViewGroup(items)}
+                            data-testid={`button-view-group-${groupKey}`}
+                            title="Ko'rish"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="icon" variant="ghost"
+                            className="h-7 w-7 text-purple-500 hover:text-purple-600 hover:bg-purple-50"
+                            onClick={() => items.length === 1 ? printDealerTxReceipt(items[0]) : printGroupTxReceipt(items)}
+                            data-testid={`button-reprint-group-${groupKey}`}
+                            title="Chekni chiqarish"
+                          >
+                            <Printer className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="icon" variant="ghost"
+                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setDeleteTx({ id: groupKey, productName: items.length === 1 ? items[0].productName : `${items.length} ta mahsulot`, _groupIds: items.map((t: any) => t.id) })}
+                            data-testid={`button-delete-group-${groupKey}`}
+                            title="O'chirish"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    {isExpanded && items.map((tx: any) => (
+                      <TableRow key={tx.id} className="bg-muted/20" data-testid={`row-sell-item-${tx.id}`}>
+                        <TableCell className="pl-3 pr-0"></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell className="text-sm pl-4">
+                          <span className="text-muted-foreground mr-1">•</span>
+                          {tx.productName}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {tx.quantity} {tx.productUnit} × {formatCurrency(Number(tx.price))} = {formatCurrency(Number(tx.total) || Number(tx.price) * tx.quantity)}
+                        </TableCell>
+                        <TableCell></TableCell>
+                        <TableCell></TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-center gap-1">
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(tx)} title="Tahrirlash" data-testid={`button-edit-item-${tx.id}`}>
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </Fragment>
                 );
               })}
             </TableBody>
@@ -3074,7 +3244,7 @@ function HistoryTab() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between pt-1">
             <p className="text-xs text-muted-foreground">
-              {((histPage - 1) * PAGE_SIZE) + 1}–{Math.min(histPage * PAGE_SIZE, sellTxs.length)} / {sellTxs.length} ta
+              {((histPage - 1) * PAGE_SIZE) + 1}–{Math.min(histPage * PAGE_SIZE, filteredGroups.length)} / {filteredGroups.length} sotuv
             </p>
             <div className="flex items-center gap-1">
               <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={histPage <= 1} onClick={() => setHistPage(p => p - 1)} data-testid="button-hist-prev">← Oldingi</Button>
@@ -3093,64 +3263,74 @@ function HistoryTab() {
         </Card>
       )}
 
-      {/* View Dialog */}
-      <Dialog open={!!viewTx} onOpenChange={(o) => { if (!o) setViewTx(null); }}>
-        <DialogContent className="sm:max-w-sm">
+      {/* View Group Dialog */}
+      <Dialog open={!!viewGroup} onOpenChange={(o) => { if (!o) setViewGroup(null); }}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="h-4 w-4 text-blue-500" />
               Sotuv tafsiloti
             </DialogTitle>
           </DialogHeader>
-          {viewTx && (
-            <div className="space-y-2 text-sm">
-              <div className="p-3 rounded-md bg-muted font-semibold text-base">{viewTx.productName}</div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 rounded bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Miqdor</p>
-                  <p className="font-medium">{viewTx.quantity} {viewTx.productUnit}</p>
-                </div>
-                <div className="p-2 rounded bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Narx</p>
-                  <p className="font-medium">{formatCurrency(Number(viewTx.price))}</p>
-                </div>
-                <div className="p-2 rounded bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Jami summa</p>
-                  <p className="font-semibold text-green-600">{formatCurrency(Number(viewTx.total) || Number(viewTx.price) * viewTx.quantity)}</p>
-                </div>
-                <div className="p-2 rounded bg-muted/50">
-                  <p className="text-xs text-muted-foreground">To'lov turi</p>
-                  <p className="font-medium">
-                    {viewTx.paymentType === "debt" ? "Qarz" : viewTx.paymentType === "partial" ? "Qisman" : "Naqd"}
-                  </p>
-                </div>
-                {viewTx.paymentType === "partial" && (
+          {viewGroup && (() => {
+            const first = viewGroup[0];
+            const groupTotal = viewGroup.reduce((s, tx) => s + (Number(tx.total) || Number(tx.price) * tx.quantity), 0);
+            const paidSum = viewGroup.reduce((s, tx) => s + Number(tx.paidAmount || 0), 0);
+            return (
+              <div className="space-y-3 text-sm">
+                <div className="grid grid-cols-2 gap-2">
                   <div className="p-2 rounded bg-muted/50">
-                    <p className="text-xs text-muted-foreground">To'langan</p>
-                    <p className="font-medium">{formatCurrency(Number(viewTx.paidAmount || 0))}</p>
+                    <p className="text-xs text-muted-foreground">Sana</p>
+                    <p className="font-medium">{fmtDate(first.createdAt)}</p>
                   </div>
-                )}
-                <div className="p-2 rounded bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Sana</p>
-                  <p className="font-medium">{fmtDate(viewTx.createdAt)}</p>
+                  <div className="p-2 rounded bg-muted/50">
+                    <p className="text-xs text-muted-foreground">To'lov turi</p>
+                    <p className="font-medium">{first.paymentType === "debt" ? "Qarz" : first.paymentType === "partial" ? "Qisman" : "Naqd"}</p>
+                  </div>
+                  {first.customerName && (
+                    <div className="p-2 rounded bg-muted/50 col-span-2">
+                      <p className="text-xs text-muted-foreground">Mijoz</p>
+                      <p className="font-medium">{first.customerName} {first.customerPhone ? `• ${first.customerPhone}` : ""}</p>
+                    </div>
+                  )}
+                </div>
+                <div className="rounded-md border overflow-hidden">
+                  <div className="bg-muted/40 px-3 py-1.5 text-xs font-semibold text-muted-foreground">Mahsulotlar ({viewGroup.length} ta)</div>
+                  {viewGroup.map((tx: any, i: number) => {
+                    const itemTotal = Number(tx.total) || Number(tx.price) * tx.quantity;
+                    return (
+                      <div key={tx.id} className={`px-3 py-2 flex items-center justify-between gap-2 ${i > 0 ? "border-t" : ""}`}>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium truncate">{tx.productName}</p>
+                          <p className="text-xs text-muted-foreground">{tx.quantity} {tx.productUnit} × {formatCurrency(Number(tx.price))}</p>
+                        </div>
+                        <p className="font-semibold text-green-600 shrink-0">{formatCurrency(itemTotal)}</p>
+                      </div>
+                    );
+                  })}
+                  <div className="border-t px-3 py-2 flex items-center justify-between bg-muted/20">
+                    <span className="font-bold">JAMI:</span>
+                    <span className="font-bold text-green-600">{formatCurrency(groupTotal)}</span>
+                  </div>
+                  {first.paymentType === "partial" && (
+                    <div className="px-3 py-1.5 flex items-center justify-between text-sm text-muted-foreground border-t">
+                      <span>To'langan:</span><span className="text-blue-600 font-medium">{formatCurrency(paidSum)}</span>
+                    </div>
+                  )}
+                  {first.paymentType !== "cash" && (
+                    <div className="px-3 py-1.5 flex items-center justify-between text-sm text-red-600 border-t">
+                      <span>Qarz:</span><span className="font-medium">{formatCurrency(first.paymentType === "debt" ? groupTotal : Math.max(0, groupTotal - paidSum))}</span>
+                    </div>
+                  )}
                 </div>
               </div>
-              {viewTx.customerName && (
-                <div className="p-2 rounded bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Mijoz</p>
-                  <p className="font-medium">{viewTx.customerName} {viewTx.customerPhone ? `• ${viewTx.customerPhone}` : ""}</p>
-                </div>
-              )}
-              {viewTx.notes && (
-                <div className="p-2 rounded bg-muted/50">
-                  <p className="text-xs text-muted-foreground">Izoh</p>
-                  <p>{viewTx.notes}</p>
-                </div>
-              )}
-            </div>
-          )}
-          <DialogFooter>
-            <Button onClick={() => setViewTx(null)}>Yopish</Button>
+            );
+          })()}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => { if (viewGroup) { viewGroup.length === 1 ? printDealerTxReceipt(viewGroup[0]) : printGroupTxReceipt(viewGroup); } }}>
+              <Printer className="h-3.5 w-3.5 mr-1.5" /> Chek chiqarish
+            </Button>
+            <Button onClick={() => setViewGroup(null)}>Yopish</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -3260,11 +3440,17 @@ function HistoryTab() {
             <Button variant="outline" onClick={() => setDeleteTx(null)}>Bekor</Button>
             <Button
               variant="destructive"
-              disabled={deleteMutation.isPending}
-              onClick={() => deleteMutation.mutate(deleteTx.id)}
+              disabled={deleteMutation.isPending || deleteGroupMutation.isPending}
+              onClick={() => {
+                if (deleteTx._groupIds && deleteTx._groupIds.length > 1) {
+                  deleteGroupMutation.mutate(deleteTx._groupIds);
+                } else {
+                  deleteMutation.mutate(deleteTx._groupIds?.[0] ?? deleteTx.id);
+                }
+              }}
               data-testid="button-confirm-delete-sell"
             >
-              {deleteMutation.isPending ? "O'chirilmoqda..." : "O'chirish"}
+              {(deleteMutation.isPending || deleteGroupMutation.isPending) ? "O'chirilmoqda..." : "O'chirish"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -3281,7 +3467,7 @@ function HistoryTab() {
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Barcha <span className="font-semibold text-foreground">{sellTxs.length} ta sotuv</span> tarixi o'chiriladi. Bu amalni qaytarib bo'lmaydi!
+              Barcha <span className="font-semibold text-foreground">{allSellTxs.length} ta sotuv</span> tarixi o'chiriladi. Bu amalni qaytarib bo'lmaydi!
             </p>
             <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded p-2">
               Mahsulotlar omborga qaytarilmaydi — faqat tarix tozalanadi.
