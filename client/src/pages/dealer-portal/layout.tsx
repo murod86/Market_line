@@ -749,6 +749,7 @@ interface SellCartItem {
 
 function SellTab() {
   const [previewImage, setPreviewImage] = useState<{ src: string; name: string } | null>(null);
+  const [productSearch, setProductSearch] = useState("");
   const [cart, setCart] = useState<SellCartItem[]>([]);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [customerSelectOpen, setCustomerSelectOpen] = useState(false);
@@ -1309,10 +1310,28 @@ function SellTab() {
 
       <div className="grid gap-4 lg:grid-cols-5">
         <div className="lg:col-span-3 space-y-3">
-          <p className="text-sm text-muted-foreground">Mahsulotni tanlang:</p>
-          {inventory && inventory.length > 0 ? (
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Mahsulot qidirish..."
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                className="pl-9 h-9"
+                data-testid="input-sell-product-search"
+              />
+            </div>
+            {productSearch && (
+              <Button variant="ghost" size="sm" className="h-9 px-2 text-muted-foreground" onClick={() => setProductSearch("")} data-testid="button-clear-product-search">✕</Button>
+            )}
+          </div>
+          {inventory && inventory.length > 0 ? (() => {
+            const filteredInv = inventory.filter((item: any) =>
+              !productSearch || item.productName?.toLowerCase().includes(productSearch.toLowerCase())
+            );
+            return filteredInv.length > 0 ? (
             <div className="grid gap-2 sm:grid-cols-2">
-              {inventory.map((item: any) => {
+              {filteredInv.map((item: any) => {
                 const inCart = cart.find((c) => c.productId === item.productId);
                 return (
                   <Card key={item.id} className="cursor-pointer hover:border-primary/50 transition-colors" data-testid={`card-sell-product-${item.productId}`}>
@@ -1349,7 +1368,15 @@ function SellTab() {
                 );
               })}
             </div>
-          ) : (
+            ) : (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  <Search className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                  <p>"{productSearch}" bo'yicha mahsulot topilmadi</p>
+                </CardContent>
+              </Card>
+            );
+          })() : (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground">
                 <Package className="h-8 w-8 mx-auto mb-2 opacity-20" />
@@ -2733,6 +2760,8 @@ function DeliveryTab() {
   );
 }
 
+const PAGE_SIZE = 20;
+
 function HistoryTab() {
   const { data: transactions, isLoading } = useQuery<any[]>({
     queryKey: ["/api/dealer-portal/transactions"],
@@ -2749,6 +2778,49 @@ function HistoryTab() {
   const [editCustName, setEditCustName] = useState("");
   const [editCustPhone, setEditCustPhone] = useState("");
   const [editNotes, setEditNotes] = useState("");
+  const [historySearch, setHistorySearch] = useState("");
+  const [histPage, setHistPage] = useState(1);
+  const [filterPayType, setFilterPayType] = useState<"all" | "cash" | "debt" | "partial">("all");
+
+  const printHistoryReceipt = (tx: any) => {
+    const now = format(new Date(), "dd.MM.yyyy HH:mm");
+    const totalAmt = Number(tx.total) || Number(tx.price) * tx.quantity;
+    const paidAmt = Number(tx.paidAmount || 0);
+    const debtAmt = tx.paymentType === "debt" ? totalAmt : tx.paymentType === "partial" ? Math.max(0, totalAmt - paidAmt) : 0;
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+      <style>
+        @page { size: 58mm auto; margin: 0; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html, body { width:54mm; font-family:'Courier New',monospace; font-size:11px; font-weight:700; line-height:1.5; padding:1mm 2mm; color:#000; -webkit-print-color-adjust:exact; }
+        .center { text-align:center; }
+        .bold { font-weight:900; }
+        .divider { border-top:2px solid #000; margin:5px 0; }
+        .row { display:flex; justify-content:space-between; }
+        div,span,p,b { color:#000; }
+        b { font-weight:900; }
+      </style></head><body>
+      <div class="center bold" style="font-size:1.4em;margin-bottom:2px;letter-spacing:1px">MARKET_LINE</div>
+      <div class="center bold" style="font-size:1em;margin-bottom:5px">Sotuv cheki (nusxa)</div>
+      <div class="divider"></div>
+      ${tx.customerName ? `<div><b>Mijoz:</b> ${tx.customerName}</div>` : ""}
+      ${tx.customerPhone ? `<div><b>Tel:</b> ${tx.customerPhone}</div>` : ""}
+      <div style="margin-bottom:4px"><b>Sana:</b> ${now}</div>
+      <div class="divider"></div>
+      <div style="font-weight:900;font-size:1.05em;border-top:2px solid #000;padding:3px 0">${tx.productName}</div>
+      <div class="row"><span>${tx.quantity} ${tx.productUnit || "dona"} x ${Number(tx.price).toLocaleString()}</span><span>${totalAmt.toLocaleString()} UZS</span></div>
+      <div class="divider"></div>
+      <div class="row bold" style="font-size:1.3em;border-top:2px solid #000;padding-top:3px"><span>JAMI:</span><span>${totalAmt.toLocaleString()} UZS</span></div>
+      ${tx.paymentType === "cash" ? `<div style="margin-top:4px"><b>To'lov:</b> Naqd</div>` : ""}
+      ${tx.paymentType === "debt" ? `<div style="margin-top:4px"><b>Qarz:</b> ${totalAmt.toLocaleString()} UZS</div>` : ""}
+      ${tx.paymentType === "partial" ? `<div style="margin-top:4px"><b>To'langan:</b> ${paidAmt.toLocaleString()} UZS</div><div><b>Qarz:</b> ${debtAmt.toLocaleString()} UZS</div>` : ""}
+      ${tx.notes ? `<div style="margin-top:3px"><b>Izoh:</b> ${tx.notes}</div>` : ""}
+      <div class="divider"></div>
+      <div class="center bold" style="margin-top:5px">Xaridingiz uchun rahmat!</div>
+      <script>window.onload=function(){setTimeout(function(){window.print();window.onafterprint=function(){window.close()};setTimeout(function(){window.close()},8000)},300)}<\/script>
+    </body></html>`;
+    const w = window.open("", "_blank", "width=320,height=600");
+    if (w) { w.document.write(html); w.document.close(); }
+  };
 
   const openEdit = (tx: any) => {
     setEditTx(tx);
@@ -2805,8 +2877,30 @@ function HistoryTab() {
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
 
-  const sellTxs = [...(transactions?.filter((t: any) => t.type === "sell") || [])]
+  const allSellTxs = [...(transactions?.filter((t: any) => t.type === "sell") || [])]
     .sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+  const totalRevenue = allSellTxs.reduce((s, t) => s + (Number(t.total) || Number(t.price) * t.quantity), 0);
+  const totalDebt = allSellTxs.reduce((s, t) => {
+    if (t.paymentType === "debt") return s + (Number(t.total) || Number(t.price) * t.quantity);
+    if (t.paymentType === "partial") return s + Math.max(0, (Number(t.total) || Number(t.price) * t.quantity) - Number(t.paidAmount || 0));
+    return s;
+  }, 0);
+  const totalCash = allSellTxs.reduce((s, t) => {
+    if (t.paymentType === "cash") return s + (Number(t.total) || Number(t.price) * t.quantity);
+    if (t.paymentType === "partial") return s + Number(t.paidAmount || 0);
+    return s;
+  }, 0);
+
+  const sellTxs = allSellTxs.filter((t: any) => {
+    const q = historySearch.toLowerCase();
+    const matchSearch = !q || t.productName?.toLowerCase().includes(q) || t.customerName?.toLowerCase().includes(q) || t.customerPhone?.includes(q);
+    const matchPayType = filterPayType === "all" || t.paymentType === filterPayType;
+    return matchSearch && matchPayType;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(sellTxs.length / PAGE_SIZE));
+  const pageTxs = sellTxs.slice((histPage - 1) * PAGE_SIZE, histPage * PAGE_SIZE);
 
   const fmtDate = (d: any) => {
     if (!d) return "—";
@@ -2818,9 +2912,9 @@ function HistoryTab() {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold" data-testid="text-history-title">
           Sotuvlar tarixi
-          {sellTxs.length > 0 && <span className="ml-2 text-sm font-normal text-muted-foreground">({sellTxs.length} ta)</span>}
+          {allSellTxs.length > 0 && <span className="ml-2 text-sm font-normal text-muted-foreground">({allSellTxs.length} ta)</span>}
         </h2>
-        {sellTxs.length > 0 && (
+        {allSellTxs.length > 0 && (
           <Button
             variant="outline"
             size="sm"
@@ -2834,7 +2928,57 @@ function HistoryTab() {
         )}
       </div>
 
-      {sellTxs.length > 0 ? (
+      {allSellTxs.length > 0 && (
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            <Card className="border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800">
+              <CardContent className="p-3">
+                <p className="text-xs text-muted-foreground mb-1">Jami tushum</p>
+                <p className="font-bold text-green-700 dark:text-green-400 text-sm" data-testid="text-hist-total-revenue">{formatCurrency(totalRevenue)}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
+              <CardContent className="p-3">
+                <p className="text-xs text-muted-foreground mb-1">Naqd/to'langan</p>
+                <p className="font-bold text-blue-700 dark:text-blue-400 text-sm" data-testid="text-hist-total-cash">{formatCurrency(totalCash)}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800">
+              <CardContent className="p-3">
+                <p className="text-xs text-muted-foreground mb-1">Qarz</p>
+                <p className="font-bold text-red-700 dark:text-red-400 text-sm" data-testid="text-hist-total-debt">{formatCurrency(totalDebt)}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Mahsulot yoki mijoz qidirish..."
+                value={historySearch}
+                onChange={(e) => { setHistorySearch(e.target.value); setHistPage(1); }}
+                className="pl-9 h-9"
+                data-testid="input-history-search"
+              />
+            </div>
+            <Select value={filterPayType} onValueChange={(v) => { setFilterPayType(v as any); setHistPage(1); }}>
+              <SelectTrigger className="w-full sm:w-36 h-9" data-testid="select-history-pay-filter">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Barchasi</SelectItem>
+                <SelectItem value="cash">Naqd</SelectItem>
+                <SelectItem value="debt">Qarz</SelectItem>
+                <SelectItem value="partial">Qisman</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      )}
+
+      {allSellTxs.length > 0 ? (
+        <>
         <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
@@ -2846,11 +2990,18 @@ function HistoryTab() {
                 <TableHead>Summa</TableHead>
                 <TableHead>To'lov</TableHead>
                 <TableHead>Mijoz</TableHead>
-                <TableHead className="w-[110px] text-center">Amallar</TableHead>
+                <TableHead className="w-[140px] text-center">Amallar</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sellTxs.map((tx: any) => {
+              {pageTxs.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
+                    <Search className="h-6 w-6 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">Natija topilmadi</p>
+                  </TableCell>
+                </TableRow>
+              ) : pageTxs.map((tx: any) => {
                 const pt = tx.paymentType;
                 const payBadge = pt === "debt"
                   ? <Badge variant="outline" className="text-[10px] text-red-600 border-red-200 bg-red-50">Qarz</Badge>
@@ -2881,6 +3032,16 @@ function HistoryTab() {
                         <Button
                           size="icon"
                           variant="ghost"
+                          className="h-7 w-7 text-purple-500 hover:text-purple-600 hover:bg-purple-50"
+                          onClick={() => printHistoryReceipt(tx)}
+                          data-testid={`button-reprint-sell-${tx.id}`}
+                          title="Chekni chiqarish"
+                        >
+                          <Printer className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
                           className="h-7 w-7"
                           onClick={() => openEdit(tx)}
                           data-testid={`button-edit-sell-${tx.id}`}
@@ -2906,6 +3067,19 @@ function HistoryTab() {
             </TableBody>
           </Table>
         </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-1">
+            <p className="text-xs text-muted-foreground">
+              {((histPage - 1) * PAGE_SIZE) + 1}–{Math.min(histPage * PAGE_SIZE, sellTxs.length)} / {sellTxs.length} ta
+            </p>
+            <div className="flex items-center gap-1">
+              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={histPage <= 1} onClick={() => setHistPage(p => p - 1)} data-testid="button-hist-prev">← Oldingi</Button>
+              <span className="text-xs px-2 font-medium">{histPage}/{totalPages}</span>
+              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={histPage >= totalPages} onClick={() => setHistPage(p => p + 1)} data-testid="button-hist-next">Keyingi →</Button>
+            </div>
+          </div>
+        )}
+        </>
       ) : (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
