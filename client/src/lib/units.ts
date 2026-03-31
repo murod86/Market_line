@@ -1,139 +1,150 @@
 /**
  * MARKET_LINE — Professional ERP Unit System
  *
- * ┌─────────────────────────────────────────────────────────────────────────┐
- * │  Birlik kategoriyalari:                                                 │
- * │                                                                         │
- * │  GRAM    : "gram"        — grammda saqlanadi (integer),                 │
- * │                            kg yoki gramda ko'rsatiladi                  │
- * │                                                                         │
- * │  DECIMAL : "kg","litr",  — o'z native birligida decimal saqlanadi       │
- * │            "metr"          (1.500 kg, 2.300 litr, 3.750 metr)           │
- * │                                                                         │
- * │  COUNT   : "dona","quti" — butun son, integer saqlanadi                 │
- * └─────────────────────────────────────────────────────────────────────────┘
- *
- * DB narx qoidasi: har doim 1 ta native unit uchun narx (per-gram, per-dona...)
- *   gram  → ko'rinish narxi = DB narxi × 1000  (per kg)
- *   dona  → quti ko'rinish = DB narxi × boxQty (per quti)
- *   boshqa → ko'rinish narxi = DB narxi (o'zgarmaydi)
+ * ┌──────────────────────────────────────────────────────────┐
+ * │  BIRLIK KATEGORIYALARI                                   │
+ * │                                                          │
+ * │  Vazn   : kg  ↔  gram   (1 kg = 1000 gram)              │
+ * │  Hajm   : litr ↔ ml    (1 litr = 1000 ml)              │
+ * │  Uzunlik: metr ↔ sm    (1 metr = 100 sm)               │
+ * │  Dona   : dona ↔ quti  (1 quti = boxQuantity dona)      │
+ * │                                                          │
+ * │  DB qoidasi: mahsulot native birligida saqlanadi:        │
+ * │    kg  → decimal kg   (1.500 kg)                         │
+ * │    litr → decimal litr (2.300 litr)                      │
+ * │    metr → decimal metr (3.750 metr)                      │
+ * │    dona → integer dona                                    │
+ * │    quti → integer quti                                   │
+ * │    gram (eski) → integer gram (1kg=1000)                 │
+ * └──────────────────────────────────────────────────────────┘
  */
 
 import type { Product } from "@shared/schema";
 
-// ═══════════════════════════════════════════════════════════════════════
-// Birlik turi yordamchi funksiyalari
-// ═══════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// Birlik konfiguratsiyasi
+// ═══════════════════════════════════════════════════════════
+
+/** Birlik ↔ kichik birlik munosabati */
+const SUB_UNIT_MAP: Record<string, { sub: string; factor: number }> = {
+  kg:   { sub: "gram", factor: 1000 },   // 1 kg   = 1000 gram
+  litr: { sub: "ml",   factor: 1000 },   // 1 litr = 1000 ml
+  metr: { sub: "sm",   factor: 100  },   // 1 metr = 100 sm
+};
+
+/** Kichik birlik → asosiy birlik */
+const PARENT_UNIT_MAP: Record<string, { parent: string; factor: number }> = {
+  gram: { parent: "kg",   factor: 1000 },
+  ml:   { parent: "litr", factor: 1000 },
+  sm:   { parent: "metr", factor: 100  },
+};
 
 /** Decimal (float) saqlanadigan birliklar */
 export const DECIMAL_UNITS = ["kg", "litr", "metr"] as const;
 
-/**
- * Birlik DB'da decimal (float) saqlanadimi?
- * kg=1.500 kg, litr=2.300 litr, metr=3.750 metr
- */
 export function isDecimalUnit(unit: string): boolean {
   return (DECIMAL_UNITS as readonly string[]).includes(unit);
 }
 
-/**
- * Birlik DB'da gramda saqlanadimi? (ko'rinish: kg yoki gram)
- */
 export function isGramUnit(unit: string): boolean {
   return unit === "gram";
 }
 
-/**
- * Birlik butun son (integer) saqlanadimi?
- */
 export function isCountUnit(unit: string): boolean {
   return unit === "dona" || unit === "quti";
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// Sotuv birliklari
-// ═══════════════════════════════════════════════════════════════════════
+/** Sub birlikmi? (gram, ml, sm) */
+export function isSubUnit(unit: string): boolean {
+  return unit in PARENT_UNIT_MAP;
+}
+
+// ═══════════════════════════════════════════════════════════
+// Sotuv birliklari (POS, portal, diller)
+// ═══════════════════════════════════════════════════════════
 
 /**
- * Mahsulot uchun ruxsat etilgan SOTUV birliklari (POS, portal, diller).
+ * Mahsulot uchun ruxsat etilgan SOTUV birliklari.
  *
- *  gram              → ["kg", "gram"]
- *  kg / litr / metr  → [birlik]        (faqat o'zi)
- *  dona (boxQty > 1) → ["dona", "quti"]
- *  dona (boxQty = 1) → ["dona"]
- *  quti              → ["quti"]
+ *  kg               → ["kg", "gram"]
+ *  litr             → ["litr", "ml"]
+ *  metr             → ["metr", "sm"]
+ *  dona (bq > 1)    → ["dona", "quti"]
+ *  dona (bq = 1)    → ["dona"]
+ *  quti             → ["quti"]
+ *  gram (eski)      → ["kg", "gram"]   ← orqaga mos kelish
  */
 export function getSellUnitOptions(
   product: Pick<Product, "unit" | "boxQuantity">
 ): string[] {
+  const { unit } = product;
   const bq = product.boxQuantity ?? 1;
-  switch (product.unit) {
-    case "gram":
-      return ["kg", "gram"];
-    case "kg":
-      return ["kg"];
-    case "litr":
-      return ["litr"];
-    case "metr":
-      return ["metr"];
-    case "dona":
-      return bq > 1 ? ["dona", "quti"] : ["dona"];
-    case "quti":
-      return ["quti"];
-    default:
-      return [product.unit];
+
+  if (unit in SUB_UNIT_MAP) {
+    return [unit, SUB_UNIT_MAP[unit].sub];
   }
+  if (unit === "gram") return ["kg", "gram"];   // legacy
+  if (unit === "dona") return bq > 1 ? ["dona", "quti"] : ["dona"];
+  if (unit === "quti") return ["quti"];
+  return [unit];
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// Xarid birliklari
-// ═══════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// Xarid birliklari (Purchases moduli)
+// ═══════════════════════════════════════════════════════════
 
 /**
- * Mahsulot uchun ruxsat etilgan XARID birliklari (Purchases moduli).
+ * Mahsulot uchun ruxsat etilgan XARID birliklari.
  *
- *  gram              → ["kg", "gram"]
- *  kg / litr / metr  → [birlik]
- *  dona (boxQty > 1) → ["dona", "quti"]
- *  dona (boxQty = 1) → ["dona"]
- *  quti (boxQty > 1) → ["quti", "dona"]  (dona bilan ham xarid qilish mumkin)
- *  quti (boxQty = 1) → ["quti"]
+ *  kg               → ["kg", "gram"]
+ *  litr             → ["litr", "ml"]
+ *  metr             → ["metr", "sm"]
+ *  dona (bq > 1)    → ["dona", "quti"]
+ *  dona (bq = 1)    → ["dona"]
+ *  quti (bq > 1)    → ["quti", "dona"]
+ *  quti (bq = 1)    → ["quti"]
+ *  gram (eski)      → ["kg", "gram"]
  */
 export function getBuyUnitOptions(
   product: Pick<Product, "unit" | "boxQuantity">
 ): string[] {
+  const { unit } = product;
   const bq = product.boxQuantity ?? 1;
-  switch (product.unit) {
-    case "gram":
-      return ["kg", "gram"];
-    case "kg":
-      return ["kg"];
-    case "litr":
-      return ["litr"];
-    case "metr":
-      return ["metr"];
-    case "dona":
-      return bq > 1 ? ["dona", "quti"] : ["dona"];
-    case "quti":
-      return bq > 1 ? ["quti", "dona"] : ["quti"];
-    default:
-      return [product.unit];
+
+  if (unit in SUB_UNIT_MAP) {
+    return [unit, SUB_UNIT_MAP[unit].sub];
   }
+  if (unit === "gram") return ["kg", "gram"];   // legacy
+  if (unit === "dona") return bq > 1 ? ["dona", "quti"] : ["dona"];
+  if (unit === "quti") return bq > 1 ? ["quti", "dona"] : ["quti"];
+  return [unit];
 }
 
-// ═══════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // Miqdor konvertatsiyasi
-// ═══════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 
 /**
- * Ko'rsatish miqdorini → DB native miqdorga aylantiradi.
+ * Ko'rsatish miqdori → DB native miqdor.
  *
- *  gram mahsuloti + "kg"  displayUnit  → qty × 1000   (integer gram)
- *  gram mahsuloti + "gram" displayUnit → qty           (integer gram)
- *  kg / litr / metr                   → qty           (decimal, 4 raqam)
- *  dona + "quti" displayUnit          → qty × boxQty  (integer dona)
- *  quti + "dona" displayUnit          → qty / boxQty  (integer quti)
- *  boshqa                             → Math.round(qty)
+ *  kg native:
+ *    "gram" display  → qty / 1000   (500 gram → 0.5 kg)
+ *    "kg"   display  → qty          (1.5 kg → 1.5 kg)
+ *
+ *  litr native:
+ *    "ml"   display  → qty / 1000   (500 ml → 0.5 litr)
+ *    "litr" display  → qty
+ *
+ *  metr native:
+ *    "sm"   display  → qty / 100    (150 sm → 1.5 metr)
+ *    "metr" display  → qty
+ *
+ *  gram (eski) native:
+ *    "kg"   display  → qty × 1000   (5 kg → 5000 gram)
+ *    "gram" display  → qty          (butun son)
+ *
+ *  dona native + "quti" display → qty × boxQty
+ *  quti native + "dona" display → qty / boxQty
  */
 export function toNativeQty(
   qty: number,
@@ -141,32 +152,45 @@ export function toNativeQty(
   nativeUnit: string,
   boxQty: number
 ): number {
-  // gram: grammda saqlanadi
+  if (qty <= 0) return 0;
+
+  // gram mahsuloti (eski) — grammda saqlanadi
   if (nativeUnit === "gram") {
     if (displayUnit === "kg") return Math.round(qty * 1000);
     return Math.round(qty);
   }
-  // decimal birliklar: to'g'ridan saqlash (yuvarlanmaydi)
+
+  // Native birlikning kichik birligi kiritilgan (gram, ml, sm)
+  const sub = SUB_UNIT_MAP[nativeUnit];
+  if (sub && displayUnit === sub.sub) {
+    return parseFloat((qty / sub.factor).toFixed(4));
+  }
+
+  // Decimal birliklar (kg, litr, metr) — to'g'ridan saqlash
   if (isDecimalUnit(nativeUnit)) {
     return parseFloat(qty.toFixed(4));
   }
-  // dona ↔ quti
+
+  // Dona ↔ Quti
   if (nativeUnit === "dona" && displayUnit === "quti") {
     return Math.round(qty * boxQty);
   }
   if (nativeUnit === "quti" && displayUnit === "dona") {
     return Math.round(qty / boxQty);
   }
+
   return Math.round(qty);
 }
 
 /**
- * DB native miqdorini → ko'rsatish miqdorga aylantiradi.
+ * DB native miqdor → ko'rsatish miqdori.
  *
- *  gram + "kg"    → qty / 1000   (3 raqamli decimal)
- *  dona + "quti"  → qty / boxQty (butun son)
- *  quti + "dona"  → qty × boxQty
- *  boshqa         → qty (o'zgarmaydi)
+ *  kg native + "gram" display → stockPieces × 1000
+ *  litr native + "ml" display → stockPieces × 1000
+ *  metr native + "sm" display → stockPieces × 100
+ *  gram (eski) + "kg" display → stockPieces / 1000
+ *  dona + "quti" display      → stockPieces / boxQty
+ *  quti + "dona" display      → stockPieces × boxQty
  */
 export function stockToDisplayQty(
   stockPieces: number,
@@ -175,29 +199,42 @@ export function stockToDisplayQty(
   boxQty: number
 ): number {
   if (newDisplayUnit === nativeUnit) return stockPieces;
+
+  // Kichik birlikka o'tish: kg→gram, litr→ml, metr→sm
+  const sub = SUB_UNIT_MAP[nativeUnit];
+  if (sub && newDisplayUnit === sub.sub) {
+    return parseFloat((stockPieces * sub.factor).toFixed(3));
+  }
+
+  // gram (eski) → kg
   if (nativeUnit === "gram" && newDisplayUnit === "kg") {
     return parseFloat((stockPieces / 1000).toFixed(3));
   }
+
+  // dona ↔ quti
   if (nativeUnit === "dona" && newDisplayUnit === "quti") {
     return Math.max(1, Math.floor(stockPieces / boxQty));
   }
   if (nativeUnit === "quti" && newDisplayUnit === "dona") {
     return stockPieces * boxQty;
   }
+
   return stockPieces;
 }
 
-// ═══════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // Narx konvertatsiyasi
-// ═══════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 
 /**
- * Native (DB) narxini → ko'rsatish narxiga aylantiradi.
+ * Native (DB) narx → ko'rsatish narxi.
  *
- *  gram → kg:    nativePrice × 1000
- *  dona → quti:  nativePrice × boxQty
- *  quti → dona:  nativePrice / boxQty
- *  boshqa:       o'zgarmaydi
+ *  kg native + "gram" display  → nativePrice / 1000   (25,000/kg → 25/gram)
+ *  litr native + "ml" display  → nativePrice / 1000
+ *  metr native + "sm" display  → nativePrice / 100
+ *  gram (eski) + "kg" display  → nativePrice × 1000   (80/gram → 80,000/kg)
+ *  dona + "quti" display       → nativePrice × boxQty
+ *  quti + "dona" display       → nativePrice / boxQty
  */
 export function toDisplayPrice(
   nativePrice: number,
@@ -206,19 +243,32 @@ export function toDisplayPrice(
   boxQty: number
 ): number {
   if (displayUnit === nativeUnit) return nativePrice;
+
+  // Kichik birlikda narx ko'rsatish: kg→gram, litr→ml, metr→sm
+  const sub = SUB_UNIT_MAP[nativeUnit];
+  if (sub && displayUnit === sub.sub) {
+    return nativePrice / sub.factor;
+  }
+
+  // gram (eski) → kg narxi
   if (nativeUnit === "gram" && displayUnit === "kg") return nativePrice * 1000;
+
+  // dona ↔ quti
   if (nativeUnit === "dona" && displayUnit === "quti") return nativePrice * boxQty;
   if (nativeUnit === "quti" && displayUnit === "dona") return nativePrice / boxQty;
+
   return nativePrice;
 }
 
 /**
- * Ko'rsatish narxini → native (DB) narxga aylantiradi.
+ * Ko'rsatish narxi → native (DB) narxi.
  *
- *  kg → gram:    displayPrice / 1000
- *  quti → dona:  displayPrice / boxQty
- *  dona → quti:  displayPrice × boxQty
- *  boshqa:       o'zgarmaydi
+ *  "gram" display + kg native  → displayPrice × 1000
+ *  "ml"   display + litr native → displayPrice × 1000
+ *  "sm"   display + metr native → displayPrice × 100
+ *  "kg"   display + gram (eski) → displayPrice / 1000
+ *  "quti" display + dona native → displayPrice / boxQty
+ *  "dona" display + quti native → displayPrice × boxQty
  */
 export function toNativePrice(
   displayPrice: number,
@@ -227,24 +277,34 @@ export function toNativePrice(
   boxQty: number
 ): number {
   if (displayUnit === nativeUnit) return displayPrice;
+
+  // Kichik birlikdan native birlikka: gram→kg, ml→litr, sm→metr
+  const parent = PARENT_UNIT_MAP[displayUnit];
+  if (parent && parent.parent === nativeUnit) {
+    return displayPrice * parent.factor;
+  }
+
+  // gram (eski): kg narxini gram narxiga
   if (nativeUnit === "gram" && displayUnit === "kg") return displayPrice / 1000;
+
+  // dona ↔ quti
   if (nativeUnit === "dona" && displayUnit === "quti") return displayPrice / boxQty;
   if (nativeUnit === "quti" && displayUnit === "dona") return displayPrice * boxQty;
+
   return displayPrice;
 }
 
-// ═══════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // UI ko'rsatish yordamchi funksiyalari
-// ═══════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 
 /**
  * Mahsulot kartasida narx yorlig'i.
- *   gram  → "80,000 so'm/kg"   (narx×1000 ko'rsatiladi)
- *   kg    → "25,000 so'm/kg"
- *   dona  → "5,000 so'm/dona"
- *   quti  → "120,000 so'm/quti"
- *   litr  → "3,000 so'm/litr"
- *   metr  → "15,000 so'm/metr"
+ *   gram (eski) → "80,000 so'm/kg"
+ *   kg          → "25,000 so'm/kg"
+ *   litr        → "3,000 so'm/litr"
+ *   metr        → "15,000 so'm/metr"
+ *   dona        → "5,000 so'm/dona"
  */
 export function productPriceLabel(
   price: number | string,
@@ -257,11 +317,41 @@ export function productPriceLabel(
 }
 
 /**
+ * Miqdorni chiroyli formatlaydi.
+ *   kg/litr/metr  → 3 decimal raqam, ortiqcha nollar tushiriladi
+ *   gram/ml/sm    → butun son
+ *   dona/quti     → butun son
+ */
+export function formatQtyDisplay(qty: number, displayUnit: string): string {
+  if (displayUnit === "kg" || displayUnit === "litr" || displayUnit === "metr") {
+    const val = parseFloat(qty.toFixed(3));
+    return `${val} ${displayUnit}`;
+  }
+  if (displayUnit === "gram" || displayUnit === "ml" || displayUnit === "sm") {
+    return `${Math.round(qty)} ${displayUnit}`;
+  }
+  return `${Math.round(qty)} ${displayUnit}`;
+}
+
+/**
+ * Stok badge matni (mahsulot kartasi uchun).
+ *   gram product, stock=1500  → "1.5 kg"
+ *   kg product, stock=2.5     → "2.5 kg"
+ *   litr product, stock=10.3  → "10.3 litr"
+ *   dona, stock=100            → "100 dona"
+ */
+export function stockBadge(
+  nativeStock: number,
+  nativeUnit: string,
+  boxQty: number
+): string {
+  const defDisplay = getSellUnitOptions({ unit: nativeUnit, boxQuantity: boxQty })[0];
+  const displayQty = stockToDisplayQty(nativeStock, defDisplay, nativeUnit, boxQty);
+  return formatQtyDisplay(displayQty, defDisplay);
+}
+
+/**
  * Chek va savat uchun miqdor + birlik ko'rsatish.
- *   gram + kg:   "1.5 kg (1500 gram)"
- *   dona + quti: "2 quti (40 dona)"
- *   kg:          "1.500 kg"
- *   dona:        "5 dona"
  */
 export function qtyLabel(
   displayQty: number,
@@ -280,45 +370,10 @@ export function qtyLabel(
 }
 
 /**
- * Stok badge matni (mahsulot kartasi uchun).
- *   gram product, stock=1500  → "1.5 kg"
- *   kg product, stock=2.5    → "2.5 kg"
- *   litr product, stock=10.3 → "10.3 litr"
- *   dona, stock=100           → "100 dona"
- *   quti, stock=20            → "20 quti"
- */
-export function stockBadge(
-  nativeStock: number,
-  nativeUnit: string,
-  boxQty: number
-): string {
-  const defDisplay = getSellUnitOptions({ unit: nativeUnit, boxQuantity: boxQty })[0];
-  const displayQty = stockToDisplayQty(nativeStock, defDisplay, nativeUnit, boxQty);
-  return formatQtyDisplay(displayQty, defDisplay);
-}
-
-/**
- * Miqdorni chiroyli formatlaydi.
- *   kg/litr/metr → 3 decimal raqam, ortiqcha nollar tushiriladi
- *   gram         → butun son
- *   dona/quti    → butun son
- */
-export function formatQtyDisplay(qty: number, displayUnit: string): string {
-  if (displayUnit === "kg" || displayUnit === "litr" || displayUnit === "metr") {
-    const val = parseFloat(qty.toFixed(3));
-    return `${val} ${displayUnit}`;
-  }
-  if (displayUnit === "gram") {
-    return `${Math.round(qty)} gram`;
-  }
-  return `${Math.round(qty)} ${displayUnit}`;
-}
-
-/**
  * Input step qiymati (HTML input step="..." uchun).
- *   kg / litr / metr → 0.001  (millionlik aniqlik)
- *   gram displayUnit → 1      (1 gramlik qadamlar)
- *   dona / quti      → 1
+ *   kg / litr / metr  → 0.001
+ *   gram / ml / sm    → 1
+ *   dona / quti       → 1
  */
 export function qtyInputStep(displayUnit: string): number {
   if (displayUnit === "kg" || displayUnit === "litr" || displayUnit === "metr") {
@@ -329,35 +384,29 @@ export function qtyInputStep(displayUnit: string): number {
 
 /**
  * +/- tugmalar uchun qadam (delta).
- *   kg / litr / metr → 0.5   (500g, 500ml, 50cm)
- *   gram display     → 100   (100 gramlik qadamlar)
- *   dona / quti      → 1
+ *   kg / litr / metr  → 0.5
+ *   gram              → 100
+ *   ml                → 100
+ *   sm                → 10
+ *   dona / quti       → 1
  */
 export function qtyDelta(displayUnit: string): number {
-  if (displayUnit === "kg" || displayUnit === "litr" || displayUnit === "metr") {
-    return 0.5;
-  }
-  if (displayUnit === "gram") return 100;
+  if (displayUnit === "kg" || displayUnit === "litr" || displayUnit === "metr") return 0.5;
+  if (displayUnit === "gram" || displayUnit === "ml") return 100;
+  if (displayUnit === "sm") return 10;
   return 1;
 }
 
 /**
  * Minimal miqdor (input min="..." uchun).
- *   decimal  → 0.001
- *   gram     → 1
- *   boshqa   → 1
  */
 export function qtyMin(displayUnit: string): number {
-  if (displayUnit === "kg" || displayUnit === "litr" || displayUnit === "metr") {
-    return 0.001;
-  }
+  if (displayUnit === "kg" || displayUnit === "litr" || displayUnit === "metr") return 0.001;
   return 1;
 }
 
 /**
- * Stok yetarlimi? (savatchaga qo'shishdan oldin tekshirish)
- *   nativeRequired: so'ralgan miqdor (native birlikda)
- *   productStock:   mavjud stok (native birlikda, decimal mumkin)
+ * Stok yetarlimi?
  */
 export function hasEnoughStock(
   nativeRequired: number,

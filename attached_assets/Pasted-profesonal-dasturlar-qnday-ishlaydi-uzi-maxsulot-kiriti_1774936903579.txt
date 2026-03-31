@@ -1,0 +1,152 @@
+profesonal dasturlar qnday ishlaydi uzi maxsulot kiritishda 
+
+Professional ERP dasturlarda (masalan SAP ERP, Odoo) mahsulot kiritish oddiy “nom yozish” emas — bu strukturali obyekt yaratish hisoblanadi.
+
+Sizga real tizim qanday ishlashini sodda qilib tushuntiraman 👇
+
+🧠 1. Mahsulot kiritish – aslida nima bo‘ladi?
+
+Siz “mahsulot qo‘shdim” deb o‘ylaysiz, lekin tizim ichida:
+
+✅ Mahsulot kartasi yaratiladi
+✅ O‘lchov birliklari bog‘lanadi
+✅ Narxlar tizimi ulanadi
+✅ Ombor bilan bog‘lanadi
+✅ Hisob-kitob (buxgalteriya) ulanadi
+
+📦 2. Mahsulot kartasi (Product Card)
+
+Professional ERP’da har mahsulotda quyidagilar bo‘ladi:
+
+Nomi: Shakar
+SKU (kod): SHK-001
+Kategoriya: Oziq-ovqat
+Asosiy birlik: kg
+Sotish narxi: 12 000
+Tannarx: 10 000
+⚙️ 3. Eng muhim qismi – UNIT (birlik)
+❗ Har doim 1 ta asosiy birlik bo‘ladi
+
+Misol:
+
+Mahsulot: Shakar
+Base unit: kg
+🔄 4. Qo‘shimcha birliklar qanday ishlaydi
+
+Keyin siz qo‘shasiz:
+
+Birlik	Nisbat
+gram	0.001 kg
+qop	50 kg
+
+👉 ERP ichida saqlanadi:
+
+gram → kg = 0.001
+qop → kg = 50
+🔥 5. Eng muhim prinsip
+
+👉 Hamma hisob-kitob faqat BASE UNIT’da yuradi
+
+Misol:
+
+Siz sotdingiz:
+
+500 gram shakar
+
+ERP ichida:
+
+500 × 0.001 = 0.5 kg
+
+👉 Ombordan 0.5 kg kamayadi
+
+📊 6. Quti / dona qanday ishlaydi
+
+Bu joy ko‘pchilikni adashtiradi ❗
+
+❌ noto‘g‘ri:
+quti = global birlik
+✅ to‘g‘ri:
+quti = mahsulotga bog‘liq birlik
+Misol:
+
+Mahsulot: Cola
+
+base: dona
+1 quti = 6 dona
+
+Mahsulot: Pechenye
+
+base: dona
+1 quti = 24 dona
+
+👉 Demak:
+quti har mahsulotda boshqacha!
+
+🏗️ 7. ERP ichki strukturasi
+
+Professional tizimlarda taxminan shunaqa bo‘ladi:
+
+PRODUCT
+id
+name
+base_uom_id
+category_id
+UOM (birliklar)
+id
+name (kg, dona, metr)
+PRODUCT_UOM (bog‘lanish)
+product_id
+uom_id
+ratio
+💰 8. Narx qanday ishlaydi
+
+ERP’da:
+
+👉 Narx ham BASE UNIT’da saqlanadi
+
+Misol:
+
+1 kg = 12 000
+
+Agar siz:
+
+500 gram sotsangiz
+
+ERP hisoblaydi:
+
+0.5 × 12 000 = 6 000
+🧾 9. Ombor bilan bog‘lanish
+
+ERP’da stock ham base unit’da:
+
+Stock: 100 kg
+
+Agar:
+
+1 qop (50 kg) sotildi
+
+👉 Qoladi:
+
+50 kg
+❌ 10. Sizda xato chiqayotgan joy
+
+Siz ehtimol:
+
+❌ birlikni oddiy string qilib ishlatyapsiz
+❌ qutini umumiy qilib qo‘ygansiz
+❌ base unit qilmagansiz
+
+✅ 11. Professional yondashuv
+
+To‘g‘ri yo‘l:
+
+✔ Base unit majburiy
+✔ Conversion ratio orqali ishlash
+✔ Quti/product-specific
+✔ Hamma hisob base’da
+
+💡 Oddiy qilib aytsam:
+
+ERP shunaqa ishlaydi:
+
+"Nima bo‘lishidan qat’i nazar — hammasini bitta birlikka aylantir va hisobla"

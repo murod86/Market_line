@@ -289,10 +289,61 @@ export default function Products() {
               <label className="text-sm font-medium mb-1 block">Tavsif</label>
               <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} data-testid="input-product-description" />
             </div>
+            {/* Birlik tanlash */}
+            <div>
+              <label className="text-sm font-medium mb-1 block">Asosiy birlik</label>
+              <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v, boxQuantity: "1" })}>
+                <SelectTrigger data-testid="select-product-unit">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dona">Dona — dona / quti</SelectItem>
+                  <SelectItem value="quti">Quti — quti / dona</SelectItem>
+                  <SelectItem value="kg">Kg — kg / gram (1 kg = 1000 gram)</SelectItem>
+                  <SelectItem value="litr">Litr — litr / ml (1 litr = 1000 ml)</SelectItem>
+                  <SelectItem value="metr">Metr — metr / sm (1 metr = 100 sm)</SelectItem>
+                </SelectContent>
+              </Select>
+              {/* Sub-birlik ma'lumoti */}
+              {form.unit === "kg" && (
+                <p className="text-[11px] text-emerald-600 mt-1">✓ kg va gramda xarid qilish / sotish mumkin</p>
+              )}
+              {form.unit === "litr" && (
+                <p className="text-[11px] text-emerald-600 mt-1">✓ litr va mlda xarid qilish / sotish mumkin</p>
+              )}
+              {form.unit === "metr" && (
+                <p className="text-[11px] text-emerald-600 mt-1">✓ metr va smda xarid qilish / sotish mumkin</p>
+              )}
+            </div>
+
+            {/* Quti — faqat dona yoki quti birligida */}
+            {(form.unit === "dona" || form.unit === "quti") && (
+              <div>
+                <label className="text-sm font-medium mb-1 block">
+                  1 qutida nechta dona?
+                  <span className="text-xs text-muted-foreground ml-1">(quti ishlatilmasa 1 qoldiring)</span>
+                </label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={form.boxQuantity}
+                  onChange={(e) => setForm({ ...form, boxQuantity: e.target.value })}
+                  placeholder="Masalan: 12"
+                  data-testid="input-product-box-quantity"
+                />
+                {Number(form.boxQuantity) > 1 && (
+                  <p className="text-xs text-emerald-600 mt-1">
+                    ✓ 1 quti = {form.boxQuantity} dona — quti va donada sotish mumkin
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Narx */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">
-                  Narxi (1 {form.unit} uchun UZS) *
+                  Narxi (1 {form.unit === "gram" ? "gram" : form.unit} uchun UZS) *
                 </label>
                 <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} data-testid="input-product-price" />
                 {form.unit === "gram" && form.price && (
@@ -300,10 +351,15 @@ export default function Products() {
                     = {new Intl.NumberFormat("uz-UZ").format(Number(form.price) * 1000)} so'm/kg
                   </p>
                 )}
+                {form.unit === "kg" && form.price && (
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    = {new Intl.NumberFormat("uz-UZ").format(Number(form.price) / 1000)} so'm/gram
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">
-                  Tan narxi (1 {form.unit} uchun UZS) *
+                  Tan narxi (1 {form.unit === "gram" ? "gram" : form.unit} uchun UZS) *
                 </label>
                 <Input type="number" value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: e.target.value })} data-testid="input-product-cost" />
                 {form.unit === "gram" && form.costPrice && (
@@ -313,12 +369,14 @@ export default function Products() {
                 )}
               </div>
             </div>
+
+            {/* Stok */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">
-                  Stok ({form.unit})
-                  {isDecimalUnit(form.unit) && <span className="text-xs text-muted-foreground ml-1">(decimal, masalan: 1.5)</span>}
-                  {form.unit === "gram" && <span className="text-xs text-muted-foreground ml-1">(gramda, masalan: 5kg=5000)</span>}
+                  Boshlang'ich stok ({form.unit === "gram" ? "gram" : form.unit})
+                  {isDecimalUnit(form.unit) && <span className="text-xs text-muted-foreground ml-1">(masalan: 5.500)</span>}
+                  {form.unit === "gram" && <span className="text-xs text-muted-foreground ml-1">(gramda: 5kg=5000)</span>}
                 </label>
                 <Input
                   type="number"
@@ -329,13 +387,16 @@ export default function Products() {
                   data-testid="input-product-stock"
                 />
                 {form.unit === "gram" && form.stock && Number(form.stock) > 0 && (
-                  <p className="text-[11px] text-emerald-600 mt-0.5">
-                    = {(Number(form.stock) / 1000).toFixed(3)} kg
-                  </p>
+                  <p className="text-[11px] text-emerald-600 mt-0.5">= {(Number(form.stock) / 1000).toFixed(3)} kg</p>
+                )}
+                {form.unit === "kg" && form.stock && Number(form.stock) > 0 && (
+                  <p className="text-[11px] text-muted-foreground mt-0.5">= {Math.round(Number(form.stock) * 1000)} gram</p>
                 )}
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Min stok ({form.unit})</label>
+                <label className="text-sm font-medium mb-1 block">
+                  Min stok ({form.unit === "gram" ? "gram" : form.unit})
+                </label>
                 <Input
                   type="number"
                   value={form.minStock}
@@ -344,40 +405,6 @@ export default function Products() {
                   min="0"
                   data-testid="input-product-min-stock"
                 />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium mb-1 block">Sotish birligi</label>
-                <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
-                  <SelectTrigger data-testid="select-product-unit">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="dona">Dona</SelectItem>
-                    <SelectItem value="quti">Quti</SelectItem>
-                    <SelectItem value="kg">Kg</SelectItem>
-                    <SelectItem value="gram">Gram</SelectItem>
-                    <SelectItem value="litr">Litr</SelectItem>
-                    <SelectItem value="metr">Metr</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-1 block">1 qutida nechta {form.unit}</label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={form.boxQuantity}
-                  onChange={(e) => setForm({ ...form, boxQuantity: e.target.value })}
-                  placeholder="Masalan: 30"
-                  data-testid="input-product-box-quantity"
-                />
-                {Number(form.boxQuantity) > 1 && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    1 quti = {form.boxQuantity} {form.unit}
-                  </p>
-                )}
               </div>
             </div>
             <div>
