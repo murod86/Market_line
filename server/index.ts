@@ -53,6 +53,12 @@ class PgSessionStore extends Store {
       `UPDATE sale_items si SET cost_price = p.cost_price FROM products p WHERE si.product_id = p.id AND si.cost_price = 0 AND p.cost_price > 0`,
       `ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS returned_qty decimal(12,2) NOT NULL DEFAULT 0`,
       `ALTER TABLE dealer_transactions ADD COLUMN IF NOT EXISTS sale_group_id varchar`,
+      `ALTER TABLE sale_items ALTER COLUMN quantity TYPE double precision`,
+      `ALTER TABLE delivery_items ALTER COLUMN quantity TYPE double precision`,
+      `ALTER TABLE dealer_inventory ALTER COLUMN quantity TYPE double precision`,
+      `ALTER TABLE dealer_transactions ALTER COLUMN quantity TYPE double precision`,
+      `ALTER TABLE products ALTER COLUMN stock TYPE double precision`,
+      `ALTER TABLE purchase_items ALTER COLUMN quantity TYPE double precision`,
     ];
     for (const m of migrations) {
       try { await pool.query(m); } catch {}
