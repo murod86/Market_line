@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import logoImg from "@assets/logo_chosen_b_transparent.png";
+import logoImg from "@assets/logo_clean.svg";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Customer, Product } from "@shared/schema";
 import PortalCatalog, { type CartItem } from "./catalog";

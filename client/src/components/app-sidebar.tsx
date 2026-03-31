@@ -22,7 +22,7 @@ import {
   History,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import logoImg from "@assets/logo_chosen_b_transparent.png";
+import logoImg from "@assets/logo_clean.svg";
 import {
   Sidebar,
   SidebarContent,
