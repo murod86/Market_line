@@ -83,7 +83,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="glass-sidebar-content">
         <SidebarGroup className="pt-3">
-          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40 px-4 mb-1">Asosiy</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-[0.18em] text-white/60 px-4 mb-1">Asosiy</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-px px-2">
               {filteredMainItems.map((item) => {
@@ -97,12 +97,12 @@ export function AppSidebar() {
                       className={`rounded-lg py-2 px-3 transition-all duration-150 ${
                         isActive
                           ? "bg-white/15 backdrop-blur-md border border-white/25 text-white shadow-md shadow-black/20"
-                          : "text-white/70 hover:text-white hover:bg-white/10 hover:backdrop-blur-sm"
+                          : "text-white/90 hover:text-white hover:bg-white/10 hover:backdrop-blur-sm"
                       }`}
                     >
                       <Link href={item.url}>
                         <item.icon className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-white" : item.color}`} />
-                        <span className="font-semibold text-[14px]">{item.title}</span>
+                        <span className="font-semibold text-[14px] drop-shadow-sm">{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -113,7 +113,7 @@ export function AppSidebar() {
         </SidebarGroup>
         {filteredManagementItems.length > 0 && (
           <SidebarGroup className="pt-2">
-            <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40 px-4 mb-1">Boshqaruv</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-[0.18em] text-white/60 px-4 mb-1">Boshqaruv</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="gap-px px-2">
                 {filteredManagementItems.map((item) => {
@@ -127,12 +127,12 @@ export function AppSidebar() {
                         className={`rounded-lg py-2 px-3 transition-all duration-150 ${
                           isActive
                             ? "bg-white/15 backdrop-blur-md border border-white/25 text-white shadow-md shadow-black/20"
-                            : "text-white/70 hover:text-white hover:bg-white/10 hover:backdrop-blur-sm"
+                            : "text-white/90 hover:text-white hover:bg-white/10 hover:backdrop-blur-sm"
                         }`}
                       >
                         <Link href={item.url}>
                           <item.icon className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-white" : item.color}`} />
-                          <span className="font-semibold text-[14px]">{item.title}</span>
+                          <span className="font-semibold text-[14px] drop-shadow-sm">{item.title}</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
