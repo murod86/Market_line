@@ -101,8 +101,8 @@ export function AppSidebar() {
                       }`}
                     >
                       <Link href={item.url}>
-                        <div className={`flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${isActive ? "bg-white/20" : "bg-white/10"}`}>
-                          <item.icon className={`h-[18px] w-[18px] ${isActive ? "text-white" : item.color}`} />
+                        <div className={`flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${isActive ? "bg-white/30 shadow-sm shadow-black/20" : "bg-white/10"}`}>
+                          <item.icon className={`h-[18px] w-[18px] ${item.color}`} />
                         </div>
                         <span className="font-semibold text-[14px] drop-shadow-sm">{item.title}</span>
                       </Link>
@@ -133,8 +133,8 @@ export function AppSidebar() {
                         }`}
                       >
                         <Link href={item.url}>
-                          <div className={`flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${isActive ? "bg-white/20" : "bg-white/10"}`}>
-                            <item.icon className={`h-[18px] w-[18px] ${isActive ? "text-white" : item.color}`} />
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${isActive ? "bg-white/30 shadow-sm shadow-black/20" : "bg-white/10"}`}>
+                            <item.icon className={`h-[18px] w-[18px] ${item.color}`} />
                           </div>
                           <span className="font-semibold text-[14px] drop-shadow-sm">{item.title}</span>
                         </Link>
