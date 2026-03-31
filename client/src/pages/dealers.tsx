@@ -221,6 +221,48 @@ export default function Dealers() {
     if (w) { w.document.write(html); w.document.close(); }
   };
 
+  const printSingleTxReceipt = (tx: any, dealerName: string) => {
+    const dateStr = format(new Date(), "dd.MM.yyyy HH:mm");
+    const totalAmt = Number(tx.total) || 0;
+    const paidAmt = Number(tx.paidAmount || 0);
+    const isLoad = tx.type === "load";
+    const debtAmt = tx.paymentType === "debt" ? totalAmt : tx.paymentType === "partial" ? Math.max(0, totalAmt - paidAmt) : 0;
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+      <style>
+        @page { size: 58mm auto; margin: 0; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html, body { width:54mm; font-family:'Courier New',monospace; font-size:11px; font-weight:700; line-height:1.5; padding:1mm 2mm; color:#000; -webkit-print-color-adjust:exact; }
+        .center { text-align:center; }
+        .bold { font-weight:900; }
+        .divider { border-top:2px solid #000; margin:5px 0; }
+        .row { display:flex; justify-content:space-between; }
+        div,span,p,b { color:#000; }
+        b { font-weight:900; }
+      </style></head><body>
+      <div class="center bold" style="font-size:1.4em;margin-bottom:2px;letter-spacing:1px">MARKET_LINE</div>
+      <div class="center bold" style="font-size:1em;margin-bottom:5px">${isLoad ? "Yuklash hujjati (nusxa)" : "Sotuv cheki (nusxa)"}</div>
+      <div class="divider"></div>
+      <div><b>Diller:</b> ${dealerName}</div>
+      ${tx.customerName ? `<div><b>Mijoz:</b> ${tx.customerName}</div>` : ""}
+      <div style="margin-bottom:4px"><b>Sana:</b> ${dateStr}</div>
+      <div class="divider"></div>
+      <div style="font-weight:900;font-size:1.05em;padding:3px 0">${tx.productName}</div>
+      <div class="row"><span>${tx.quantity} ${tx.productUnit || "dona"} x ${Number(tx.price).toLocaleString()}</span><span>${totalAmt.toLocaleString()} UZS</span></div>
+      <div class="divider"></div>
+      <div class="row bold" style="font-size:1.3em;border-top:2px solid #000;padding-top:3px"><span>JAMI:</span><span>${totalAmt.toLocaleString()} UZS</span></div>
+      ${!isLoad && tx.paymentType === "cash" ? `<div style="margin-top:4px"><b>To'lov:</b> Naqd</div>` : ""}
+      ${!isLoad && tx.paymentType === "debt" ? `<div style="margin-top:4px"><b>Qarz:</b> ${totalAmt.toLocaleString()} UZS</div>` : ""}
+      ${!isLoad && tx.paymentType === "partial" ? `<div style="margin-top:4px"><b>To'langan:</b> ${paidAmt.toLocaleString()} UZS</div><div><b>Qarz:</b> ${debtAmt.toLocaleString()} UZS</div>` : ""}
+      ${isLoad ? `<div style="display:flex;justify-content:space-between;margin-top:20px;font-size:9px"><div>Topshirdi: __________</div><div>Qabul qildi: __________</div></div>` : ""}
+      ${tx.notes ? `<div style="margin-top:3px"><b>Izoh:</b> ${tx.notes}</div>` : ""}
+      <div class="divider"></div>
+      <div class="center" style="margin-top:5px;font-size:9px">MARKET_LINE &bull; ${dateStr}</div>
+      <script>window.onload=function(){setTimeout(function(){window.print();window.onafterprint=function(){window.close()};setTimeout(function(){window.close()},8000)},300)}<\/script>
+    </body></html>`;
+    const w = window.open("", "_blank", "width=320,height=600");
+    if (w) { w.document.write(html); w.document.close(); }
+  };
+
   const loadMutation = useMutation({
     mutationFn: async (data: any) => {
       const res = await apiRequest("POST", `/api/dealers/${detailDealer!.id}/load`, data);
@@ -913,6 +955,16 @@ export default function Dealers() {
                           <TableCell>
                             {(tx.type === "load" || tx.type === "sell") && (
                               <div className="flex gap-1">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-purple-500 hover:text-purple-600 hover:bg-purple-50"
+                                  onClick={() => printSingleTxReceipt(tx, detailDealer?.name || "Diller")}
+                                  data-testid={`button-reprint-tx-${tx.id}`}
+                                  title="Chekni qayta chiqarish"
+                                >
+                                  <Printer className="h-3.5 w-3.5" />
+                                </Button>
                                 <Button
                                   size="icon"
                                   variant="ghost"

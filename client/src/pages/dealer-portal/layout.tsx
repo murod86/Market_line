@@ -130,6 +130,46 @@ export default function DealerLayout({ onLogout }: DealerLayoutProps) {
   );
 }
 
+function printDealerTxReceipt(tx: any) {
+  const now = format(new Date(), "dd.MM.yyyy HH:mm");
+  const totalAmt = Number(tx.total) || Number(tx.price) * tx.quantity;
+  const paidAmt = Number(tx.paidAmount || 0);
+  const debtAmt = tx.paymentType === "debt" ? totalAmt : tx.paymentType === "partial" ? Math.max(0, totalAmt - paidAmt) : 0;
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+    <style>
+      @page { size: 58mm auto; margin: 0; }
+      * { margin:0; padding:0; box-sizing:border-box; }
+      html, body { width:54mm; font-family:'Courier New',monospace; font-size:11px; font-weight:700; line-height:1.5; padding:1mm 2mm; color:#000; -webkit-print-color-adjust:exact; }
+      .center { text-align:center; }
+      .bold { font-weight:900; }
+      .divider { border-top:2px solid #000; margin:5px 0; }
+      .row { display:flex; justify-content:space-between; }
+      div,span,p,b { color:#000; }
+      b { font-weight:900; }
+    </style></head><body>
+    <div class="center bold" style="font-size:1.4em;margin-bottom:2px;letter-spacing:1px">MARKET_LINE</div>
+    <div class="center bold" style="font-size:1em;margin-bottom:5px">Sotuv cheki (nusxa)</div>
+    <div class="divider"></div>
+    ${tx.customerName ? `<div><b>Mijoz:</b> ${tx.customerName}</div>` : ""}
+    ${tx.customerPhone ? `<div><b>Tel:</b> ${tx.customerPhone}</div>` : ""}
+    <div style="margin-bottom:4px"><b>Sana:</b> ${now}</div>
+    <div class="divider"></div>
+    <div style="font-weight:900;font-size:1.05em;padding:3px 0">${tx.productName}</div>
+    <div class="row"><span>${tx.quantity} ${tx.productUnit || "dona"} x ${Number(tx.price).toLocaleString()}</span><span>${totalAmt.toLocaleString()} UZS</span></div>
+    <div class="divider"></div>
+    <div class="row bold" style="font-size:1.3em;border-top:2px solid #000;padding-top:3px"><span>JAMI:</span><span>${totalAmt.toLocaleString()} UZS</span></div>
+    ${tx.paymentType === "cash" ? `<div style="margin-top:4px"><b>To'lov:</b> Naqd</div>` : ""}
+    ${tx.paymentType === "debt" ? `<div style="margin-top:4px"><b>Qarz:</b> ${totalAmt.toLocaleString()} UZS</div>` : ""}
+    ${tx.paymentType === "partial" ? `<div style="margin-top:4px"><b>To'langan:</b> ${paidAmt.toLocaleString()} UZS</div><div><b>Qarz:</b> ${debtAmt.toLocaleString()} UZS</div>` : ""}
+    ${tx.notes ? `<div style="margin-top:3px"><b>Izoh:</b> ${tx.notes}</div>` : ""}
+    <div class="divider"></div>
+    <div class="center bold" style="margin-top:5px">Xaridingiz uchun rahmat!</div>
+    <script>window.onload=function(){setTimeout(function(){window.print();window.onafterprint=function(){window.close()};setTimeout(function(){window.close()},8000)},300)}<\/script>
+  </body></html>`;
+  const w = window.open("", "_blank", "width=320,height=600");
+  if (w) { w.document.write(html); w.document.close(); }
+}
+
 function DashboardTab({ dealer }: { dealer: any }) {
   const { toast } = useToast();
   const { data: inventory, isLoading: invLoading } = useQuery<any[]>({
@@ -356,6 +396,9 @@ function DashboardTab({ dealer }: { dealer: any }) {
                           <div className="flex gap-1">
                             <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewTx(t)} data-testid={`button-view-dash-sale-${t.id}`}>
                               <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-purple-500 hover:text-purple-600 hover:bg-purple-50" onClick={() => printDealerTxReceipt(t)} data-testid={`button-reprint-dash-sale-${t.id}`} title="Chekni chiqarish">
+                              <Printer className="h-3.5 w-3.5" />
                             </Button>
                             <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(t)} data-testid={`button-edit-dash-sale-${t.id}`}>
                               <Edit className="h-3.5 w-3.5" />
@@ -2782,45 +2825,6 @@ function HistoryTab() {
   const [histPage, setHistPage] = useState(1);
   const [filterPayType, setFilterPayType] = useState<"all" | "cash" | "debt" | "partial">("all");
 
-  const printHistoryReceipt = (tx: any) => {
-    const now = format(new Date(), "dd.MM.yyyy HH:mm");
-    const totalAmt = Number(tx.total) || Number(tx.price) * tx.quantity;
-    const paidAmt = Number(tx.paidAmount || 0);
-    const debtAmt = tx.paymentType === "debt" ? totalAmt : tx.paymentType === "partial" ? Math.max(0, totalAmt - paidAmt) : 0;
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-      <style>
-        @page { size: 58mm auto; margin: 0; }
-        * { margin:0; padding:0; box-sizing:border-box; }
-        html, body { width:54mm; font-family:'Courier New',monospace; font-size:11px; font-weight:700; line-height:1.5; padding:1mm 2mm; color:#000; -webkit-print-color-adjust:exact; }
-        .center { text-align:center; }
-        .bold { font-weight:900; }
-        .divider { border-top:2px solid #000; margin:5px 0; }
-        .row { display:flex; justify-content:space-between; }
-        div,span,p,b { color:#000; }
-        b { font-weight:900; }
-      </style></head><body>
-      <div class="center bold" style="font-size:1.4em;margin-bottom:2px;letter-spacing:1px">MARKET_LINE</div>
-      <div class="center bold" style="font-size:1em;margin-bottom:5px">Sotuv cheki (nusxa)</div>
-      <div class="divider"></div>
-      ${tx.customerName ? `<div><b>Mijoz:</b> ${tx.customerName}</div>` : ""}
-      ${tx.customerPhone ? `<div><b>Tel:</b> ${tx.customerPhone}</div>` : ""}
-      <div style="margin-bottom:4px"><b>Sana:</b> ${now}</div>
-      <div class="divider"></div>
-      <div style="font-weight:900;font-size:1.05em;border-top:2px solid #000;padding:3px 0">${tx.productName}</div>
-      <div class="row"><span>${tx.quantity} ${tx.productUnit || "dona"} x ${Number(tx.price).toLocaleString()}</span><span>${totalAmt.toLocaleString()} UZS</span></div>
-      <div class="divider"></div>
-      <div class="row bold" style="font-size:1.3em;border-top:2px solid #000;padding-top:3px"><span>JAMI:</span><span>${totalAmt.toLocaleString()} UZS</span></div>
-      ${tx.paymentType === "cash" ? `<div style="margin-top:4px"><b>To'lov:</b> Naqd</div>` : ""}
-      ${tx.paymentType === "debt" ? `<div style="margin-top:4px"><b>Qarz:</b> ${totalAmt.toLocaleString()} UZS</div>` : ""}
-      ${tx.paymentType === "partial" ? `<div style="margin-top:4px"><b>To'langan:</b> ${paidAmt.toLocaleString()} UZS</div><div><b>Qarz:</b> ${debtAmt.toLocaleString()} UZS</div>` : ""}
-      ${tx.notes ? `<div style="margin-top:3px"><b>Izoh:</b> ${tx.notes}</div>` : ""}
-      <div class="divider"></div>
-      <div class="center bold" style="margin-top:5px">Xaridingiz uchun rahmat!</div>
-      <script>window.onload=function(){setTimeout(function(){window.print();window.onafterprint=function(){window.close()};setTimeout(function(){window.close()},8000)},300)}<\/script>
-    </body></html>`;
-    const w = window.open("", "_blank", "width=320,height=600");
-    if (w) { w.document.write(html); w.document.close(); }
-  };
 
   const openEdit = (tx: any) => {
     setEditTx(tx);
@@ -3033,7 +3037,7 @@ function HistoryTab() {
                           size="icon"
                           variant="ghost"
                           className="h-7 w-7 text-purple-500 hover:text-purple-600 hover:bg-purple-50"
-                          onClick={() => printHistoryReceipt(tx)}
+                          onClick={() => printDealerTxReceipt(tx)}
                           data-testid={`button-reprint-sell-${tx.id}`}
                           title="Chekni chiqarish"
                         >
