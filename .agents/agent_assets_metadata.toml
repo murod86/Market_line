@@ -72,3 +72,21 @@ id = "Yg1r_MNHInNhm7OZQJE7q"
 uri = "file://attached_assets/logo_beautiful_3.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "jrrY9nGZlZuoJx6gNYvI1"
+uri = "file://attached_assets/logo_blue_1.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Pj6JF1hZhN9kOpix0qoU2"
+uri = "file://attached_assets/logo_blue_2.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "EcvvKmy1K_dXh4G2nztZS"
+uri = "file://attached_assets/logo_blue_3.png"
+type = "image"
+title = "generated_image"
