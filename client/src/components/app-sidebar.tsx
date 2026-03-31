@@ -96,8 +96,8 @@ export function AppSidebar() {
                       data-testid={`nav-${item.url.replace("/", "") || "dashboard"}`}
                       className={`rounded-lg py-2 px-3 transition-all duration-150 ${
                         isActive
-                          ? "bg-white/20 text-white shadow-sm"
-                          : "text-white/70 hover:text-white hover:bg-white/10"
+                          ? "bg-white/15 backdrop-blur-md border border-white/25 text-white shadow-md shadow-black/20"
+                          : "text-white/70 hover:text-white hover:bg-white/10 hover:backdrop-blur-sm"
                       }`}
                     >
                       <Link href={item.url}>
@@ -126,8 +126,8 @@ export function AppSidebar() {
                         data-testid={`nav-${item.url.replace("/", "")}`}
                         className={`rounded-lg py-2 px-3 transition-all duration-150 ${
                           isActive
-                            ? "bg-white/20 text-white shadow-sm"
-                            : "text-white/70 hover:text-white hover:bg-white/10"
+                            ? "bg-white/15 backdrop-blur-md border border-white/25 text-white shadow-md shadow-black/20"
+                            : "text-white/70 hover:text-white hover:bg-white/10 hover:backdrop-blur-sm"
                         }`}
                       >
                         <Link href={item.url}>
