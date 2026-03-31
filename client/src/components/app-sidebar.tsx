@@ -101,8 +101,8 @@ export function AppSidebar() {
                       }`}
                     >
                       <Link href={item.url}>
-                        <item.icon className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-white" : "text-white/60"}`} />
-                        <span className="font-medium text-[13px]">{item.title}</span>
+                        <item.icon className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-white" : item.color}`} />
+                        <span className="font-semibold text-[14px]">{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -131,8 +131,8 @@ export function AppSidebar() {
                         }`}
                       >
                         <Link href={item.url}>
-                          <item.icon className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-white" : "text-white/60"}`} />
-                          <span className="font-medium text-[13px]">{item.title}</span>
+                          <item.icon className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-white" : item.color}`} />
+                          <span className="font-semibold text-[14px]">{item.title}</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
