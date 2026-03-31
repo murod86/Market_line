@@ -212,8 +212,9 @@ export default function LandingPage() {
 
       <footer className="py-10 px-4 border-t border-white/10">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <img src={logoImg} alt="MARKET_LINE" className="h-8 w-auto" />
+            <span className="text-white font-bold text-base tracking-wide">MARKET<span className="text-blue-400">_LINE</span></span>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-4">
             <a

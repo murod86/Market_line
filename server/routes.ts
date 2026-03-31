@@ -3377,6 +3377,80 @@ export async function registerRoutes(
     }
   });
 
+  // ===== MONTHLY CHART STATS =====
+  app.get("/api/stats/monthly", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const year = parseInt(req.query['year'] as string) || new Date().getFullYear();
+      const month = parseInt(req.query['month'] as string) || (new Date().getMonth() + 1);
+
+      const startDate = new Date(year, month - 1, 1);
+      const endDate = new Date(year, month, 1);
+
+      const result = await pool.query(`
+        SELECT
+          DATE_TRUNC('day', sa.created_at) AS day,
+          COALESCE(SUM(sa.total_amount), 0) AS revenue,
+          COALESCE(SUM(
+            GREATEST(
+              (SELECT SUM((si2.price - COALESCE(si2.cost_price,0)) * si2.quantity)
+               FROM sale_items si2 WHERE si2.sale_id = sa.id) - COALESCE(sa.discount, 0),
+              0
+            )
+          ), 0) AS profit
+        FROM sales sa
+        WHERE sa.tenant_id = $1
+          AND sa.status != 'cancelled'
+          AND sa.created_at >= $2
+          AND sa.created_at < $3
+        GROUP BY DATE_TRUNC('day', sa.created_at)
+        ORDER BY day
+      `, [tenantId, startDate.toISOString(), endDate.toISOString()]);
+
+      const expResult = await pool.query(`
+        SELECT
+          DATE_TRUNC('day', created_at) AS day,
+          COALESCE(SUM(amount), 0) AS expense
+        FROM expenses
+        WHERE tenant_id = $1
+          AND created_at >= $2
+          AND created_at < $3
+        GROUP BY DATE_TRUNC('day', created_at)
+        ORDER BY day
+      `, [tenantId, startDate.toISOString(), endDate.toISOString()]);
+
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const days: any[] = [];
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dayStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const salesRow = result.rows.find(r => {
+          const rd = new Date(r.day);
+          return rd.getDate() === d;
+        });
+        const expRow = expResult.rows.find(r => {
+          const rd = new Date(r.day);
+          return rd.getDate() === d;
+        });
+        const revenue = Number(salesRow?.revenue || 0);
+        const grossProfit = Number(salesRow?.profit || 0);
+        const expense = Number(expRow?.expense || 0);
+        days.push({
+          day: d,
+          label: `${d}-${['Yan','Fev','Mar','Apr','May','Iyn','Iyl','Avg','Sen','Okt','Noy','Dek'][month-1]}`,
+          revenue,
+          profit: Math.max(grossProfit - expense, 0),
+        });
+      }
+
+      const totalRevenue = days.reduce((s, d) => s + d.revenue, 0);
+      const totalProfit = days.reduce((s, d) => s + d.profit, 0);
+
+      res.json({ days, totalRevenue, totalProfit, year, month });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // ===== SUPER ADMIN =====
   function requireSuperAdmin(req: Request, res: Response, next: NextFunction) {
     if (!req.session.superAdmin) {
