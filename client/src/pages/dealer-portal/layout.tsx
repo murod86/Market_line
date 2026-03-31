@@ -634,6 +634,7 @@ function DashboardTab({ dealer }: { dealer: any }) {
 }
 
 function InventoryTab() {
+  const [previewImage, setPreviewImage] = useState<{ src: string; name: string } | null>(null);
   const { data: inventory, isLoading } = useQuery<any[]>({
     queryKey: ["/api/dealer-portal/inventory"],
   });
@@ -644,6 +645,31 @@ function InventoryTab() {
 
   return (
     <div className="space-y-4">
+      <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden">
+          <div className="relative">
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-3 right-3 z-10 bg-black/50 hover:bg-black/70 text-white rounded-full w-8 h-8 flex items-center justify-center transition-colors"
+              data-testid="button-close-image-preview"
+            >
+              ✕
+            </button>
+            {previewImage && (
+              <img
+                src={previewImage.src}
+                alt={previewImage.name}
+                className="w-full max-h-[80vh] object-contain bg-black"
+              />
+            )}
+          </div>
+          {previewImage && (
+            <div className="px-4 py-3 bg-card border-t">
+              <p className="font-semibold text-sm text-center">{previewImage.name}</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold" data-testid="text-inventory-title">Mening omborim</h2>
         <Badge variant="secondary" className="text-sm" data-testid="text-inventory-value">
@@ -658,7 +684,13 @@ function InventoryTab() {
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
                   {item.productImage ? (
-                    <img src={item.productImage} alt={item.productName} className="h-12 w-12 rounded-lg object-cover" />
+                    <img
+                      src={item.productImage}
+                      alt={item.productName}
+                      className="h-12 w-12 rounded-lg object-cover cursor-zoom-in hover:opacity-80 transition-opacity"
+                      onClick={() => setPreviewImage({ src: item.productImage, name: item.productName })}
+                      data-testid={`img-product-${item.id}`}
+                    />
                   ) : (
                     <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
                       <Package className="h-5 w-5 text-muted-foreground" />
@@ -716,6 +748,7 @@ interface SellCartItem {
 }
 
 function SellTab() {
+  const [previewImage, setPreviewImage] = useState<{ src: string; name: string } | null>(null);
   const [cart, setCart] = useState<SellCartItem[]>([]);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [customerSelectOpen, setCustomerSelectOpen] = useState(false);
@@ -1248,6 +1281,32 @@ function SellTab() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden">
+          <div className="relative">
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-3 right-3 z-10 bg-black/50 hover:bg-black/70 text-white rounded-full w-8 h-8 flex items-center justify-center transition-colors"
+              data-testid="button-close-sell-image-preview"
+            >
+              ✕
+            </button>
+            {previewImage && (
+              <img
+                src={previewImage.src}
+                alt={previewImage.name}
+                className="w-full max-h-[80vh] object-contain bg-black"
+              />
+            )}
+          </div>
+          {previewImage && (
+            <div className="px-4 py-3 bg-card border-t">
+              <p className="font-semibold text-sm text-center">{previewImage.name}</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <div className="grid gap-4 lg:grid-cols-5">
         <div className="lg:col-span-3 space-y-3">
           <p className="text-sm text-muted-foreground">Mahsulotni tanlang:</p>
@@ -1260,9 +1319,15 @@ function SellTab() {
                     <CardContent className="p-3" onClick={() => addToCart(item)}>
                       <div className="flex items-center gap-3">
                         {item.productImage ? (
-                          <img src={item.productImage} alt={item.productName} className="h-10 w-10 rounded object-cover" />
+                          <img
+                            src={item.productImage}
+                            alt={item.productName}
+                            className="h-10 w-10 rounded object-cover cursor-zoom-in hover:opacity-80 transition-opacity flex-shrink-0"
+                            onClick={(e) => { e.stopPropagation(); setPreviewImage({ src: item.productImage, name: item.productName }); }}
+                            data-testid={`img-sell-product-${item.productId}`}
+                          />
                         ) : (
-                          <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
+                          <div className="h-10 w-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
                             <Package className="h-4 w-4 text-muted-foreground" />
                           </div>
                         )}
