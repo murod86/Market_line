@@ -18,3 +18,21 @@ id = "syKxcogYGsdv2XgD4XiVr"
 uri = "file://attached_assets/logo_v3.png"
 type = "image"
 title = "market line logo v3"
+
+[[generated]]
+id = "R1PWOv4qESe5jdKlax2t6"
+uri = "file://attached_assets/logo_premium_1.png"
+type = "image"
+title = "premium logo 1 peaks"
+
+[[generated]]
+id = "fIRCC1ec-rQOL5DgSA09F"
+uri = "file://attached_assets/logo_premium_2.png"
+type = "image"
+title = "premium logo 2 indigo M"
+
+[[generated]]
+id = "jefBLG2J0IUlI48DdDXzU"
+uri = "file://attached_assets/logo_premium_3.png"
+type = "image"
+title = "premium logo 3 arrows M"
