@@ -186,23 +186,41 @@
 }
 
 .glass-sidebar-header {
-  background: linear-gradient(160deg, #1a56db 0%, #1e40af 50%, #312e81 100%) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 2px 20px rgba(29, 78, 216, 0.45), inset 0 1px 0 rgba(255,255,255,0.15);
+  background: linear-gradient(135deg, #2563eb 0%, #3b5bdb 40%, #4c3fc7 100%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 24px rgba(37, 99, 235, 0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-sidebar-header::after {
+  content: '';
+  position: absolute;
+  top: -40%; right: -20%;
+  width: 160px; height: 160px;
+  background: radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 70%);
+  pointer-events: none;
 }
 
 .glass-sidebar-content {
-  background: linear-gradient(180deg, #1e3fad 0%, #1e3a8a 35%, #1e1b5e 70%, #0f0e2e 100%) !important;
+  background: linear-gradient(180deg,
+    #1e40af 0%,
+    #1e3a8a 25%,
+    #1e2d6e 55%,
+    #151c4a 80%,
+    #0d1232 100%
+  ) !important;
   position: relative;
 }
 
 .glass-sidebar-content::before {
   content: '';
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
+  inset: 0;
   background:
-    radial-gradient(ellipse 80% 30% at 50% 0%, rgba(99,102,241,0.18) 0%, transparent 70%),
-    radial-gradient(ellipse 60% 20% at 20% 60%, rgba(59,130,246,0.12) 0%, transparent 60%);
+    radial-gradient(ellipse 100% 25% at 50% 0%, rgba(99,130,255,0.22) 0%, transparent 65%),
+    radial-gradient(ellipse 70% 20% at 0% 55%, rgba(79,102,241,0.14) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 15% at 100% 80%, rgba(59,130,246,0.10) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
 }
@@ -213,17 +231,17 @@
 }
 
 .glass-sidebar-footer {
-  background: linear-gradient(180deg, #1e1b5e 0%, #0f0e2e 100%) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07);
+  background: linear-gradient(180deg, #151c4a 0%, #0d1232 100%) !important;
+  border-top: 1px solid rgba(99, 130, 255, 0.15);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
 }
 
 .sidebar-text-shadow {
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 8px rgba(99,102,241,0.2);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7), 0 0 10px rgba(79,102,241,0.25);
 }
 
 .sidebar-text-shadow-strong {
-  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.8), 0 0 12px rgba(99,102,241,0.3);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9), 0 0 16px rgba(79,102,241,0.4);
 }
 
 .glass-sidebar [data-sidebar="sidebar"],
@@ -234,13 +252,30 @@
 }
 
 .glass-sidebar [data-slot="sidebar-inner"] {
-  border-right: 1px solid rgba(99, 102, 241, 0.25) !important;
-  box-shadow: 2px 0 20px rgba(99, 102, 241, 0.08);
+  border-right: 1px solid rgba(99, 130, 255, 0.2) !important;
+  box-shadow: 3px 0 30px rgba(30, 64, 175, 0.2);
 }
 
 .glass-sidebar .bg-sidebar {
   background: transparent !important;
   background-color: transparent !important;
+}
+
+.sidebar-nav-item-active {
+  background: linear-gradient(90deg, rgba(59,130,246,0.35) 0%, rgba(99,102,241,0.2) 100%) !important;
+  border-left: 3px solid #60a5fa !important;
+  padding-left: calc(0.75rem - 3px) !important;
+  box-shadow: inset 0 0 20px rgba(59,130,246,0.15), 0 2px 12px rgba(59,130,246,0.2) !important;
+}
+
+.sidebar-nav-item {
+  border-left: 3px solid transparent;
+  transition: all 0.18s ease;
+}
+
+.sidebar-nav-item:hover {
+  background: rgba(255,255,255,0.08) !important;
+  border-left-color: rgba(99,130,255,0.4) !important;
 }
 
 /**
