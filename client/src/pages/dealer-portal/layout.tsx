@@ -19,7 +19,7 @@ import { useRef, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { format } from "date-fns";
 import logoImg from "@assets/marketline_pro_logo_1.png";
-import { getSellUnitOptions, toNativeQty, stockToDisplayQty, toDisplayPrice, toNativePrice, productPriceLabel, qtyDelta, qtyMin, qtyInputStep, isDecimalUnit } from "@/lib/units";
+import { getSellUnitOptions, toNativeQty, stockToDisplayQty, toDisplayPrice, toNativePrice, productPriceLabel, qtyDelta, qtyMin, qtyInputStep, isDecimalUnit, qtyLabel, formatQtyDisplay } from "@/lib/units";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -783,18 +783,8 @@ function SellTab() {
       const bq = item.boxQuantity || 1;
       const nativeUnitPrice = item.customPrice ?? item.price;
       const dispUnitPrice = toDisplayPrice(nativeUnitPrice, item.buyUnit, item.unit, bq);
-      const dispUnit = (item.unit === "gram" && item.buyUnit === "kg") ? "kg" : item.buyUnit;
-      // Miqdor ko'rsatish
-      let ql = "";
-      if (item.buyUnit === "quti") {
-        ql = `${item.quantity} quti (${item.stockPieces} ${item.unit})`;
-      } else if (item.unit === "gram" && item.buyUnit === "kg") {
-        ql = `${item.quantity} kg (${item.stockPieces} gram)`;
-      } else if (item.unit === "gram") {
-        ql = `${item.stockPieces} gram`;
-      } else {
-        ql = `${parseFloat(item.stockPieces.toFixed(3))} ${dispUnit}`;
-      }
+      const dispUnit = item.buyUnit;
+      const ql = qtyLabel(item.quantity, item.stockPieces, item.buyUnit, item.unit);
       const unitPriceStr = dispUnitPrice.toLocaleString();
       const totalPriceStr = (nativeUnitPrice * item.stockPieces).toLocaleString();
       return `<tr>
@@ -1351,8 +1341,8 @@ function SellTab() {
                             </span>
                           </div>
                           {item.buyUnit !== item.unit && (
-                            <p className={`text-[10px] ${item.buyUnit === "kg" ? "text-emerald-600" : "text-blue-600"}`}>
-                              {item.buyUnit === "kg" ? `${item.quantity} kg (${item.stockPieces} gram)` : `${item.quantity} quti (${item.stockPieces} ${item.unit})`}
+                            <p className="text-[10px] text-emerald-600">
+                              {qtyLabel(item.quantity, item.stockPieces, item.buyUnit, item.unit)}
                             </p>
                           )}
                         </div>

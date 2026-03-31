@@ -38,6 +38,7 @@ import {
   productPriceLabel,
   stockToDisplayQty,
   qtyLabel,
+  formatQtyDisplay,
   qtyDelta,
   qtyMin,
   qtyInputStep,
@@ -339,20 +340,8 @@ export default function POS() {
       const bq = item.product.boxQuantity || 1;
       const total = item.stockPieces * nativeUnitPrice;
       const displayUnitPrice = toDisplayPrice(nativeUnitPrice, item.buyUnit, item.product.unit, bq);
-      // Ko'rsatish birligi: gram mahsuloti kg ko'rinishida bo'lsa "kg", aks holda buyUnit
-      const displayUnit = (item.product.unit === "gram" && item.buyUnit === "kg") ? "kg" : item.buyUnit;
-      // Chekda miqdor ko'rsatish
-      let receiptQty = "";
-      if (item.buyUnit === "quti") {
-        receiptQty = `${item.quantity} quti (${item.stockPieces} ${item.product.unit})`;
-      } else if (item.product.unit === "gram" && item.buyUnit === "kg") {
-        receiptQty = `${item.quantity} kg (${item.stockPieces} gram)`;
-      } else if (item.product.unit === "gram" && item.buyUnit === "gram") {
-        receiptQty = `${item.stockPieces} gram`;
-      } else {
-        // kg, litr, metr: decimal ko'rinish
-        receiptQty = `${parseFloat(item.stockPieces.toFixed(3))} ${displayUnit}`;
-      }
+      const displayUnit = item.buyUnit;
+      const receiptQty = qtyLabel(item.quantity, item.stockPieces, item.buyUnit, item.product.unit);
       return `<div style="margin-bottom:5px">
         <div style="font-size:${sz.fs};font-weight:bold;color:#000;word-break:break-word">${idx + 1}. ${item.product.name}</div>
         ${row(`${receiptQty} &times; ${fmt(displayUnitPrice)} so'm/${displayUnit}`, `${fmt(total)} so'm`)}
@@ -992,19 +981,15 @@ export default function POS() {
                   {receiptData.items.map((item, idx) => {
                     const unitPrice = item.customPrice ?? Number(item.product.price);
                     const totalPrice = item.stockPieces * unitPrice;
-                    const isKgGram2 = item.product.unit === "gram" && item.buyUnit === "kg";
-                    const qtyLabel = item.buyUnit === "quti"
-                      ? `${item.quantity} quti (${item.stockPieces} ${item.product.unit})`
-                      : isKgGram2
-                        ? `${item.quantity} kg (${item.stockPieces} gram)`
-                        : `${item.stockPieces} ${item.product.unit}`;
+                    const displayUnitPrice = toDisplayPrice(unitPrice, item.buyUnit, item.product.unit, item.product.boxQuantity || 1);
+                    const receiptQtyStr = qtyLabel(item.quantity, item.stockPieces, item.buyUnit, item.product.unit);
                     return (
                       <div key={idx} style={{ marginBottom: "5px" }}>
                         <div style={{ fontSize: "12px", fontWeight: "bold", color: "#000", wordBreak: "break-word" }}>
                           {idx + 1}. {item.product.name}
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000", marginTop: "1px" }}>
-                          <span>{qtyLabel} × {formatCurrencyShort(unitPrice)} so'm</span>
+                          <span>{receiptQtyStr} × {formatCurrencyShort(displayUnitPrice)}/{item.buyUnit}</span>
                           <span style={{ fontWeight: "bold" }}>{formatCurrencyShort(totalPrice)} so'm</span>
                         </div>
                       </div>

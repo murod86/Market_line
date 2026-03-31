@@ -352,6 +352,15 @@ export function stockBadge(
 
 /**
  * Chek va savat uchun miqdor + birlik ko'rsatish.
+ * Barcha birlik kombinatsiyalarini qo'llab-quvvatlaydi.
+ *
+ * Misollar:
+ *   kg product, buyUnit=gram  → "500 gram (0.5 kg)"
+ *   litr product, buyUnit=ml  → "500 ml (0.5 litr)"
+ *   metr product, buyUnit=sm  → "50 sm (0.5 metr)"
+ *   gram(legacy), buyUnit=kg  → "1.5 kg (1500 gram)"
+ *   dona product, buyUnit=quti → "2 quti (10 dona)"
+ *   kg product, buyUnit=kg    → "1.500 kg"
  */
 export function qtyLabel(
   displayQty: number,
@@ -359,14 +368,30 @@ export function qtyLabel(
   displayUnit: string,
   nativeUnit: string
 ): string {
-  if (displayUnit === nativeUnit) return formatQtyDisplay(nativeQty, displayUnit);
+  if (displayUnit === nativeUnit) return formatQtyDisplay(displayQty, displayUnit);
+
+  // Sub-birlik ko'rsatish: gram/ml/sm display, kg/litr/metr native
+  const parentInfo = PARENT_UNIT_MAP[displayUnit];
+  if (parentInfo && parentInfo.parent === nativeUnit) {
+    return `${formatQtyDisplay(displayQty, displayUnit)} (${formatQtyDisplay(nativeQty, nativeUnit)})`;
+  }
+
+  // gram (eski) + kg display
   if (displayUnit === "kg" && nativeUnit === "gram") {
     return `${formatQtyDisplay(displayQty, "kg")} (${Math.round(nativeQty)} gram)`;
   }
+
+  // quti + dona native
   if (displayUnit === "quti" && nativeUnit === "dona") {
     return `${Math.round(displayQty)} quti (${Math.round(nativeQty)} dona)`;
   }
-  return `${nativeQty} ${nativeUnit}`;
+
+  // dona + quti native
+  if (displayUnit === "dona" && nativeUnit === "quti") {
+    return `${Math.round(displayQty)} dona`;
+  }
+
+  return formatQtyDisplay(displayQty, displayUnit);
 }
 
 /**
