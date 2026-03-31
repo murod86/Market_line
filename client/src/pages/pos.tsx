@@ -196,8 +196,8 @@ export default function POS() {
       const existing = prev.find((item) => item.product.id === product.id);
       const bq = product.boxQuantity || 1;
       if (existing) {
-        // Re-click: add 1 unit in current display unit
-        const newQty = existing.quantity + 1;
+        const delta = qtyDelta(existing.buyUnit);
+        const newQty = existing.quantity + delta;
         const newPieces = toNativeQty(newQty, existing.buyUnit, product.unit, bq);
         if (newPieces > product.stock) {
           toast({ title: "Stokda yetarli mahsulot yo'q", variant: "destructive" });
@@ -211,7 +211,7 @@ export default function POS() {
       }
       // New item: default display unit = first option from getSellUnitOptions
       const defaultUnit = getSellUnitOptions(product)[0];
-      const initQty = 1;
+      const initQty = qtyDelta(defaultUnit);
       const initPieces = toNativeQty(initQty, defaultUnit, product.unit, bq);
       if (initPieces > product.stock) {
         toast({ title: "Stokda yetarli mahsulot yo'q", variant: "destructive" });
