@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Product, Supplier, Purchase, Category } from "@shared/schema";
 import { Plus, Trash2, Package, Eye, Search, ChevronDown, ChevronRight, Layers } from "lucide-react";
-import { getBuyUnitOptions as libGetBuyUnitOptions, toNativeQty, qtyInputStep } from "@/lib/units";
+import { getBuyUnitOptions as libGetBuyUnitOptions, toNativeQty, toNativePrice, toDisplayPrice, formatQtyDisplay, stockBadge, qtyInputStep } from "@/lib/units";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -104,10 +104,12 @@ export default function Purchases() {
 
   const selectProduct = (product: Product) => {
     setSelectedProductId(product.id);
-    setItemCost(String(product.costPrice));
     const defaultUnit = getBuyUnitOptions(product)[0];
+    const bq = product.boxQuantity || 1;
+    const displayCost = toDisplayPrice(Number(product.costPrice), defaultUnit, product.unit, bq);
+    setItemCost(String(displayCost));
     setItemBuyUnit(defaultUnit);
-    setItemBoxQty(String(product.boxQuantity || 1));
+    setItemBoxQty(String(bq));
     setProductSearch("");
     setProductPickerOpen(false);
   };
@@ -181,12 +183,8 @@ export default function Purchases() {
       supplierId: supplierId || null,
       items: cart.map((c) => ({
         productId: c.productId,
-        quantity: Math.round(c.stockPieces),
-        costPrice: c.buyUnit === "quti"
-          ? (c.costPrice / c.boxQuantity)
-          : c.buyUnit === "kg" && c.productUnit === "gram"
-            ? (c.costPrice / 1000)
-            : c.costPrice,
+        quantity: c.stockPieces,
+        costPrice: toNativePrice(c.costPrice, c.buyUnit, c.productUnit, c.boxQuantity),
         displayQuantity: c.quantity,
         displayUnit: c.buyUnit,
         boxQuantity: c.boxQuantity,
@@ -365,14 +363,11 @@ export default function Purchases() {
                       <label className="text-xs text-muted-foreground">Birlik</label>
                       <Select value={itemBuyUnit} onValueChange={(v) => {
                         setItemBuyUnit(v);
-                        if (v === "quti") {
-                          const bq = itemBoxQty ? parseInt(itemBoxQty) : (selectedProduct.boxQuantity || 1);
-                          setItemCost(String(Number(selectedProduct.costPrice) * bq));
-                        } else if (v === "kg" && selectedProduct.unit === "gram") {
-                          setItemCost(String(Number(selectedProduct.costPrice) * 1000));
-                        } else {
-                          setItemCost(String(selectedProduct.costPrice));
-                        }
+                        const bq = v === "quti"
+                          ? (parseInt(itemBoxQty) || selectedProduct.boxQuantity || 1)
+                          : (selectedProduct.boxQuantity || 1);
+                        const displayCost = toDisplayPrice(Number(selectedProduct.costPrice), v, selectedProduct.unit, bq);
+                        setItemCost(String(displayCost));
                         setItemQty("1");
                       }}>
                         <SelectTrigger data-testid="select-purchase-unit">
@@ -394,7 +389,8 @@ export default function Purchases() {
                           onChange={(e) => {
                             setItemBoxQty(e.target.value);
                             const bq = parseInt(e.target.value) || 1;
-                            setItemCost(String(Number(selectedProduct.costPrice) * bq));
+                            const displayCost = toDisplayPrice(Number(selectedProduct.costPrice), "quti", selectedProduct.unit, bq);
+                            setItemCost(String(displayCost));
                           }}
                           placeholder={String(selectedProduct.boxQuantity || 1)}
                           min="1"
@@ -445,14 +441,11 @@ export default function Purchases() {
                 </div>
               )}
 
-              {selectedProductId && selectedProduct && itemBuyUnit === "quti" && (selectedProduct.boxQuantity || 1) > 1 && (
-                <p className="text-xs text-blue-600 mt-1">
-                  {itemQty || 0} quti × {selectedProduct.boxQuantity} {selectedProduct.unit} = {(Number(itemQty) || 0) * selectedProduct.boxQuantity} {selectedProduct.unit} omborga qo'shiladi
-                </p>
-              )}
-              {selectedProductId && selectedProduct && itemBuyUnit === "kg" && selectedProduct.unit === "gram" && Number(itemQty) > 0 && (
-                <p className="text-xs text-emerald-600 mt-1">
-                  {itemQty} kg × 1000 = {Math.round(Number(itemQty) * 1000)} gram omborga qo'shiladi
+              {selectedProductId && selectedProduct && Number(itemQty) > 0 && itemBuyUnit !== selectedProduct.unit && (
+                <p className="text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 rounded px-2 py-1 mt-1">
+                  {Number(itemQty)} {itemBuyUnit} →{" "}
+                  <strong>{stockBadge(calcStockPieces(Number(itemQty), itemBuyUnit, selectedProduct.unit, parseInt(itemBoxQty) || selectedProduct.boxQuantity || 1), selectedProduct.unit, selectedProduct.boxQuantity || 1)}</strong>
+                  {" "}omborga qo'shiladi
                 </p>
               )}
             </div>
@@ -479,8 +472,8 @@ export default function Purchases() {
                         <TableCell className="text-right">
                           <div>
                             <span>{item.quantity} {item.buyUnit}</span>
-                            {item.buyUnit === "quti" && (
-                              <p className="text-[11px] text-blue-600">{item.boxQuantity} {item.productUnit}/quti</p>
+                            {item.buyUnit === "quti" && item.productUnit !== "quti" && (
+                              <p className="text-[11px] text-blue-600">{item.boxQuantity} {item.productUnit}/quti → {Math.round(item.stockPieces)} {item.productUnit}</p>
                             )}
                             {item.buyUnit === "kg" && item.productUnit === "gram" && (
                               <p className="text-[11px] text-emerald-600">= {Math.round(item.stockPieces)} gram</p>
@@ -491,7 +484,7 @@ export default function Purchases() {
                         <TableCell className="text-right font-medium">{formatCurrency(item.quantity * item.costPrice)}</TableCell>
                         <TableCell className="text-right">
                           <Badge variant="secondary" className="text-xs">
-                            +{Math.round(item.stockPieces)} {item.productUnit}
+                            +{stockBadge(item.stockPieces, item.productUnit, item.boxQuantity)}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -508,7 +501,7 @@ export default function Purchases() {
                     <p>Jami omborga:</p>
                     {Array.from(new Set(cart.map(i => i.productUnit))).map(unit => {
                       const total = cart.filter(i => i.productUnit === unit).reduce((s, i) => s + i.stockPieces, 0);
-                      return <p key={unit} className="font-medium text-foreground">+{Math.round(total)} {unit}</p>;
+                      return <p key={unit} className="font-medium text-foreground">+{stockBadge(total, unit, 1)}</p>;
                     })}
                   </div>
                   <div className="text-right">

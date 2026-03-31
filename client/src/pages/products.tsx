@@ -316,8 +316,9 @@ export default function Products() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">
-                  Stok ({form.unit === "gram" ? "gram" : form.unit})
-                  {isDecimalUnit(form.unit) && <span className="text-xs text-muted-foreground ml-1">(decimal)</span>}
+                  Stok ({form.unit})
+                  {isDecimalUnit(form.unit) && <span className="text-xs text-muted-foreground ml-1">(decimal, masalan: 1.5)</span>}
+                  {form.unit === "gram" && <span className="text-xs text-muted-foreground ml-1">(gramda, masalan: 5kg=5000)</span>}
                 </label>
                 <Input
                   type="number"
@@ -327,6 +328,11 @@ export default function Products() {
                   min="0"
                   data-testid="input-product-stock"
                 />
+                {form.unit === "gram" && form.stock && Number(form.stock) > 0 && (
+                  <p className="text-[11px] text-emerald-600 mt-0.5">
+                    = {(Number(form.stock) / 1000).toFixed(3)} kg
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">Min stok ({form.unit})</label>

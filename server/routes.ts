@@ -2381,8 +2381,8 @@ export async function registerRoutes(
 
       const validatedItems: { productId: string; quantity: number; price: number; name: string; unit: string }[] = [];
       for (const item of items) {
-        const quantity = Math.floor(Number(item.quantity));
-        if (!item.productId || !quantity || quantity < 1) {
+        const quantity = Number(item.quantity);
+        if (!item.productId || !quantity || quantity <= 0) {
           return res.status(400).json({ message: "Noto'g'ri mahsulot yoki miqdor" });
         }
         const product = allProducts.find(p => p.id === item.productId);
