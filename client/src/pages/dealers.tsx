@@ -33,6 +33,7 @@ import {
   qtyDelta,
   qtyMin,
   isDecimalUnit,
+  qtyLabel as unitQtyLabel,
 } from "@/lib/units";
 
 function formatCurrency(amount: number) {
@@ -185,17 +186,16 @@ export default function Dealers() {
     const sz = sizeMap[ps];
 
     const itemsHtml = items.map((item, idx) => {
-      const qtyLabel = item.buyUnit === "quti"
-        ? `${item.quantity} quti (${item.stockPieces} ${item.unit})`
-        : `${item.stockPieces} ${item.unit}`;
-      const unitPrice = (item.customPrice ?? item.price).toLocaleString();
-      const totalPrice = ((item.customPrice ?? item.price) * item.stockPieces).toLocaleString();
+      const qtyStr = unitQtyLabel(item.quantity, item.stockPieces, item.buyUnit, item.unit);
+      const nativeUnitPrice = item.customPrice ?? item.price;
+      const unitPriceStr = nativeUnitPrice.toLocaleString();
+      const totalPrice = (nativeUnitPrice * item.stockPieces).toLocaleString();
       return `<tr>
         <td colspan="2" style="padding:3px 2px 0px 2px;font-size:${sz.fontSize};font-weight:900;border-top:2px solid #000">${idx + 1}. ${item.name}</td>
       </tr>
       <tr>
-        <td style="padding:1px 2px;font-size:${sz.fontSizeSm}">${qtyLabel}</td>
-        <td style="padding:1px 2px;font-size:${sz.fontSizeSm};text-align:right">${unitPrice}/dona</td>
+        <td style="padding:1px 2px;font-size:${sz.fontSizeSm}">${qtyStr}</td>
+        <td style="padding:1px 2px;font-size:${sz.fontSizeSm};text-align:right">${unitPriceStr}/${item.unit}</td>
       </tr>
       <tr>
         <td style="padding:1px 2px 4px 2px;font-size:${sz.fontSize};font-weight:700">= Jami:</td>

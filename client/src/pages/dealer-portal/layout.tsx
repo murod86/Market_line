@@ -1082,7 +1082,8 @@ function SellTab() {
       const defaultUnit = getSellUnitOptions(fakeProduct)[0];
       const existing = prev.find((c) => c.productId === item.productId);
       if (existing) {
-        const newQty = existing.quantity + 1;
+        const delta = qtyDelta(existing.buyUnit);
+        const newQty = parseFloat((existing.quantity + delta).toFixed(6));
         const newPieces = toNativeQty(newQty, existing.buyUnit, item.productUnit, bq);
         if (newPieces > item.quantity) {
           toast({ title: "Omborda yetarli emas", variant: "destructive" });
@@ -1092,7 +1093,8 @@ function SellTab() {
           c.productId === item.productId ? { ...c, quantity: newQty, stockPieces: newPieces } : c
         );
       }
-      const initPieces = toNativeQty(1, defaultUnit, item.productUnit, bq);
+      const initQty = qtyDelta(defaultUnit);
+      const initPieces = toNativeQty(initQty, defaultUnit, item.productUnit, bq);
       if (initPieces > item.quantity) {
         toast({ title: "Omborda yetarli emas", variant: "destructive" });
         return prev;
@@ -1102,7 +1104,7 @@ function SellTab() {
         name: item.productName,
         price: Number(item.productPrice),
         unit: item.productUnit,
-        quantity: 1,
+        quantity: initQty,
         maxQty: item.quantity,
         buyUnit: defaultUnit,
         boxQuantity: bq,
@@ -1796,11 +1798,7 @@ function SellTab() {
               <CardContent className="p-3">
                 <div className="space-y-1">
                   {cart.map((item) => {
-                    let qtyStr = "";
-                    if (item.buyUnit === "quti") qtyStr = `${item.quantity} quti (${item.stockPieces} ${item.unit})`;
-                    else if (item.unit === "gram" && item.buyUnit === "kg") qtyStr = `${item.quantity} kg (${item.stockPieces} gram)`;
-                    else if (item.unit === "gram") qtyStr = `${item.stockPieces} gram`;
-                    else qtyStr = `${parseFloat(item.stockPieces.toFixed(3))} ${item.buyUnit}`;
+                    const qtyStr = qtyLabel(item.quantity, item.stockPieces, item.buyUnit, item.unit);
                     return (
                       <div key={item.productId} className="flex justify-between text-sm">
                         <span>{item.name} × {qtyStr}</span>
