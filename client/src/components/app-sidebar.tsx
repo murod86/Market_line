@@ -90,38 +90,38 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="glass-sidebar-content">
         {planDetails && (
-          <div className="mx-3 mt-2 p-2.5 rounded-lg bg-white/5 border border-white/10" data-testid="plan-info-card">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] uppercase tracking-wider text-white/40 font-bold">Joriy tarif</span>
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-white/20 text-white/70" data-testid="badge-plan-name">
+          <div className="mx-3 mt-2 p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-600/15 border border-blue-400/25 shadow-lg shadow-blue-900/20" data-testid="plan-info-card">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] uppercase tracking-widest text-blue-200/60 font-bold">Joriy tarif</span>
+              <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-blue-400/40 text-blue-100 bg-blue-500/20 font-semibold" data-testid="badge-plan-name">
                 {planDetails.name}
               </Badge>
             </div>
             {trialEndsAt && (
-              <div className="text-[11px] text-white/50 mt-1" data-testid="text-plan-expiry">
-                Tugash sanasi: <span className="text-white/80 font-medium">{new Date(trialEndsAt).toLocaleDateString("uz-UZ", { year: "numeric", month: "long", day: "numeric" })}</span>
+              <div className="text-[11px] text-blue-200/50 mt-1" data-testid="text-plan-expiry">
+                Tugash: <span className="text-blue-100 font-semibold">{new Date(trialEndsAt).toLocaleDateString("uz-UZ", { year: "numeric", month: "short", day: "numeric" })}</span>
               </div>
             )}
             {planDetails.price > 0 && (
-              <div className="text-[11px] text-white/50 mt-0.5">
-                Narxi: <span className="text-white/80 font-medium">{new Intl.NumberFormat("uz-UZ").format(planDetails.price)} UZS/oy</span>
+              <div className="text-[11px] text-blue-200/50 mt-0.5">
+                Narxi: <span className="text-blue-100 font-semibold">{new Intl.NumberFormat("uz-UZ").format(planDetails.price)} UZS/oy</span>
               </div>
             )}
           </div>
         )}
         {isTrialActive && (
-          <div className="mx-3 mt-2 p-2.5 rounded-lg bg-yellow-500/20 border border-yellow-500/30">
-            <div className="flex items-center gap-2 text-yellow-200 text-xs font-medium">
-              <Clock className="h-3.5 w-3.5" />
-              <span>Sinov muddati: {trialDaysLeft} kun qoldi</span>
+          <div className="mx-3 mt-2 p-2.5 rounded-xl bg-gradient-to-r from-amber-500/25 to-orange-500/15 border border-amber-400/30 shadow shadow-amber-900/20">
+            <div className="flex items-center gap-2 text-amber-100 text-xs font-semibold">
+              <Clock className="h-3.5 w-3.5 text-amber-300" />
+              <span>Sinov: <span className="text-amber-300">{trialDaysLeft} kun</span> qoldi</span>
             </div>
           </div>
         )}
         {trialExpired && (
-          <div className="mx-3 mt-2 p-2.5 rounded-lg bg-red-500/20 border border-red-500/30">
-            <div className="flex items-center gap-2 text-red-200 text-xs font-medium">
-              <AlertTriangle className="h-3.5 w-3.5" />
-              <span>Sinov muddati tugadi! Tarifni yangilang.</span>
+          <div className="mx-3 mt-2 p-2.5 rounded-xl bg-gradient-to-r from-red-500/25 to-rose-500/15 border border-red-400/30 shadow shadow-red-900/20">
+            <div className="flex items-center gap-2 text-red-100 text-xs font-semibold">
+              <AlertTriangle className="h-3.5 w-3.5 text-red-300" />
+              <span>Sinov tugadi! Tarifni yangilang.</span>
             </div>
           </div>
         )}
@@ -137,7 +137,7 @@ export function AppSidebar() {
                       asChild
                       data-active={isActive}
                       data-testid={`nav-${item.url.replace("/", "") || "dashboard"}`}
-                      className="data-[active=true]:bg-white/20 data-[active=true]:text-white data-[active=true]:shadow-md data-[active=true]:border data-[active=true]:border-white/15 rounded-lg mx-2 py-2.5 transition-all duration-200 text-white/80 hover:text-white hover:bg-white/12"
+                      className="data-[active=true]:bg-gradient-to-r data-[active=true]:from-blue-500/40 data-[active=true]:to-indigo-500/30 data-[active=true]:text-white data-[active=true]:shadow-lg data-[active=true]:border data-[active=true]:border-blue-400/30 data-[active=true]:shadow-blue-500/20 rounded-xl mx-2 py-2.5 transition-all duration-200 text-white/75 hover:text-white hover:bg-white/10 hover:border hover:border-white/10"
                     >
                       <Link href={item.url}>
                         <item.icon className={`h-5 w-5 drop-shadow ${isActive ? "text-white" : item.color}`} />
@@ -163,7 +163,7 @@ export function AppSidebar() {
                         asChild
                         data-active={isActive}
                         data-testid={`nav-${item.url.replace("/", "")}`}
-                        className="data-[active=true]:bg-white/20 data-[active=true]:text-white data-[active=true]:shadow-md data-[active=true]:border data-[active=true]:border-white/15 rounded-lg mx-2 py-2.5 transition-all duration-200 text-white/80 hover:text-white hover:bg-white/12"
+                        className="data-[active=true]:bg-gradient-to-r data-[active=true]:from-blue-500/40 data-[active=true]:to-indigo-500/30 data-[active=true]:text-white data-[active=true]:shadow-lg data-[active=true]:border data-[active=true]:border-blue-400/30 data-[active=true]:shadow-blue-500/20 rounded-xl mx-2 py-2.5 transition-all duration-200 text-white/75 hover:text-white hover:bg-white/10 hover:border hover:border-white/10"
                       >
                         <Link href={item.url}>
                           <item.icon className={`h-5 w-5 drop-shadow ${isActive ? "text-white" : item.color}`} />
