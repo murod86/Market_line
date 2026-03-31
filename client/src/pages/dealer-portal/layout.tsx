@@ -18,7 +18,7 @@ import {
 import { useRef, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { format } from "date-fns";
-import logoImg from "@assets/marketline_pro_logo_1.png";
+import logoImg from "@assets/logo_chosen_b.png";
 import { getSellUnitOptions, toNativeQty, stockToDisplayQty, toDisplayPrice, toNativePrice, productPriceLabel, qtyDelta, qtyMin, qtyInputStep, isDecimalUnit, qtyLabel, formatQtyDisplay } from "@/lib/units";
 
 function formatCurrency(amount: number) {
