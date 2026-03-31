@@ -60,6 +60,7 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 ## Dealer Portal (/dealer-portal)
 - Login with store selector + phone + password (password set by admin); QR scan auto-fills store+phone and locks store selector
 - Separate PWA: `/dealer-manifest.json` + `/dealer-sw.js` — installs as "ML Diller" (blue theme), separate from customer portal "ML Portal" (purple theme)
+- **iOS PWA fix**: Server-side manifest injection in `server/vite.ts` and `server/static.ts` via `server/pwa.ts` — each URL path gets the correct manifest/meta baked into HTML before delivery (no JS switching needed); `/portal*`→portal manifest, `/dealer-portal*`→dealer manifest, all others→admin manifest
 - Inventory view: see all products loaded by admin with quantities and values
 - Sell: select products from inventory, enter customer info, choose payment type (naqd/qarzga/qisman to'lov), confirm sale (decreases dealer inventory, tracks debt), **auto prints 58mm receipt** after successful sale
 - Delivery: view deliveries assigned by admin, update status (yo'lga chiqish → topshirdim), auto-updates portal order status; **edit order items** (remove/change qty/add products from own inventory) while status is "pending" via PUT `/api/dealer-portal/deliveries/:id/items`; **print receipt** button on every order (active + completed); **auto-saves customer to dealer_customers and writes debt** when delivery is marked as "delivered"

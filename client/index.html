@@ -11,17 +11,19 @@
     <meta name="apple-mobile-web-app-title" content="MARKET_LINE" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/logo-512.png" />
-    <link rel="manifest" id="app-manifest" href="/manifest.json" />
-    <script>
+    <link rel="manifest" id="app-manifest" href="/admin-manifest.json" />
+    <script id="pwa-manifest-switcher">
       (function() {
         var p = window.location.pathname;
         var m = document.getElementById('app-manifest');
         if (p.startsWith('/portal')) {
           m.href = '/manifest.json';
+          document.querySelector('meta[name="apple-mobile-web-app-title"]').content = 'ML Portal';
+          document.querySelector('meta[name="theme-color"]').content = '#4F46E5';
         } else if (p.startsWith('/dealer-portal')) {
           m.href = '/dealer-manifest.json';
-        } else {
-          m.href = '/admin-manifest.json';
+          document.querySelector('meta[name="apple-mobile-web-app-title"]').content = 'ML Diller';
+          document.querySelector('meta[name="theme-color"]').content = '#3B82F6';
         }
       })();
     </script>
