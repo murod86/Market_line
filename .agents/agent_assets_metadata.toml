@@ -36,3 +36,21 @@ id = "jefBLG2J0IUlI48DdDXzU"
 uri = "file://attached_assets/logo_premium_3.png"
 type = "image"
 title = "premium logo 3 arrows M"
+
+[[generated]]
+id = "sgdtuT6TElU8bZNzhbPDD"
+uri = "file://attached_assets/logo_final_1.png"
+type = "image"
+title = "final logo peaks v1"
+
+[[generated]]
+id = "Vh4ykwxjq-FfEx6JwmnpZ"
+uri = "file://attached_assets/logo_final_2.png"
+type = "image"
+title = "final logo peaks v2"
+
+[[generated]]
+id = "OACBIlO4EFWWnXa2Oq0AD"
+uri = "file://attached_assets/logo_final_3.png"
+type = "image"
+title = "final logo chevron M"
