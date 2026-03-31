@@ -54,3 +54,21 @@ id = "OACBIlO4EFWWnXa2Oq0AD"
 uri = "file://attached_assets/logo_final_3.png"
 type = "image"
 title = "final logo chevron M"
+
+[[generated]]
+id = "Es3UrkY_Dy4aRmyRCzeAX"
+uri = "file://attached_assets/logo_beautiful_1.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "5EGBPHfArznD3oV30lNEn"
+uri = "file://attached_assets/logo_beautiful_2.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Yg1r_MNHInNhm7OZQJE7q"
+uri = "file://attached_assets/logo_beautiful_3.png"
+type = "image"
+title = "generated_image"
