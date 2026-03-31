@@ -69,20 +69,22 @@ export function isSubUnit(unit: string): boolean {
  *  kg               → ["kg", "gram"]
  *  litr             → ["litr", "ml"]
  *  metr             → ["metr", "sm"]
- *  dona             → ["dona", "quti"]   (har doim ikkalasi)
- *  quti             → ["quti", "dona"]   (har doim ikkalasi)
+ *  dona (bq > 1)    → ["dona", "quti"]
+ *  dona (bq = 1)    → ["dona"]
+ *  quti             → ["quti", "dona"]
  *  gram (eski)      → ["kg", "gram"]   ← orqaga mos kelish
  */
 export function getSellUnitOptions(
   product: Pick<Product, "unit" | "boxQuantity">
 ): string[] {
   const { unit } = product;
+  const bq = product.boxQuantity ?? 1;
 
   if (unit in SUB_UNIT_MAP) {
     return [unit, SUB_UNIT_MAP[unit].sub];
   }
   if (unit === "gram") return ["kg", "gram"];
-  if (unit === "dona") return ["dona", "quti"];
+  if (unit === "dona") return bq > 1 ? ["dona", "quti"] : ["dona"];
   if (unit === "quti") return ["quti", "dona"];
   return [unit];
 }
@@ -97,21 +99,24 @@ export function getSellUnitOptions(
  *  kg               → ["kg", "gram"]
  *  litr             → ["litr", "ml"]
  *  metr             → ["metr", "sm"]
- *  dona             → ["dona", "quti"]   (har doim ikkalasi)
- *  quti             → ["quti", "dona"]   (har doim ikkalasi)
+ *  dona (bq > 1)    → ["dona", "quti"]
+ *  dona (bq = 1)    → ["dona"]
+ *  quti (bq > 1)    → ["quti", "dona"]
+ *  quti (bq = 1)    → ["quti"]
  *  gram (eski)      → ["kg", "gram"]
  */
 export function getBuyUnitOptions(
   product: Pick<Product, "unit" | "boxQuantity">
 ): string[] {
   const { unit } = product;
+  const bq = product.boxQuantity ?? 1;
 
   if (unit in SUB_UNIT_MAP) {
     return [unit, SUB_UNIT_MAP[unit].sub];
   }
   if (unit === "gram") return ["kg", "gram"];
-  if (unit === "dona") return ["dona", "quti"];
-  if (unit === "quti") return ["quti", "dona"];
+  if (unit === "dona") return bq > 1 ? ["dona", "quti"] : ["dona"];
+  if (unit === "quti") return bq > 1 ? ["quti", "dona"] : ["quti"];
   return [unit];
 }
 
