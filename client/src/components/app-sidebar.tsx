@@ -16,8 +16,6 @@ import {
   LogOut,
   ClipboardList,
   UserCheck,
-  AlertTriangle,
-  Clock,
   Receipt,
   History,
 } from "lucide-react";
@@ -33,9 +31,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
-  SidebarFooter,
 } from "@/components/ui/sidebar";
-import { Badge } from "@/components/ui/badge";
 
 const mainItems = [
   { title: "Boshqaruv paneli", url: "/dashboard", icon: LayoutDashboard, color: "text-blue-400", moduleKey: "dashboard" },
@@ -64,11 +60,6 @@ export function AppSidebar() {
   const { data: me } = useQuery<any>({ queryKey: ["/api/auth/me"] });
 
   const allowedModules: string[] = me?.allowedModules || [];
-  const isTrialActive = me?.isTrialActive;
-  const trialExpired = me?.trialExpired;
-  const trialDaysLeft = me?.trialDaysLeft || 0;
-  const planDetails = me?.planDetails;
-  const trialEndsAt = me?.trialEndsAt;
 
   const filteredMainItems = mainItems.filter(item =>
     item.moduleKey === "dashboard" || allowedModules.includes(item.moduleKey)
@@ -92,9 +83,9 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="glass-sidebar-content">
         <SidebarGroup className="pt-3">
-          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35 px-5 mb-1.5">Asosiy</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40 px-4 mb-1">Asosiy</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-0.5 px-2">
+            <SidebarMenu className="gap-px px-2">
               {filteredMainItems.map((item) => {
                 const isActive = location === item.url;
                 return (
@@ -105,15 +96,13 @@ export function AppSidebar() {
                       data-testid={`nav-${item.url.replace("/", "") || "dashboard"}`}
                       className={`rounded-lg py-2 px-3 transition-all duration-150 ${
                         isActive
-                          ? "bg-gradient-to-r from-blue-500/38 to-indigo-500/22 text-white shadow-md border border-blue-400/25 border-l-[3px] border-l-blue-400"
-                          : "text-white/70 hover:text-white hover:bg-white/8 border border-transparent hover:border-white/8"
+                          ? "bg-white/20 text-white shadow-sm"
+                          : "text-white/70 hover:text-white hover:bg-white/10"
                       }`}
                     >
                       <Link href={item.url}>
-                        <div className={`flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0 ${isActive ? "bg-white/15" : "bg-white/5"}`}>
-                          <item.icon className={`h-4 w-4 ${isActive ? "text-white" : item.color}`} />
-                        </div>
-                        <span className={`font-semibold text-[13.5px] sidebar-text-shadow ${isActive ? "text-white" : ""}`}>{item.title}</span>
+                        <item.icon className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-white" : "text-white/60"}`} />
+                        <span className="font-medium text-[13px]">{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -124,9 +113,9 @@ export function AppSidebar() {
         </SidebarGroup>
         {filteredManagementItems.length > 0 && (
           <SidebarGroup className="pt-2">
-            <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-[0.18em] text-white/35 px-5 mb-1.5">Boshqaruv</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40 px-4 mb-1">Boshqaruv</SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu className="gap-0.5 px-2">
+              <SidebarMenu className="gap-px px-2">
                 {filteredManagementItems.map((item) => {
                   const isActive = location === item.url;
                   return (
@@ -137,15 +126,13 @@ export function AppSidebar() {
                         data-testid={`nav-${item.url.replace("/", "")}`}
                         className={`rounded-lg py-2 px-3 transition-all duration-150 ${
                           isActive
-                            ? "bg-gradient-to-r from-blue-500/38 to-indigo-500/22 text-white shadow-md border border-blue-400/25 border-l-[3px] border-l-blue-400"
-                            : "text-white/70 hover:text-white hover:bg-white/8 border border-transparent hover:border-white/8"
+                            ? "bg-white/20 text-white shadow-sm"
+                            : "text-white/70 hover:text-white hover:bg-white/10"
                         }`}
                       >
                         <Link href={item.url}>
-                          <div className={`flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0 ${isActive ? "bg-white/15" : "bg-white/5"}`}>
-                            <item.icon className={`h-4 w-4 ${isActive ? "text-white" : item.color}`} />
-                          </div>
-                          <span className={`font-semibold text-[13.5px] sidebar-text-shadow ${isActive ? "text-white" : ""}`}>{item.title}</span>
+                          <item.icon className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-white" : "text-white/60"}`} />
+                          <span className="font-medium text-[13px]">{item.title}</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -155,61 +142,21 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         )}
-      </SidebarContent>
-      <SidebarFooter className="glass-sidebar-footer">
-        <div className="px-2.5 pt-2.5 pb-1 space-y-1.5">
-          {planDetails && (
-            <div className="px-3 py-2 rounded-xl bg-gradient-to-br from-blue-500/18 to-indigo-600/12 border border-blue-400/20 backdrop-blur-sm" data-testid="plan-info-card">
-              <div className="flex items-center justify-between mb-0.5">
-                <span className="text-[9px] uppercase tracking-[0.15em] text-blue-200/45 font-black">Joriy tarif</span>
-                <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-blue-400/35 text-blue-100/90 bg-blue-500/18 font-bold h-4" data-testid="badge-plan-name">
-                  {planDetails.name}
-                </Badge>
-              </div>
-              {trialEndsAt && (
-                <div className="text-[10px] text-blue-200/40" data-testid="text-plan-expiry">
-                  Tugash: <span className="text-blue-100/75 font-semibold">{new Date(trialEndsAt).toLocaleDateString("uz-UZ", { month: "short", day: "numeric", year: "numeric" })}</span>
-                </div>
-              )}
-              {planDetails.price > 0 && (
-                <div className="text-[10px] text-blue-200/40">
-                  <span className="text-blue-100/75 font-semibold">{new Intl.NumberFormat("uz-UZ").format(planDetails.price)} UZS/oy</span>
-                </div>
-              )}
-            </div>
-          )}
-          {isTrialActive && (
-            <div className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/18 to-orange-500/10 border border-amber-400/22">
-              <div className="flex items-center gap-2 text-amber-100 text-[10px] font-bold">
-                <Clock className="h-3 w-3 text-amber-300/90 flex-shrink-0" />
-                <span>Sinov: <span className="text-amber-300">{trialDaysLeft} kun</span> qoldi</span>
-              </div>
-            </div>
-          )}
-          {trialExpired && (
-            <div className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-red-500/18 to-rose-500/10 border border-red-400/22">
-              <div className="flex items-center gap-2 text-red-100 text-[10px] font-bold">
-                <AlertTriangle className="h-3 w-3 text-red-300/90 flex-shrink-0" />
-                <span>Sinov tugadi! Yangilang.</span>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="px-2.5 pb-3 pt-1">
+        <div className="mt-auto px-4 pb-4 pt-2">
           <button
             onClick={async () => {
               await apiRequest("POST", "/api/auth/logout");
               queryClient.clear();
               window.location.href = "/";
             }}
-            className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-white/50 hover:text-white hover:bg-red-500/15 hover:border-red-400/25 border border-transparent transition-all duration-150"
+            className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-all duration-150"
             data-testid="button-logout"
           >
             <LogOut className="w-4 h-4" />
-            <span className="text-[13px] font-semibold sidebar-text-shadow">Chiqish</span>
+            <span className="text-[13px] font-medium">Chiqish</span>
           </button>
         </div>
-      </SidebarFooter>
+      </SidebarContent>
     </Sidebar>
   );
 }
