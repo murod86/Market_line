@@ -89,42 +89,6 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent className="glass-sidebar-content">
-        {planDetails && (
-          <div className="mx-3 mt-2 p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-600/15 border border-blue-400/25 shadow-lg shadow-blue-900/20" data-testid="plan-info-card">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] uppercase tracking-widest text-blue-200/60 font-bold">Joriy tarif</span>
-              <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-blue-400/40 text-blue-100 bg-blue-500/20 font-semibold" data-testid="badge-plan-name">
-                {planDetails.name}
-              </Badge>
-            </div>
-            {trialEndsAt && (
-              <div className="text-[11px] text-blue-200/50 mt-1" data-testid="text-plan-expiry">
-                Tugash: <span className="text-blue-100 font-semibold">{new Date(trialEndsAt).toLocaleDateString("uz-UZ", { year: "numeric", month: "short", day: "numeric" })}</span>
-              </div>
-            )}
-            {planDetails.price > 0 && (
-              <div className="text-[11px] text-blue-200/50 mt-0.5">
-                Narxi: <span className="text-blue-100 font-semibold">{new Intl.NumberFormat("uz-UZ").format(planDetails.price)} UZS/oy</span>
-              </div>
-            )}
-          </div>
-        )}
-        {isTrialActive && (
-          <div className="mx-3 mt-2 p-2.5 rounded-xl bg-gradient-to-r from-amber-500/25 to-orange-500/15 border border-amber-400/30 shadow shadow-amber-900/20">
-            <div className="flex items-center gap-2 text-amber-100 text-xs font-semibold">
-              <Clock className="h-3.5 w-3.5 text-amber-300" />
-              <span>Sinov: <span className="text-amber-300">{trialDaysLeft} kun</span> qoldi</span>
-            </div>
-          </div>
-        )}
-        {trialExpired && (
-          <div className="mx-3 mt-2 p-2.5 rounded-xl bg-gradient-to-r from-red-500/25 to-rose-500/15 border border-red-400/30 shadow shadow-red-900/20">
-            <div className="flex items-center gap-2 text-red-100 text-xs font-semibold">
-              <AlertTriangle className="h-3.5 w-3.5 text-red-300" />
-              <span>Sinov tugadi! Tarifni yangilang.</span>
-            </div>
-          </div>
-        )}
         <SidebarGroup>
           <SidebarGroupLabel className="text-[11px] font-bold uppercase tracking-widest text-white/55 px-4 mb-1 sidebar-text-shadow">Asosiy</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -178,19 +142,59 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
       </SidebarContent>
-      <SidebarFooter className="p-4 glass-sidebar-footer">
-        <button
-          onClick={async () => {
-            await apiRequest("POST", "/api/auth/logout");
-            queryClient.clear();
-            window.location.href = "/";
-          }}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-white/60 hover:text-white hover:bg-white/12 transition-colors text-sm"
-          data-testid="button-logout"
-        >
-          <LogOut className="w-5 h-5 drop-shadow" />
-          <span className="text-[15px] font-medium sidebar-text-shadow">Chiqish</span>
-        </button>
+      <SidebarFooter className="glass-sidebar-footer">
+        <div className="px-3 pt-3 pb-1 space-y-2">
+          {planDetails && (
+            <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-600/15 border border-blue-400/25 shadow-lg shadow-blue-900/20" data-testid="plan-info-card">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] uppercase tracking-widest text-blue-200/60 font-bold">Joriy tarif</span>
+                <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-blue-400/40 text-blue-100 bg-blue-500/20 font-semibold" data-testid="badge-plan-name">
+                  {planDetails.name}
+                </Badge>
+              </div>
+              {trialEndsAt && (
+                <div className="text-[11px] text-blue-200/50 mt-1" data-testid="text-plan-expiry">
+                  Tugash: <span className="text-blue-100 font-semibold">{new Date(trialEndsAt).toLocaleDateString("uz-UZ", { year: "numeric", month: "short", day: "numeric" })}</span>
+                </div>
+              )}
+              {planDetails.price > 0 && (
+                <div className="text-[11px] text-blue-200/50 mt-0.5">
+                  Narxi: <span className="text-blue-100 font-semibold">{new Intl.NumberFormat("uz-UZ").format(planDetails.price)} UZS/oy</span>
+                </div>
+              )}
+            </div>
+          )}
+          {isTrialActive && (
+            <div className="p-2.5 rounded-xl bg-gradient-to-r from-amber-500/25 to-orange-500/15 border border-amber-400/30 shadow shadow-amber-900/20">
+              <div className="flex items-center gap-2 text-amber-100 text-xs font-semibold">
+                <Clock className="h-3.5 w-3.5 text-amber-300" />
+                <span>Sinov: <span className="text-amber-300">{trialDaysLeft} kun</span> qoldi</span>
+              </div>
+            </div>
+          )}
+          {trialExpired && (
+            <div className="p-2.5 rounded-xl bg-gradient-to-r from-red-500/25 to-rose-500/15 border border-red-400/30 shadow shadow-red-900/20">
+              <div className="flex items-center gap-2 text-red-100 text-xs font-semibold">
+                <AlertTriangle className="h-3.5 w-3.5 text-red-300" />
+                <span>Sinov tugadi! Tarifni yangilang.</span>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="px-4 pb-4 pt-2">
+          <button
+            onClick={async () => {
+              await apiRequest("POST", "/api/auth/logout");
+              queryClient.clear();
+              window.location.href = "/";
+            }}
+            className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-white/60 hover:text-white hover:bg-white/12 transition-colors text-sm"
+            data-testid="button-logout"
+          >
+            <LogOut className="w-5 h-5 drop-shadow" />
+            <span className="text-[15px] font-medium sidebar-text-shadow">Chiqish</span>
+          </button>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );
