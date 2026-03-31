@@ -38,10 +38,13 @@ export default function OwnerLogin() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="mb-2">
+          <div className="mb-3">
             <img src={logoImg} alt="MARKET_LINE" className="h-20 w-auto mx-auto" />
           </div>
-          <p className="text-white/50">Do'kon egasi sifatida tizimga kiring</p>
+          <h1 className="text-2xl font-black text-white tracking-wide mb-1">
+            MARKET<span className="text-blue-400">_LINE</span>
+          </h1>
+          <p className="text-white/50 text-sm">Do'kon egasi sifatida tizimga kiring</p>
         </div>
 
         <Card className="bg-white/5 border-white/10 backdrop-blur-xl">

@@ -38,8 +38,11 @@ export default function LandingPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white">
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-white/5 border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <img src={logoImg} alt="MARKET_LINE" className="h-10 w-auto" data-testid="text-brand" />
+            <div>
+              <span className="text-white font-bold text-lg tracking-wide">MARKET<span className="text-blue-400">_LINE</span></span>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -63,8 +66,14 @@ export default function LandingPage() {
 
       <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="mb-8">
-            <img src={logoImg} alt="MARKET_LINE" className="h-32 sm:h-40 w-auto mx-auto drop-shadow-2xl" />
+          <div className="mb-8 flex flex-col items-center gap-4">
+            <img src={logoImg} alt="MARKET_LINE" className="h-28 sm:h-36 w-auto mx-auto drop-shadow-2xl" />
+            <div className="text-center">
+              <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white">
+                MARKET<span className="text-blue-400">_LINE</span>
+              </h1>
+              <p className="text-white/50 text-sm font-medium mt-1 tracking-widest uppercase">Biznes boshqaruv tizimi</p>
+            </div>
           </div>
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-300 text-sm mb-8">
             <Star className="w-3.5 h-3.5" />
