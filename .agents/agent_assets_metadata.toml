@@ -120,3 +120,15 @@ id = "xixrvE0NWjAybRPDAxpo2"
 uri = "file://attached_assets/logo_final_v2b.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "VFAQj1IO_rkiFM18bw8or"
+uri = "file://attached_assets/logo_chosen.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "nxCQVuCna87S96UDsiXU6"
+uri = "file://attached_assets/logo_chosen_b.png"
+type = "image"
+title = "generated_image"
