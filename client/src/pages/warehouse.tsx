@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Product, Category } from "@shared/schema";
 import { Search, Package, AlertTriangle } from "lucide-react";
+import { stockBadge } from "@/lib/units";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -158,7 +159,7 @@ export default function Warehouse() {
                         {formatCurrency(Number(product.price))}
                       </span>
                       <span className={`text-sm font-medium ${isLow ? "text-destructive" : "text-muted-foreground"}`}>
-                        {product.stock} {product.unit}
+                        {stockBadge(product.stock, product.unit, product.boxQuantity || 1)}
                       </span>
                     </div>
                   </div>

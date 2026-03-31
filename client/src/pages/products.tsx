@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Product, Category } from "@shared/schema";
 import { Plus, Search, Package, Edit, X, Image as ImageIcon, Link, Trash2 } from "lucide-react";
+import { qtyInputStep, isDecimalUnit, stockBadge } from "@/lib/units";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 function formatCurrency(amount: number) {
@@ -210,7 +211,7 @@ export default function Products() {
                       <TableCell className="text-muted-foreground">{formatCurrency(Number(product.costPrice))}</TableCell>
                       <TableCell>
                         <span className={isLow ? "text-destructive font-medium" : ""}>
-                          {product.stock} {product.unit}
+                          {stockBadge(product.stock, product.unit, product.boxQuantity || 1)}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -314,12 +315,29 @@ export default function Products() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium mb-1 block">Stok ({form.unit})</label>
-                <Input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} data-testid="input-product-stock" />
+                <label className="text-sm font-medium mb-1 block">
+                  Stok ({form.unit === "gram" ? "gram" : form.unit})
+                  {isDecimalUnit(form.unit) && <span className="text-xs text-muted-foreground ml-1">(decimal)</span>}
+                </label>
+                <Input
+                  type="number"
+                  value={form.stock}
+                  onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                  step={qtyInputStep(form.unit)}
+                  min="0"
+                  data-testid="input-product-stock"
+                />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Min stok</label>
-                <Input type="number" value={form.minStock} onChange={(e) => setForm({ ...form, minStock: e.target.value })} data-testid="input-product-min-stock" />
+                <label className="text-sm font-medium mb-1 block">Min stok ({form.unit})</label>
+                <Input
+                  type="number"
+                  value={form.minStock}
+                  onChange={(e) => setForm({ ...form, minStock: e.target.value })}
+                  step={qtyInputStep(form.unit)}
+                  min="0"
+                  data-testid="input-product-min-stock"
+                />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

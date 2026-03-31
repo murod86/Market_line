@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Product, Supplier, Purchase, Category } from "@shared/schema";
 import { Plus, Trash2, Package, Eye, Search, ChevronDown, ChevronRight, Layers } from "lucide-react";
-import { getBuyUnitOptions as libGetBuyUnitOptions, toNativeQty } from "@/lib/units";
+import { getBuyUnitOptions as libGetBuyUnitOptions, toNativeQty, qtyInputStep } from "@/lib/units";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -422,7 +422,7 @@ export default function Purchases() {
                         onChange={(e) => setItemQty(e.target.value)}
                         placeholder="1"
                         min="0"
-                        step={itemBuyUnit === "kg" && selectedProduct.unit === "gram" ? "0.001" : "1"}
+                        step={String(qtyInputStep(itemBuyUnit))}
                         data-testid="input-purchase-qty"
                       />
                     </div>

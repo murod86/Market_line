@@ -19,7 +19,7 @@ import { useRef, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { format } from "date-fns";
 import logoImg from "@assets/marketline_pro_logo_1.png";
-import { getSellUnitOptions, toNativeQty, stockToDisplayQty, toDisplayPrice, toNativePrice, productPriceLabel } from "@/lib/units";
+import { getSellUnitOptions, toNativeQty, stockToDisplayQty, toDisplayPrice, toNativePrice, productPriceLabel, qtyDelta, qtyMin, qtyInputStep, isDecimalUnit } from "@/lib/units";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -780,15 +780,21 @@ function SellTab() {
     const sz = sizeMap[ps];
 
     const itemsHtml = items.map(item => {
-      const isKgGram = item.unit === "gram" && item.buyUnit === "kg";
-      const ql = item.buyUnit === "quti"
-        ? `${item.quantity} quti (${item.stockPieces} ${item.unit})`
-        : isKgGram
-          ? `${item.quantity} kg (${item.stockPieces} gram)`
-          : `${item.stockPieces} ${item.unit}`;
+      const bq = item.boxQuantity || 1;
       const nativeUnitPrice = item.customPrice ?? item.price;
-      const dispUnitPrice = isKgGram ? nativeUnitPrice * 1000 : nativeUnitPrice;
-      const dispUnit = isKgGram ? "kg" : item.buyUnit;
+      const dispUnitPrice = toDisplayPrice(nativeUnitPrice, item.buyUnit, item.unit, bq);
+      const dispUnit = (item.unit === "gram" && item.buyUnit === "kg") ? "kg" : item.buyUnit;
+      // Miqdor ko'rsatish
+      let ql = "";
+      if (item.buyUnit === "quti") {
+        ql = `${item.quantity} quti (${item.stockPieces} ${item.unit})`;
+      } else if (item.unit === "gram" && item.buyUnit === "kg") {
+        ql = `${item.quantity} kg (${item.stockPieces} gram)`;
+      } else if (item.unit === "gram") {
+        ql = `${item.stockPieces} gram`;
+      } else {
+        ql = `${parseFloat(item.stockPieces.toFixed(3))} ${dispUnit}`;
+      }
       const unitPriceStr = dispUnitPrice.toLocaleString();
       const totalPriceStr = (nativeUnitPrice * item.stockPieces).toLocaleString();
       return `<tr>
@@ -969,9 +975,10 @@ function SellTab() {
     setCart((prev) =>
       prev.map((c) => {
         if (c.productId !== productId) return c;
-        const isDecimalUnit = c.buyUnit === "kg";
-        const newQty = isDecimalUnit
-          ? Math.max(0.001, parseFloat(parseFloat(val).toFixed(3)) || 0.001)
+        const isDecimal = isDecimalUnit(c.buyUnit) || c.buyUnit === "kg";
+        const minV = qtyMin(c.buyUnit);
+        const newQty = isDecimal
+          ? Math.max(minV, parseFloat(parseFloat(val).toFixed(3)) || minV)
           : Math.max(1, Math.round(Number(val)) || 1);
         const newPieces = toNativeQty(newQty, c.buyUnit, c.unit, c.boxQuantity);
         if (newPieces > c.maxQty) {
@@ -1363,10 +1370,9 @@ function SellTab() {
                             </Select>
                           )}
                           {(() => {
-                            const isDecimalUnit = item.buyUnit === "kg";
-                            const delta = isDecimalUnit ? 0.1 : 1;
-                            const minV = isDecimalUnit ? 0.001 : 1;
-                            const stepV = isDecimalUnit ? 0.001 : 1;
+                            const delta = qtyDelta(item.buyUnit);
+                            const minV = qtyMin(item.buyUnit);
+                            const stepV = qtyInputStep(item.buyUnit);
                             return (<>
                               <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => updateQty(item.productId, -delta)}>
                                 <Minus className="h-3 w-3" />
@@ -1556,18 +1562,19 @@ function SellTab() {
             <Card>
               <CardContent className="p-3">
                 <div className="space-y-1">
-                  {cart.map((item) => (
-                    <div key={item.productId} className="flex justify-between text-sm">
-                      <span>{item.name} × {
-                        item.buyUnit === "quti"
-                          ? `${item.quantity} quti (${item.stockPieces} ${item.unit})`
-                          : item.unit === "gram" && item.buyUnit === "kg"
-                            ? `${item.quantity} kg (${item.stockPieces} gram)`
-                            : `${item.stockPieces} ${item.unit}`
-                      }</span>
-                      <span className="font-medium">{formatCurrency((item.customPrice ?? item.price) * item.stockPieces)}</span>
-                    </div>
-                  ))}
+                  {cart.map((item) => {
+                    let qtyStr = "";
+                    if (item.buyUnit === "quti") qtyStr = `${item.quantity} quti (${item.stockPieces} ${item.unit})`;
+                    else if (item.unit === "gram" && item.buyUnit === "kg") qtyStr = `${item.quantity} kg (${item.stockPieces} gram)`;
+                    else if (item.unit === "gram") qtyStr = `${item.stockPieces} gram`;
+                    else qtyStr = `${parseFloat(item.stockPieces.toFixed(3))} ${item.buyUnit}`;
+                    return (
+                      <div key={item.productId} className="flex justify-between text-sm">
+                        <span>{item.name} × {qtyStr}</span>
+                        <span className="font-medium">{formatCurrency((item.customPrice ?? item.price) * item.stockPieces)}</span>
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="border-t mt-2 pt-2 space-y-1">
                   {discountAmount > 0 && (

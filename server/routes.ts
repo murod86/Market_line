@@ -1698,7 +1698,8 @@ export async function registerRoutes(
         const processedItems = [];
 
         for (const item of items) {
-          const stockQuantity = Math.round(Number(item.quantity));
+          // decimal miqdorlarni saqlaymiz (kg=1.5, litr=2.3, metr=3.7)
+          const stockQuantity = Number(item.quantity);
           const unitCost = Number(item.costPrice);
           const itemTotal = stockQuantity * unitCost;
           totalAmount += itemTotal;

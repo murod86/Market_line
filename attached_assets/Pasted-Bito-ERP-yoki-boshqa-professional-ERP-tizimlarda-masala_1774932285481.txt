@@ -1,0 +1,142 @@
+Bito ERP yoki boshqa professional ERP tizimlarda (masalan SAP ERP yoki Odoo) o‘lchov birliklari oddiy yozuv emas — ular strukturali (tuzilmali) bo‘ladi.
+
+Sizga tushunarli qilib “to‘g‘ri model”ni ko‘rsataman 👇
+
+🔧 1. Asosiy tushuncha (Unit of Measure – UOM)
+
+Har bir mahsulotda:
+
+asosiy birlik (base unit) bo‘ladi
+qolganlari unga bog‘langan konvertatsiya bo‘ladi
+Misol:
+
+Mahsulot: Shakar
+Asosiy birlik: kg
+
+📦 2. Birliklar strukturasi
+
+ERP’da birliklar odatda 2 ta jadvalga bo‘linadi:
+
+1️⃣ UOM (birliklar jadvali)
+id | name   | short_name
+1  | kilogram | kg
+2  | gram     | g
+3  | dona     | dona
+4  | metr     | m
+5  | santimetr| sm
+6  | quti     | quti
+2️⃣ UOM_CONVERSION (bog‘lanish jadvali)
+id | from_uom | to_uom | ratio
+1  | gram     | kg     | 0.001
+2  | kg       | gram   | 1000
+3  | sm       | metr   | 0.01
+4  | metr     | sm     | 100
+5  | quti     | dona   | 12
+🧠 3. Asosiy logika (MUHIM!)
+Har doim:
+
+👉 1 ta bazaviy birlik tanlanadi
+👉 qolganlari unga nisbatan hisoblanadi
+
+🔹 Misol (quti → dona):
+
+Agar:
+
+1 quti = 12 dona
+
+Saqlanadi:
+
+from: quti
+to: dona
+ratio: 12
+🔹 Misol (gram → kg):
+1 gram = 0.001 kg
+⚙️ 4. Kod struktura (Python / Replit uchun)
+
+Sizga to‘g‘ri ishlaydigan model 👇
+
+class Unit:
+    def __init__(self, name):
+        self.name = name
+        self.conversions = {}
+
+    def add_conversion(self, to_unit, ratio):
+        self.conversions[to_unit.name] = ratio
+
+    def convert(self, value, to_unit):
+        if to_unit.name in self.conversions:
+            return value * self.conversions[to_unit.name]
+        else:
+            raise Exception("Conversion not found")
+
+
+# birliklar
+kg = Unit("kg")
+gram = Unit("gram")
+
+# bog‘lash
+gram.add_conversion(kg, 0.001)
+kg.add_conversion(gram, 1000)
+
+# test
+print(gram.convert(5000, kg))  # 5 kg
+❌ Replitda xato bo‘lish sabablari
+
+Ko‘pincha xatoliklar shundan chiqadi:
+
+1. Bazaviy birlik yo‘q
+
+→ hamma narsani alohida hisoblayapsiz
+
+2. 2 tomonlama bog‘lanmagan
+
+→ faqat gram → kg bor, lekin kg → gram yo‘q
+
+3. Quti noto‘g‘ri berilgan
+
+→ quti har mahsulotda boshqacha bo‘ladi ❗
+
+Masalan:
+
+Cola: 1 quti = 6 dona
+Pechenye: 1 quti = 24 dona
+
+👉 Shuning uchun quti global emas, productga bog‘lanadi
+
+🏗️ 5. To‘g‘ri PROFESSIONAL model
+PRODUCT
+- id
+- name
+- base_uom_id   (kg yoki dona)
+
+PRODUCT_UOM
+- product_id
+- uom_id
+- ratio
+🔥 MUHIM farq:
+Birlik	Turi
+kg, gram	universal
+dona	universal
+metr, sm	universal
+quti	❗ productga bog‘liq
+🧾 6. Real hayotdagi misol
+
+Mahsulot: Cola
+
+base: dona
+
+1 quti = 6 dona
+
+Mahsulot: Un
+
+base: kg
+
+1 qop = 50 kg
+💡 Xulosa
+
+Sizga kerak model:
+
+✅ Base unit bo‘lishi shart
+✅ Conversion ratio orqali ishlash
+✅ Quti/product-specific qilish
+✅ 2 tomonlama conversion qo‘shish

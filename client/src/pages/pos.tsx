@@ -42,6 +42,7 @@ import {
   qtyMin,
   qtyInputStep,
   isDecimalUnit,
+  stockBadge,
 } from "@/lib/units";
 
 interface CartItem {
@@ -535,11 +536,7 @@ export default function POS() {
                     </div>
                     <div className="flex items-center justify-between gap-1">
                       <Badge variant="secondary" className="text-xs shrink-0">
-                        {(() => {
-                          const defUnit = getSellUnitOptions(product)[0];
-                          const dispQty = stockToDisplayQty(product.stock, defUnit, product.unit, product.boxQuantity || 1);
-                          return `${dispQty} ${defUnit}`;
-                        })()}
+                        {stockBadge(product.stock, product.unit, product.boxQuantity || 1)}
                       </Badge>
                       {(product.boxQuantity || 1) > 1 && (
                         <Badge variant="outline" className="text-[10px] shrink-0">

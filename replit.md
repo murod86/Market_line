@@ -12,7 +12,7 @@ A comprehensive multi-tenant SaaS business management system built with React + 
 - **State Management**: TanStack React Query
 - **Telegram OTP**: Bot API for OTP verification, webhook for phone linking
 - **Multi-tenancy**: All data tables have `tenantId` FK to `tenants` table
-- **Product Units**: Products have `unit` (base selling unit: dona, kg, litr, gram, metr) and `boxQuantity` (how many base units per box). Purchases support buying in boxes or individual units. Stock always stored in base units.
+- **Product Units**: Professional ERP-style unit system. Products have `unit` (base/native unit: dona, gram, kg, litr, metr, quti) and `boxQuantity` (product-specific quti conversion ratio). Stock and transaction quantities use `doublePrecision` for decimal support (1.5 kg, 2.3 litr). Unit logic centralized in `client/src/lib/units.ts`: `getSellUnitOptions`, `getBuyUnitOptions`, `toNativeQty`, `stockToDisplayQty`, `toDisplayPrice`, `toNativePrice`, `stockBadge`, `qtyDelta`, `qtyInputStep`, `qtyMin`. gram products stored in grams internally, displayed as kg. kg/litr/metr products stored as decimal. dona/quti always integer.
 
 ## Multi-Tenant SaaS Architecture
 - `tenants` table: id, name, ownerName, phone, password, plan, active, createdAt

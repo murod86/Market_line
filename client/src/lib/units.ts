@@ -269,7 +269,7 @@ export function qtyLabel(
   displayUnit: string,
   nativeUnit: string
 ): string {
-  if (displayUnit === nativeUnit) return `${formatQtyDisplay(nativeQty, displayUnit)} `;
+  if (displayUnit === nativeUnit) return formatQtyDisplay(nativeQty, displayUnit);
   if (displayUnit === "kg" && nativeUnit === "gram") {
     return `${formatQtyDisplay(displayQty, "kg")} (${Math.round(nativeQty)} gram)`;
   }
@@ -294,7 +294,7 @@ export function stockBadge(
 ): string {
   const defDisplay = getSellUnitOptions({ unit: nativeUnit, boxQuantity: boxQty })[0];
   const displayQty = stockToDisplayQty(nativeStock, defDisplay, nativeUnit, boxQty);
-  return `${formatQtyDisplay(displayQty, defDisplay)} `;
+  return formatQtyDisplay(displayQty, defDisplay);
 }
 
 /**
