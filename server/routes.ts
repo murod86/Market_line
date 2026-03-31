@@ -1179,7 +1179,7 @@ export async function registerRoutes(
       const loadSchema = z.object({
         items: z.array(z.object({
           productId: z.string().min(1),
-          quantity: z.number().int().positive(),
+          quantity: z.number().positive(),
         })).min(1, "Mahsulotlar tanlanmagan"),
         notes: z.string().optional().nullable(),
         paymentType: z.enum(["debt", "cash", "partial"]).default("debt"),
@@ -1263,7 +1263,7 @@ export async function registerRoutes(
       }
 
       const editSchema = z.object({
-        quantity: z.number().int().positive().optional(),
+        quantity: z.number().positive().optional(),
         notes: z.string().optional().nullable(),
         customerName: z.string().optional().nullable(),
         paymentType: z.enum(["cash", "debt", "partial"]).optional(),
@@ -1390,7 +1390,7 @@ export async function registerRoutes(
       const sellSchema = z.object({
         items: z.array(z.object({
           productId: z.string().min(1),
-          quantity: z.number().int().positive(),
+          quantity: z.number().positive(),
           price: z.number().positive().optional(),
         })).min(1),
         customerName: z.string().optional(),
@@ -1443,7 +1443,7 @@ export async function registerRoutes(
       const returnSchema = z.object({
         items: z.array(z.object({
           productId: z.string().min(1),
-          quantity: z.number().int().positive(),
+          quantity: z.number().positive(),
         })).min(1),
         notes: z.string().optional().nullable(),
       });
@@ -2022,7 +2022,7 @@ export async function registerRoutes(
       const sellSchema = z.object({
         items: z.array(z.object({
           productId: z.string().min(1),
-          quantity: z.number().int().positive(),
+          quantity: z.number().positive(),
           price: z.number().positive(),
         })).min(1, "Mahsulotlar tanlanmagan"),
         customerName: z.string().optional().nullable(),

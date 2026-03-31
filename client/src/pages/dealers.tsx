@@ -25,6 +25,15 @@ import { format } from "date-fns";
 import { useRef, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import logoImg from "@assets/logo_clean.svg";
+import {
+  getSellUnitOptions,
+  toNativeQty,
+  stockToDisplayQty,
+  qtyInputStep,
+  qtyDelta,
+  qtyMin,
+  isDecimalUnit,
+} from "@/lib/units";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("uz-UZ").format(amount) + " UZS";
@@ -493,10 +502,14 @@ export default function Dealers() {
   };
 
   const addToCart = (product: Product) => {
+    const bq = product.boxQuantity || 1;
+    const fakeP = { unit: product.unit, boxQuantity: bq };
+    const defaultUnit = getSellUnitOptions(fakeP)[0];
     const existing = cart.find((i) => i.productId === product.id);
     if (existing) {
-      const newQty = existing.quantity + 1;
-      const newPieces = existing.buyUnit === "quti" ? newQty * existing.boxQuantity : newQty;
+      const delta = qtyDelta(existing.buyUnit);
+      const newQty = existing.quantity + delta;
+      const newPieces = toNativeQty(newQty, existing.buyUnit, product.unit, bq);
       if (newPieces > product.stock) {
         toast({ title: `${product.name}: omborda yetarli emas (${product.stock} ${product.unit} bor)`, variant: "destructive" });
         return;
@@ -505,25 +518,31 @@ export default function Dealers() {
         i.productId === product.id ? { ...i, quantity: newQty, stockPieces: newPieces } : i
       ));
     } else {
+      const initQty = isDecimalUnit(defaultUnit) ? 0.5 : 1;
+      const initPieces = toNativeQty(initQty, defaultUnit, product.unit, bq);
       setCart([...cart, {
         productId: product.id,
         name: product.name,
         unit: product.unit,
         price: Number(product.price),
         stock: product.stock,
-        quantity: 1,
-        buyUnit: product.unit,
-        boxQuantity: product.boxQuantity || 1,
-        stockPieces: 1,
+        quantity: initQty,
+        buyUnit: defaultUnit,
+        boxQuantity: bq,
+        stockPieces: initPieces,
       }]);
     }
   };
 
   const addInventoryToCart = (item: any) => {
+    const bq = item.boxQuantity || 1;
+    const fakeP = { unit: item.productUnit, boxQuantity: bq };
+    const defaultUnit = getSellUnitOptions(fakeP)[0];
     const existing = cart.find((i) => i.productId === item.productId);
     if (existing) {
-      const newQty = existing.quantity + 1;
-      const newPieces = existing.buyUnit === "quti" ? newQty * existing.boxQuantity : newQty;
+      const delta = qtyDelta(existing.buyUnit);
+      const newQty = existing.quantity + delta;
+      const newPieces = toNativeQty(newQty, existing.buyUnit, item.productUnit, bq);
       if (newPieces > item.quantity) {
         toast({ title: `${item.productName}: dillerda yetarli emas`, variant: "destructive" });
         return;
@@ -532,16 +551,18 @@ export default function Dealers() {
         i.productId === item.productId ? { ...i, quantity: newQty, stockPieces: newPieces } : i
       ));
     } else {
+      const initQty = isDecimalUnit(defaultUnit) ? 0.5 : 1;
+      const initPieces = toNativeQty(initQty, defaultUnit, item.productUnit, bq);
       setCart([...cart, {
         productId: item.productId,
         name: item.productName,
         unit: item.productUnit,
         price: Number(item.productPrice),
         stock: item.quantity,
-        quantity: 1,
-        buyUnit: item.productUnit,
-        boxQuantity: item.boxQuantity || 1,
-        stockPieces: 1,
+        quantity: initQty,
+        buyUnit: defaultUnit,
+        boxQuantity: bq,
+        stockPieces: initPieces,
       }]);
     }
   };
@@ -552,28 +573,22 @@ export default function Dealers() {
     } else {
       setCart(cart.map((i) => {
         if (i.productId !== productId) return i;
-        const newPieces = i.buyUnit === "quti" ? qty * i.boxQuantity : qty;
-        const maxPieces = i.stock;
-        if (newPieces > maxPieces) return i;
+        const newPieces = toNativeQty(qty, i.buyUnit, i.unit, i.boxQuantity);
+        if (newPieces > i.stock) return i;
         return { ...i, quantity: qty, stockPieces: newPieces };
       }));
     }
   };
 
-  const getUnitOptions = (_item: CartItem) => {
-    return ["dona", "quti", "litr", "kg"];
+  const getUnitOptions = (item: CartItem) => {
+    return getSellUnitOptions({ unit: item.unit, boxQuantity: item.boxQuantity });
   };
 
   const changeCartUnit = (productId: string, newUnit: string) => {
     setCart(cart.map((i) => {
       if (i.productId !== productId) return i;
-      let newQty = i.quantity;
-      if (newUnit === "quti" && i.buyUnit !== "quti") {
-        newQty = Math.max(1, Math.floor(i.quantity / i.boxQuantity));
-      } else if (i.buyUnit === "quti" && newUnit !== "quti") {
-        newQty = i.quantity * i.boxQuantity;
-      }
-      const newPieces = newUnit === "quti" ? newQty * i.boxQuantity : newQty;
+      const newQty = stockToDisplayQty(i.stockPieces, newUnit, i.unit, i.boxQuantity);
+      const newPieces = toNativeQty(newQty, newUnit, i.unit, i.boxQuantity);
       if (newPieces > i.stock) return i;
       return { ...i, buyUnit: newUnit, quantity: newQty, stockPieces: newPieces };
     }));
@@ -610,7 +625,7 @@ export default function Dealers() {
   const submitLoad = () => {
     if (cart.length === 0) return;
     loadMutation.mutate({
-      items: cart.map((i) => ({ productId: i.productId, quantity: Math.round(i.stockPieces) })),
+      items: cart.map((i) => ({ productId: i.productId, quantity: i.stockPieces })),
       notes: operationNotes.trim() || null,
       paymentType: loadPaymentType,
       paidAmount: loadPaymentType === "partial" ? Number(loadPaidAmount) || 0 : 0,
@@ -620,7 +635,7 @@ export default function Dealers() {
   const submitSell = () => {
     if (cart.length === 0) return;
     sellMutation.mutate({
-      items: cart.map((i) => ({ productId: i.productId, quantity: Math.round(i.stockPieces), price: i.customPrice ?? i.price })),
+      items: cart.map((i) => ({ productId: i.productId, quantity: i.stockPieces, price: i.customPrice ?? i.price })),
       customerName: sellCustomerName.trim() || null,
       customerPhone: sellCustomerPhone.trim() || null,
       notes: operationNotes.trim() || null,
@@ -630,7 +645,7 @@ export default function Dealers() {
   const submitReturn = () => {
     if (cart.length === 0) return;
     returnMutation.mutate({
-      items: cart.map((i) => ({ productId: i.productId, quantity: Math.round(i.stockPieces) })),
+      items: cart.map((i) => ({ productId: i.productId, quantity: i.stockPieces })),
       notes: operationNotes.trim() || null,
     });
   };
@@ -1732,6 +1747,11 @@ export default function Dealers() {
                             {item.quantity} quti × {item.boxQuantity} = {item.stockPieces} {item.unit}
                           </p>
                         )}
+                        {item.buyUnit !== item.unit && item.buyUnit !== "quti" && (
+                          <p className="text-[10px] text-emerald-600">
+                            {item.quantity} {item.buyUnit} = {parseFloat(item.stockPieces.toFixed(3))} {item.unit}
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         {getUnitOptions(item).length > 1 && (
@@ -1752,17 +1772,19 @@ export default function Dealers() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => updateCartQty(item.productId, item.quantity - 1)}
+                          onClick={() => updateCartQty(item.productId, Math.max(qtyMin(item.buyUnit), item.quantity - qtyDelta(item.buyUnit)))}
                           data-testid={`button-cart-minus-${item.productId}`}
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
                         <input
                           type="number"
-                          min={1}
+                          min={qtyMin(item.buyUnit)}
+                          step={qtyInputStep(item.buyUnit)}
                           value={item.quantity}
                           onChange={(e) => {
-                            const v = Math.max(1, Number(e.target.value) || 1);
+                            const minV = qtyMin(item.buyUnit);
+                            const v = Math.max(minV, Number(e.target.value) || minV);
                             updateCartQty(item.productId, v);
                           }}
                           className="w-16 h-8 text-center text-sm font-medium border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring"
@@ -1771,8 +1793,8 @@ export default function Dealers() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => updateCartQty(item.productId, item.quantity + 1)}
-                          disabled={item.stockPieces >= item.stock}
+                          onClick={() => updateCartQty(item.productId, item.quantity + qtyDelta(item.buyUnit))}
+                          disabled={toNativeQty(item.quantity + qtyDelta(item.buyUnit), item.buyUnit, item.unit, item.boxQuantity) > item.stock}
                           data-testid={`button-cart-plus-${item.productId}`}
                         >
                           <Plus className="h-3 w-3" />
