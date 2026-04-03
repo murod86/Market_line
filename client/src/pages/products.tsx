@@ -270,11 +270,11 @@ export default function Products() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle>{editing ? "Mahsulotni tahrirlash" : "Yangi mahsulot"}</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4">
+          <div className="grid gap-4 overflow-y-auto flex-1 pr-1 py-1">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">Nomi *</label>
@@ -459,7 +459,7 @@ export default function Products() {
               <p className="text-xs text-muted-foreground/60 mt-1">Rasm havola manzilini kiriting</p>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 pt-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Bekor qilish</Button>
             <Button onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-save-product">
               {createMutation.isPending ? "Saqlanmoqda..." : "Saqlash"}
