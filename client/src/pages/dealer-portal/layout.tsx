@@ -154,7 +154,7 @@ function printGroupTxReceipt(items: any[]) {
     <style>
       @page { size: 58mm auto; margin: 0; }
       * { margin:0; padding:0; box-sizing:border-box; }
-      html, body { width:54mm; font-family:'Courier New',monospace; font-size:11px; font-weight:700; line-height:1.5; padding:1mm 2mm; color:#000; -webkit-print-color-adjust:exact; }
+      html, body { width:54mm; font-family:'Courier New',monospace; font-size:13px; font-weight:700; line-height:1.5; padding:1mm 2mm; color:#000; -webkit-print-color-adjust:exact; }
       .center { text-align:center; }
       .bold { font-weight:900; }
       .divider { border-top:2px solid #000; margin:5px 0; }
@@ -194,7 +194,7 @@ function printDealerTxReceipt(tx: any) {
     <style>
       @page { size: 58mm auto; margin: 0; }
       * { margin:0; padding:0; box-sizing:border-box; }
-      html, body { width:54mm; font-family:'Courier New',monospace; font-size:11px; font-weight:700; line-height:1.5; padding:1mm 2mm; color:#000; -webkit-print-color-adjust:exact; }
+      html, body { width:54mm; font-family:'Courier New',monospace; font-size:13px; font-weight:700; line-height:1.5; padding:1mm 2mm; color:#000; -webkit-print-color-adjust:exact; }
       .center { text-align:center; }
       .bold { font-weight:900; }
       .divider { border-top:2px solid #000; margin:5px 0; }
@@ -958,9 +958,9 @@ function SellTab() {
     const debtAmt = pType === "debt" ? totalAmt : pType === "partial" ? Math.max(0, totalAmt - paidAmt) : 0;
 
     const sizeMap = {
-      "58mm": { pageWidth: "58mm", bodyWidth: "54mm", baseFontSize: "11px", padding: "1mm 2mm" },
-      "80mm": { pageWidth: "80mm", bodyWidth: "76mm", baseFontSize: "13px", padding: "2mm 3mm" },
-      "A4":   { pageWidth: "210mm", bodyWidth: "190mm", baseFontSize: "14px", padding: "5mm 8mm" },
+      "58mm": { pageWidth: "58mm", bodyWidth: "54mm", baseFontSize: "13px", padding: "1mm 2mm" },
+      "80mm": { pageWidth: "80mm", bodyWidth: "76mm", baseFontSize: "15px", padding: "2mm 3mm" },
+      "A4":   { pageWidth: "210mm", bodyWidth: "190mm", baseFontSize: "16px", padding: "5mm 8mm" },
     };
     const sz = sizeMap[ps];
 

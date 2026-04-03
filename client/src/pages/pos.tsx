@@ -310,9 +310,9 @@ export default function POS() {
     if (!receiptData) return "";
     const fmt = (n: number) => new Intl.NumberFormat("uz-UZ").format(n);
     const sizeMap = {
-      "58mm": { pageW: "58mm", bodyW: "52mm", fs: "11pt", fsS: "9pt", fsL: "13pt", pad: "2mm 3mm" },
-      "80mm": { pageW: "80mm", bodyW: "74mm", fs: "12pt", fsS: "10pt", fsL: "14pt", pad: "3mm 4mm" },
-      "A4":   { pageW: "210mm", bodyW: "190mm", fs: "12pt", fsS: "10pt", fsL: "16pt", pad: "8mm 10mm" },
+      "58mm": { pageW: "58mm", bodyW: "52mm", fs: "13pt", fsS: "11pt", fsL: "15pt", pad: "2mm 3mm" },
+      "80mm": { pageW: "80mm", bodyW: "74mm", fs: "14pt", fsS: "12pt", fsL: "16pt", pad: "3mm 4mm" },
+      "A4":   { pageW: "210mm", bodyW: "190mm", fs: "14pt", fsS: "12pt", fsL: "18pt", pad: "8mm 10mm" },
     };
     const sz = sizeMap[paperSize];
     const chekNo = receiptData.date.getTime().toString().slice(-6);

@@ -180,9 +180,9 @@ export default function Dealers() {
     const total = items.reduce((s, i) => s + (i.customPrice ?? i.price) * i.stockPieces, 0);
 
     const sizeMap = {
-      "58mm": { pageSize: "58mm auto", bodyWidth: "54mm", fontSize: "11px", fontSizeSm: "10px", padding: "4px", winWidth: 300 },
-      "80mm": { pageSize: "80mm auto", bodyWidth: "76mm", fontSize: "13px", fontSizeSm: "11px", padding: "6px", winWidth: 380 },
-      "A4":   { pageSize: "A4",        bodyWidth: "190mm", fontSize: "14px", fontSizeSm: "12px", padding: "15mm 15mm", winWidth: 800 },
+      "58mm": { pageSize: "58mm auto", bodyWidth: "54mm", fontSize: "13px", fontSizeSm: "12px", padding: "4px", winWidth: 300 },
+      "80mm": { pageSize: "80mm auto", bodyWidth: "76mm", fontSize: "15px", fontSizeSm: "13px", padding: "6px", winWidth: 380 },
+      "A4":   { pageSize: "A4",        bodyWidth: "190mm", fontSize: "16px", fontSizeSm: "14px", padding: "15mm 15mm", winWidth: 800 },
     };
     const sz = sizeMap[ps];
 
@@ -250,7 +250,7 @@ export default function Dealers() {
       <style>
         @page { size: 58mm auto; margin: 0; }
         * { margin:0; padding:0; box-sizing:border-box; }
-        html, body { width:54mm; font-family:'Courier New',monospace; font-size:11px; font-weight:700; line-height:1.5; padding:1mm 2mm; color:#000; -webkit-print-color-adjust:exact; }
+        html, body { width:54mm; font-family:'Courier New',monospace; font-size:13px; font-weight:700; line-height:1.5; padding:1mm 2mm; color:#000; -webkit-print-color-adjust:exact; }
         .center { text-align:center; }
         .bold { font-weight:900; }
         .divider { border-top:2px solid #000; margin:5px 0; }
@@ -299,7 +299,7 @@ export default function Dealers() {
       <style>
         @page { size: 58mm auto; margin: 0; }
         * { margin:0; padding:0; box-sizing:border-box; }
-        html, body { width:54mm; font-family:'Courier New',monospace; font-size:11px; font-weight:700; line-height:1.5; padding:1mm 2mm; color:#000; -webkit-print-color-adjust:exact; }
+        html, body { width:54mm; font-family:'Courier New',monospace; font-size:13px; font-weight:700; line-height:1.5; padding:1mm 2mm; color:#000; -webkit-print-color-adjust:exact; }
         .center { text-align:center; }
         .bold { font-weight:900; }
         .divider { border-top:2px solid #000; margin:5px 0; }
