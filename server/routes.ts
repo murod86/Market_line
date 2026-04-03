@@ -926,7 +926,7 @@ export async function registerRoutes(
 
           if (product) {
             await tx.update(products).set({
-              stock: Math.max(0, product.stock - item.quantity),
+              stock: Math.max(0, Number(product.stock) - Number(item.quantity)),
             }).where(eq(products.id, item.productId));
           }
         }

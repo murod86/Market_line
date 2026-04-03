@@ -34,6 +34,7 @@ import {
   qtyMin,
   isDecimalUnit,
   qtyLabel as unitQtyLabel,
+  formatQtyDisplay,
 } from "@/lib/units";
 
 function formatCurrency(amount: number) {
@@ -265,7 +266,7 @@ export default function Dealers() {
       <div style="margin-bottom:4px"><b>Sana:</b> ${dateStr}</div>
       <div class="divider"></div>
       <div style="font-weight:900;font-size:1.05em;padding:3px 0">${tx.productName}</div>
-      <div class="row"><span>${tx.quantity} ${tx.productUnit || "dona"} x ${Number(tx.price).toLocaleString()}</span><span>${totalAmt.toLocaleString()} UZS</span></div>
+      <div class="row"><span>${formatQtyDisplay(Number(tx.quantity), tx.productUnit || "dona")} &times; ${Number(tx.price).toLocaleString()} so'm/${tx.productUnit || "dona"}</span><span>${totalAmt.toLocaleString()} UZS</span></div>
       <div class="divider"></div>
       <div class="row bold" style="font-size:1.3em;border-top:2px solid #000;padding-top:3px"><span>JAMI:</span><span>${totalAmt.toLocaleString()} UZS</span></div>
       ${!isLoad && tx.paymentType === "cash" ? `<div style="margin-top:4px"><b>To'lov:</b> Naqd</div>` : ""}
@@ -292,7 +293,7 @@ export default function Dealers() {
     const itemsHtml = items.map((tx) => {
       const itemTotal = Number(tx.total) || Number(tx.price) * tx.quantity;
       return `<div style="font-weight:900;font-size:1.02em;padding:3px 0 1px 0;border-top:1px solid #ccc">${tx.productName}</div>
-        <div style="display:flex;justify-content:space-between"><span>${tx.quantity} ${tx.productUnit || "dona"} x ${Number(tx.price).toLocaleString()}</span><span>${itemTotal.toLocaleString()} UZS</span></div>`;
+        <div style="display:flex;justify-content:space-between"><span>${formatQtyDisplay(Number(tx.quantity), tx.productUnit || "dona")} &times; ${Number(tx.price).toLocaleString()} so'm/${tx.productUnit || "dona"}</span><span>${itemTotal.toLocaleString()} UZS</span></div>`;
     }).join("");
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
       <style>

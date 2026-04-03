@@ -145,7 +145,7 @@ function printGroupTxReceipt(items: any[]) {
       <td colspan="2" style="padding:3px 2px 1px 2px;font-weight:900;border-top:1px solid #ccc;font-size:1.02em">${tx.productName}</td>
     </tr>
     <tr>
-      <td style="padding:1px 2px;font-weight:700">${tx.quantity} ${tx.productUnit || "dona"} x ${Number(tx.price).toLocaleString()}</td>
+      <td style="padding:1px 2px;font-weight:700">${formatQtyDisplay(Number(tx.quantity), tx.productUnit || "dona")} &times; ${Number(tx.price).toLocaleString()} so'm/${tx.productUnit || "dona"}</td>
       <td style="padding:1px 2px;text-align:right;font-weight:700">${itemTotal.toLocaleString()} UZS</td>
     </tr>`;
   }).join("");
@@ -210,7 +210,7 @@ function printDealerTxReceipt(tx: any) {
     <div style="margin-bottom:4px"><b>Sana:</b> ${now}</div>
     <div class="divider"></div>
     <div style="font-weight:900;font-size:1.05em;padding:3px 0">${tx.productName}</div>
-    <div class="row"><span>${tx.quantity} ${tx.productUnit || "dona"} x ${Number(tx.price).toLocaleString()}</span><span>${totalAmt.toLocaleString()} UZS</span></div>
+    <div class="row"><span>${formatQtyDisplay(Number(tx.quantity), tx.productUnit || "dona")} &times; ${Number(tx.price).toLocaleString()} so'm/${tx.productUnit || "dona"}</span><span>${totalAmt.toLocaleString()} UZS</span></div>
     <div class="divider"></div>
     <div class="row bold" style="font-size:1.3em;border-top:2px solid #000;padding-top:3px"><span>JAMI:</span><span>${totalAmt.toLocaleString()} UZS</span></div>
     ${tx.paymentType === "cash" ? `<div style="margin-top:4px"><b>To'lov:</b> Naqd</div>` : ""}
