@@ -196,7 +196,7 @@ export default function Dealers() {
       </tr>
       <tr>
         <td style="padding:1px 2px;font-size:${sz.fontSizeSm}">${qtyStr}</td>
-        <td style="padding:1px 2px;font-size:${sz.fontSizeSm};text-align:right">${unitPriceStr}/${item.unit}</td>
+        <td style="padding:1px 2px;font-size:${sz.fontSizeSm};text-align:right">${unitPriceStr} so'm/${item.unit}</td>
       </tr>
       <tr>
         <td style="padding:1px 2px 4px 2px;font-size:${sz.fontSize};font-weight:700">= Jami:</td>
