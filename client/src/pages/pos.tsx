@@ -85,6 +85,7 @@ export default function POS() {
   const [discountValue, setDiscountValue] = useState<string>("");
   const [discountType, setDiscountType] = useState<"amount" | "percent">("amount");
   const [paidAmount, setPaidAmount] = useState<string>("");
+  const [mobileTab, setMobileTab] = useState<"products" | "cart">("products");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
@@ -163,6 +164,7 @@ export default function POS() {
 
       toast({ title: "Savdo muvaffaqiyatli yakunlandi!" });
       setCart([]);
+      setMobileTab("products");
       setDiscountValue("");
       setDiscountType("amount");
       setPaidAmount("");
@@ -447,8 +449,32 @@ export default function POS() {
   };
 
   return (
-    <div className="flex h-full">
-      <div className="flex-1 flex flex-col p-4 overflow-hidden">
+    <div className="flex flex-col h-full">
+      {/* Mobile tab bar */}
+      <div className="md:hidden flex border-b bg-background shrink-0">
+        <button
+          onClick={() => setMobileTab("products")}
+          className={`flex-1 py-3 text-sm font-semibold transition-colors ${mobileTab === "products" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
+          data-testid="tab-products"
+        >
+          Mahsulotlar
+        </button>
+        <button
+          onClick={() => setMobileTab("cart")}
+          className={`flex-1 py-3 text-sm font-semibold transition-colors relative ${mobileTab === "cart" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
+          data-testid="tab-cart"
+        >
+          Savat
+          {cart.length > 0 && (
+            <span className="ml-1.5 bg-primary text-primary-foreground text-xs rounded-full px-1.5 py-0.5 align-middle">
+              {cart.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className={`flex-1 flex flex-col p-3 md:p-4 overflow-hidden ${mobileTab === "cart" ? "hidden md:flex" : "flex"}`}>
         <div className="mb-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -498,13 +524,13 @@ export default function POS() {
               {filteredProducts?.map((product) => (
                 <Card
                   key={product.id}
-                  className="cursor-pointer hover-elevate transition-all"
+                  className="cursor-pointer hover-elevate transition-all active:scale-95"
                   onClick={() => addToCart(product)}
                   data-testid={`card-product-${product.id}`}
                 >
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-2.5 mb-2">
-                      <div className="h-20 w-20 shrink-0 rounded-md bg-muted overflow-hidden flex items-center justify-center">
+                  <CardContent className="p-2 md:p-3">
+                    <div className="flex flex-col items-center gap-1.5 mb-1.5">
+                      <div className="h-14 w-14 md:h-20 md:w-20 shrink-0 rounded-md bg-muted overflow-hidden flex items-center justify-center">
                         {product.imageUrl ? (
                           <img
                             src={product.imageUrl}
@@ -516,23 +542,22 @@ export default function POS() {
                           <Package className="w-5 h-5 text-muted-foreground/40" />
                         )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-sm leading-tight truncate">{product.name}</h3>
-                        <p className="text-xs font-semibold text-primary">
+                      <div className="w-full min-w-0 text-center">
+                        <h3 className="font-semibold text-xs md:text-sm leading-tight line-clamp-2">{product.name}</h3>
+                        <p className="text-xs font-bold text-primary mt-0.5">
                           {productPriceLabel(Number(product.price), product.unit)}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between gap-1">
-                      <Badge variant="secondary" className="text-xs shrink-0">
+                    <div className="flex flex-wrap items-center justify-center gap-1">
+                      <Badge variant="secondary" className="text-[10px] shrink-0">
                         {stockBadge(product.stock, product.unit, product.boxQuantity || 1)}
                       </Badge>
                       {(product.boxQuantity || 1) > 1 && (
                         <Badge variant="outline" className="text-[10px] shrink-0">
-                          1 quti={product.boxQuantity}
+                          quti={product.boxQuantity}
                         </Badge>
                       )}
-                      <p className="text-xs text-muted-foreground">{product.sku}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -545,9 +570,24 @@ export default function POS() {
             </div>
           )}
         </ScrollArea>
+
+        {/* Mobile: savat ko'rish tugmasi */}
+        {cart.length > 0 && (
+          <button
+            onClick={() => setMobileTab("cart")}
+            className="md:hidden shrink-0 mt-2 bg-primary text-primary-foreground rounded-xl py-3.5 px-4 flex items-center justify-between text-sm font-semibold active:opacity-90"
+            data-testid="button-mobile-cart-bar"
+          >
+            <span className="flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4" />
+              {cart.length} ta mahsulot savatda
+            </span>
+            <span className="font-bold">{formatCurrency(total)}</span>
+          </button>
+        )}
       </div>
 
-      <div className="w-96 border-l bg-card flex flex-col overflow-hidden">
+      <div className={`border-l bg-card flex-col overflow-hidden md:w-96 ${mobileTab === "products" ? "hidden md:flex" : "flex flex-1 md:flex-none"}`}>
         <div className="p-4 border-b shrink-0">
           <div className="flex items-center justify-between gap-1">
             <h2 className="font-semibold flex items-center gap-2" data-testid="text-cart-title">
@@ -750,6 +790,7 @@ export default function POS() {
             </Button>
           </div>
         )}
+      </div>
       </div>
 
       <Dialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
