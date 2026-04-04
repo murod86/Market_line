@@ -60,7 +60,7 @@ export default function OwnerLogin() {
           {/* Center text */}
           <div className="space-y-6">
             <div>
-              <h2 className="text-white text-4xl font-black leading-tight mb-3">
+              <h2 className="text-white text-5xl font-black leading-tight mb-3">
                 Biznesingizni<br />
                 <span className="text-blue-300">aqlli boshqaring</span>
               </h2>
