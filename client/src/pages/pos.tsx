@@ -339,14 +339,12 @@ export default function POS() {
 
     const itemsHtml = receiptData.items.map((item, idx) => {
       const nativeUnitPrice = item.customPrice ?? Number(item.product.price);
-      const bq = item.product.boxQuantity || 1;
+      const nativeUnit = item.product.unit;
       const total = item.stockPieces * nativeUnitPrice;
-      const displayUnitPrice = toDisplayPrice(nativeUnitPrice, item.buyUnit, item.product.unit, bq);
-      const displayUnit = item.buyUnit;
       const receiptQty = qtyLabel(item.quantity, item.stockPieces, item.buyUnit, item.product.unit);
       return `<div style="margin-bottom:6px">
         <div style="font-size:${sz.fs};font-weight:bold;color:#000;word-break:break-word">${idx + 1}. ${item.product.name}</div>
-        ${row(`1 ${displayUnit} narxi:`, `${fmt(displayUnitPrice)} so'm`)}
+        ${row(`1 ${nativeUnit} narxi:`, `${fmt(nativeUnitPrice)} so'm`)}
         ${row(`Miqdor:`, `${receiptQty}`)}
         ${row(`= Jami:`, `${fmt(total)} so'm`, true)}
       </div>`;
@@ -1024,7 +1022,6 @@ export default function POS() {
                   {receiptData.items.map((item, idx) => {
                     const unitPrice = item.customPrice ?? Number(item.product.price);
                     const totalPrice = item.stockPieces * unitPrice;
-                    const displayUnitPrice = toDisplayPrice(unitPrice, item.buyUnit, item.product.unit, item.product.boxQuantity || 1);
                     const receiptQtyStr = qtyLabel(item.quantity, item.stockPieces, item.buyUnit, item.product.unit);
                     return (
                       <div key={idx} style={{ marginBottom: "6px" }}>
@@ -1032,8 +1029,8 @@ export default function POS() {
                           {idx + 1}. {item.product.name}
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000", marginTop: "1px" }}>
-                          <span>1 {item.buyUnit} narxi:</span>
-                          <span>{formatCurrencyShort(displayUnitPrice)} so'm</span>
+                          <span>1 {item.product.unit} narxi:</span>
+                          <span>{formatCurrencyShort(unitPrice)} so'm</span>
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000" }}>
                           <span>Miqdor:</span>
