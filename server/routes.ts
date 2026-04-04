@@ -3454,6 +3454,94 @@ export async function registerRoutes(
     }
   });
 
+  // ===== ANALYTICS =====
+  app.get("/api/stats/top-products", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const limit = parseInt(req.query['limit'] as string) || 5;
+      const result = await pool.query(`
+        SELECT
+          p.id, p.name, p.unit,
+          COALESCE(SUM(si.quantity), 0) AS total_qty,
+          COALESCE(SUM(si.total), 0) AS total_revenue,
+          COALESCE(SUM((si.price - COALESCE(si.cost_price,0)) * si.quantity), 0) AS total_profit,
+          COUNT(DISTINCT si.sale_id) AS sale_count
+        FROM products p
+        LEFT JOIN sale_items si ON si.product_id = p.id
+        LEFT JOIN sales sa ON sa.id = si.sale_id AND sa.tenant_id = $1 AND sa.status != 'cancelled'
+        WHERE p.tenant_id = $1
+        GROUP BY p.id, p.name, p.unit
+        ORDER BY total_revenue DESC
+        LIMIT $2
+      `, [tenantId, limit]);
+      res.json(result.rows.map(r => ({
+        id: r.id, name: r.name, unit: r.unit,
+        totalQty: Number(r.total_qty),
+        totalRevenue: Number(r.total_revenue),
+        totalProfit: Number(r.total_profit),
+        saleCount: Number(r.sale_count),
+      })));
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/stats/payment-types", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const result = await pool.query(`
+        SELECT
+          payment_type,
+          COUNT(*) AS cnt,
+          COALESCE(SUM(total_amount), 0) AS total
+        FROM sales
+        WHERE tenant_id = $1 AND status != 'cancelled'
+        GROUP BY payment_type
+      `, [tenantId]);
+      res.json(result.rows.map(r => ({
+        type: r.payment_type,
+        count: Number(r.cnt),
+        total: Number(r.total),
+      })));
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/stats/yearly", requireTenant, async (req, res) => {
+    try {
+      const tenantId = req.session.tenantId!;
+      const year = parseInt(req.query['year'] as string) || new Date().getFullYear();
+      const startDate = new Date(year, 0, 1);
+      const endDate = new Date(year + 1, 0, 1);
+      const result = await pool.query(`
+        SELECT
+          EXTRACT(MONTH FROM sa.created_at)::int AS month,
+          COALESCE(SUM(sa.total_amount), 0) AS revenue,
+          COALESCE(SUM(
+            GREATEST(
+              (SELECT SUM((si2.price - COALESCE(si2.cost_price,0)) * si2.quantity)
+               FROM sale_items si2 WHERE si2.sale_id = sa.id) - COALESCE(sa.discount, 0),
+              0
+            )
+          ), 0) AS profit
+        FROM sales sa
+        WHERE sa.tenant_id = $1 AND sa.status != 'cancelled'
+          AND sa.created_at >= $2 AND sa.created_at < $3
+        GROUP BY EXTRACT(MONTH FROM sa.created_at)
+        ORDER BY month
+      `, [tenantId, startDate.toISOString(), endDate.toISOString()]);
+      const MONTH_NAMES = ['Yan','Fev','Mar','Apr','May','Iyn','Iyl','Avg','Sen','Okt','Noy','Dek'];
+      const months = MONTH_NAMES.map((name, i) => {
+        const row = result.rows.find((r: any) => r.month === i + 1);
+        return { month: i + 1, name, revenue: Number(row?.revenue || 0), profit: Number(row?.profit || 0) };
+      });
+      res.json({ year, months });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // ===== SUPER ADMIN =====
   function requireSuperAdmin(req: Request, res: Response, next: NextFunction) {
     if (!req.session.superAdmin) {
