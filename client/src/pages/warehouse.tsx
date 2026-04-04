@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Product, Category } from "@shared/schema";
-import { Search, Package, AlertTriangle } from "lucide-react";
+import { Search, Package, AlertTriangle, TrendingUp, DollarSign, Banknote } from "lucide-react";
 import { stockBadge, productPriceLabel } from "@/lib/units";
 
 function formatCurrency(amount: number) {
@@ -37,7 +37,10 @@ export default function Warehouse() {
 
   const totalStock = products?.reduce((sum, p) => sum + p.stock, 0) || 0;
   const lowStockCount = products?.filter((p) => p.stock <= p.minStock).length || 0;
-  const totalValue = products?.reduce((sum, p) => sum + p.stock * Number(p.price), 0) || 0;
+  const costValue = products?.reduce((sum, p) => sum + p.stock * Number(p.costPrice || 0), 0) || 0;
+  const sellValue = products?.reduce((sum, p) => sum + p.stock * Number(p.price), 0) || 0;
+  const potentialProfit = sellValue - costValue;
+  const totalValue = sellValue;
 
   return (
     <div className="p-6 space-y-6 overflow-y-auto h-full">
@@ -46,44 +49,88 @@ export default function Warehouse() {
         <p className="text-muted-foreground">Mahsulotlar stoki va katalog</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <Card className="border-0 shadow-sm">
           <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-md bg-primary/10">
-                <Package className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Jami stok</p>
-                <p className="text-xl font-bold" data-testid="text-total-stock">{products?.length ?? 0} ta tur</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-muted-foreground font-medium">Mahsulot turi</p>
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <Package className="h-3.5 w-3.5 text-primary" />
               </div>
             </div>
+            <p className="text-2xl font-bold" data-testid="text-total-stock">{products?.length ?? 0}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">ta tur mahsulot</p>
           </CardContent>
         </Card>
-        <Card>
+
+        <Card className="border-0 shadow-sm">
           <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-md bg-orange-500/10">
-                <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Kam qolgan</p>
-                <p className="text-xl font-bold" data-testid="text-low-stock">{lowStockCount} ta</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-muted-foreground font-medium">Jami miqdor</p>
+              <div className="p-1.5 rounded-lg bg-blue-500/10">
+                <Package className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{new Intl.NumberFormat("uz-UZ").format(totalStock)}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">jami dona/kg</p>
           </CardContent>
         </Card>
-        <Card>
+
+        <Card className="border-0 shadow-sm">
           <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-md bg-green-500/10">
-                <Package className="h-5 w-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Ombor qiymati</p>
-                <p className="text-xl font-bold" data-testid="text-stock-value">{formatCurrency(totalValue)}</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-muted-foreground font-medium">Kam qolgan</p>
+              <div className="p-1.5 rounded-lg bg-orange-500/10">
+                <AlertTriangle className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />
               </div>
             </div>
+            <p className="text-2xl font-bold text-orange-600 dark:text-orange-400" data-testid="text-low-stock">{lowStockCount}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">ta diqqat talab</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-muted-foreground font-medium">Kirim narxida</p>
+              <div className="p-1.5 rounded-lg bg-slate-500/10">
+                <Banknote className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
+              </div>
+            </div>
+            <p className="text-lg font-bold leading-tight" data-testid="text-cost-value">
+              {new Intl.NumberFormat("uz-UZ").format(Math.round(costValue))}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">UZS (tan narx)</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-muted-foreground font-medium">Sotish narxida</p>
+              <div className="p-1.5 rounded-lg bg-green-500/10">
+                <DollarSign className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+            <p className="text-lg font-bold text-green-600 dark:text-green-400 leading-tight" data-testid="text-stock-value">
+              {new Intl.NumberFormat("uz-UZ").format(Math.round(sellValue))}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">UZS (barchasi sotilsa)</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-sm border-l-4 border-l-emerald-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-muted-foreground font-medium">Potensial foyda</p>
+              <div className="p-1.5 rounded-lg bg-emerald-500/10">
+                <TrendingUp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+            </div>
+            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 leading-tight" data-testid="text-potential-profit">
+              {new Intl.NumberFormat("uz-UZ").format(Math.round(potentialProfit))}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">UZS (sof margin)</p>
           </CardContent>
         </Card>
       </div>
