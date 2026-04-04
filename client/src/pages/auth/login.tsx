@@ -3,11 +3,11 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Phone, Lock, ArrowLeft, Loader2 } from "lucide-react";
+import { Phone, Lock, Loader2, TrendingUp, Package, Users } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import logoImg from "@assets/logo_clean.svg";
+import shopImg from "@assets/IMG_2756_1775284116693.png";
 
 export default function OwnerLogin() {
   const [, setLocation] = useLocation();
@@ -15,6 +15,7 @@ export default function OwnerLogin() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,88 +36,165 @@ export default function OwnerLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="mb-3">
-            <img src={logoImg} alt="MARKET_LINE" className="h-20 w-auto mx-auto" />
+    <div className="min-h-screen flex">
+      {/* Left side — image panel */}
+      <div className="hidden lg:flex lg:w-1/2 xl:w-[55%] relative overflow-hidden">
+        <img
+          src={shopImg}
+          alt="Do'kon"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        {/* dark gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0f1e3d]/80 via-[#1d3a6e]/60 to-[#0a1628]/75" />
+
+        {/* Content on image */}
+        <div className="relative z-10 flex flex-col justify-between p-10 w-full">
+          {/* Logo top */}
+          <div className="flex items-center gap-3">
+            <img src={logoImg} alt="MARKET_LINE" className="h-10 w-auto" />
+            <span className="text-white font-black text-xl tracking-wider">
+              MARKET<span className="text-blue-300">_LINE</span>
+            </span>
           </div>
-          <h1 className="text-2xl font-black text-white tracking-wide mb-1">
-            MARKET<span className="text-blue-400">_LINE</span>
-          </h1>
-          <p className="text-white/50 text-sm">Do'kon egasi sifatida tizimga kiring</p>
-        </div>
 
-        <Card className="bg-white/5 border-white/10 backdrop-blur-xl">
-          <CardHeader>
-            <CardTitle className="text-white text-center text-lg">Tizimga kirish</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-white/70">Telefon raqam</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-                  <Input
-                    type="tel"
-                    placeholder="+998901234567"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/30"
-                    data-testid="input-phone"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-white/70">Parol</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-                  <Input
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 bg-white/5 border-white/10 text-white placeholder:text-white/30"
-                    data-testid="input-password"
-                  />
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0"
-                disabled={loading}
-                data-testid="button-login"
-              >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Kirish
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-white/40 text-sm">
-                Hisobingiz yo'qmi?{" "}
-                <button
-                  onClick={() => setLocation("/auth/register")}
-                  className="text-blue-400 hover:text-blue-300 font-medium"
-                  data-testid="link-register"
-                >
-                  Ro'yxatdan o'ting
-                </button>
+          {/* Center text */}
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-white text-4xl font-black leading-tight mb-3">
+                Biznesingizni<br />
+                <span className="text-blue-300">aqlli boshqaring</span>
+              </h2>
+              <p className="text-white/70 text-lg leading-relaxed max-w-sm">
+                Sotuvlardan tortib omborg'acha — hamma narsa bir joyda.
               </p>
             </div>
-          </CardContent>
-        </Card>
 
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => setLocation("/")}
-            className="text-white/40 hover:text-white/60 text-sm inline-flex items-center gap-1"
-            data-testid="link-back-home"
-          >
-            <ArrowLeft className="w-3 h-3" /> Bosh sahifaga
-          </button>
+            {/* Feature badges */}
+            <div className="flex flex-col gap-3">
+              {[
+                { icon: TrendingUp, text: "Sotuv va foyda tahlili" },
+                { icon: Package, text: "Ombor va mahsulot boshqaruvi" },
+                { icon: Users, text: "Mijozlar va dilerlar tizimi" },
+              ].map(({ icon: Icon, text }) => (
+                <div key={text} className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-white/15 backdrop-blur-sm flex items-center justify-center">
+                    <Icon className="w-4 h-4 text-blue-300" />
+                  </div>
+                  <span className="text-white/80 text-sm font-medium">{text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Bottom tagline */}
+          <p className="text-white/40 text-xs">
+            © 2025 MARKET_LINE · Barcha huquqlar himoyalangan
+          </p>
+        </div>
+      </div>
+
+      {/* Right side — form panel */}
+      <div className="flex-1 flex items-center justify-center bg-white dark:bg-slate-950 px-6 py-12">
+        <div className="w-full max-w-sm">
+          {/* Mobile logo */}
+          <div className="lg:hidden text-center mb-8">
+            <img src={logoImg} alt="MARKET_LINE" className="h-14 w-auto mx-auto mb-2" />
+            <h1 className="text-2xl font-black tracking-wide">
+              MARKET<span className="text-blue-500">_LINE</span>
+            </h1>
+          </div>
+
+          {/* Form header */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+              Xush kelibsiz 👋
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">
+              Hisobingizga kirish uchun ma'lumotlarni kiriting
+            </p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div className="space-y-1.5">
+              <Label className="text-gray-700 dark:text-gray-300 text-sm font-medium">
+                Telefon raqam
+              </Label>
+              <div className="relative">
+                <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  type="tel"
+                  placeholder="+998 90 123 45 67"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="pl-10 h-12 border-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  data-testid="input-phone"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-gray-700 dark:text-gray-300 text-sm font-medium">
+                Parol
+              </Label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  type={showPass ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10 pr-10 h-12 border-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-white rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  data-testid="input-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(!showPass)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs select-none"
+                >
+                  {showPass ? "Yashir" : "Ko'rsat"}
+                </button>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full h-12 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white border-0 rounded-xl text-sm font-semibold shadow-lg shadow-blue-500/25 transition-all"
+              disabled={loading}
+              data-testid="button-login"
+            >
+              {loading ? (
+                <><Loader2 className="w-4 h-4 animate-spin mr-2" />Kirilmoqda...</>
+              ) : (
+                "Kirish"
+              )}
+            </Button>
+          </form>
+
+          {/* Register link */}
+          <div className="mt-6 text-center">
+            <p className="text-gray-500 dark:text-gray-400 text-sm">
+              Hisobingiz yo'qmi?{" "}
+              <button
+                onClick={() => setLocation("/auth/register")}
+                className="text-blue-600 hover:text-blue-500 font-semibold"
+                data-testid="link-register"
+              >
+                Ro'yxatdan o'ting
+              </button>
+            </p>
+          </div>
+
+          {/* Back home */}
+          <div className="mt-4 text-center">
+            <button
+              onClick={() => setLocation("/")}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xs"
+              data-testid="link-back-home"
+            >
+              ← Bosh sahifaga qaytish
+            </button>
+          </div>
         </div>
       </div>
     </div>
