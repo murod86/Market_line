@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Phone, Lock, Loader2, TrendingUp, Package, Users } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import logoImg from "@assets/logo_clean.svg";
-import shopImg from "@assets/IMG_2756_1775284116693.png";
+import shopImg from "@assets/shutterstock_2015463743-1_1775287750856.jpg";
 
 export default function OwnerLogin() {
   const [, setLocation] = useLocation();
