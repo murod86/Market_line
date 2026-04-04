@@ -195,8 +195,12 @@ export default function Dealers() {
         <td colspan="2" style="padding:3px 2px 0px 2px;font-size:${sz.fontSize};font-weight:900;border-top:2px solid #000">${idx + 1}. ${item.name}</td>
       </tr>
       <tr>
-        <td style="padding:1px 2px;font-size:${sz.fontSizeSm}">${qtyStr}</td>
-        <td style="padding:1px 2px;font-size:${sz.fontSizeSm};text-align:right">${unitPriceStr} so'm/${item.unit}</td>
+        <td style="padding:1px 2px;font-size:${sz.fontSizeSm}">1 ${item.unit} narxi:</td>
+        <td style="padding:1px 2px;font-size:${sz.fontSizeSm};text-align:right">${unitPriceStr} so'm</td>
+      </tr>
+      <tr>
+        <td style="padding:1px 2px;font-size:${sz.fontSizeSm}">Miqdor:</td>
+        <td style="padding:1px 2px;font-size:${sz.fontSizeSm};text-align:right">${qtyStr}</td>
       </tr>
       <tr>
         <td style="padding:1px 2px 4px 2px;font-size:${sz.fontSize};font-weight:700">= Jami:</td>
@@ -266,7 +270,9 @@ export default function Dealers() {
       <div style="margin-bottom:4px"><b>Sana:</b> ${dateStr}</div>
       <div class="divider"></div>
       <div style="font-weight:900;font-size:1.05em;padding:3px 0">${tx.productName}</div>
-      <div class="row"><span>${formatQtyDisplay(Number(tx.quantity), tx.productUnit || "dona")} &times; ${Number(tx.price).toLocaleString()} so'm/${tx.productUnit || "dona"}</span><span>${totalAmt.toLocaleString()} UZS</span></div>
+      <div class="row"><span>1 ${tx.productUnit || "dona"} narxi:</span><span>${Number(tx.price).toLocaleString()} so'm</span></div>
+      <div class="row"><span>Miqdor:</span><span>${formatQtyDisplay(Number(tx.quantity), tx.productUnit || "dona")}</span></div>
+      <div class="row bold"><span>= Jami:</span><span>${totalAmt.toLocaleString()} UZS</span></div>
       <div class="divider"></div>
       <div class="row bold" style="font-size:1.3em;border-top:2px solid #000;padding-top:3px"><span>JAMI:</span><span>${totalAmt.toLocaleString()} UZS</span></div>
       ${!isLoad && tx.paymentType === "cash" ? `<div style="margin-top:4px"><b>To'lov:</b> Naqd</div>` : ""}
@@ -293,7 +299,9 @@ export default function Dealers() {
     const itemsHtml = items.map((tx) => {
       const itemTotal = Number(tx.total) || Number(tx.price) * tx.quantity;
       return `<div style="font-weight:900;font-size:1.02em;padding:3px 0 1px 0;border-top:1px solid #ccc">${tx.productName}</div>
-        <div style="display:flex;justify-content:space-between"><span>${formatQtyDisplay(Number(tx.quantity), tx.productUnit || "dona")} &times; ${Number(tx.price).toLocaleString()} so'm/${tx.productUnit || "dona"}</span><span>${itemTotal.toLocaleString()} UZS</span></div>`;
+        <div style="display:flex;justify-content:space-between"><span>1 ${tx.productUnit || "dona"} narxi:</span><span>${Number(tx.price).toLocaleString()} so'm</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Miqdor:</span><span>${formatQtyDisplay(Number(tx.quantity), tx.productUnit || "dona")}</span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:900"><span>= Jami:</span><span>${itemTotal.toLocaleString()} UZS</span></div>`;
     }).join("");
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
       <style>

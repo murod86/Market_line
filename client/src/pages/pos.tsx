@@ -344,9 +344,11 @@ export default function POS() {
       const displayUnitPrice = toDisplayPrice(nativeUnitPrice, item.buyUnit, item.product.unit, bq);
       const displayUnit = item.buyUnit;
       const receiptQty = qtyLabel(item.quantity, item.stockPieces, item.buyUnit, item.product.unit);
-      return `<div style="margin-bottom:5px">
+      return `<div style="margin-bottom:6px">
         <div style="font-size:${sz.fs};font-weight:bold;color:#000;word-break:break-word">${idx + 1}. ${item.product.name}</div>
-        ${row(`${receiptQty} &times; ${fmt(displayUnitPrice)} so'm/${displayUnit}`, `${fmt(total)} so'm`)}
+        ${row(`1 ${displayUnit} narxi:`, `${fmt(displayUnitPrice)} so'm`)}
+        ${row(`Miqdor:`, `${receiptQty}`)}
+        ${row(`= Jami:`, `${fmt(total)} so'm`, true)}
       </div>`;
     }).join("");
 
@@ -1025,13 +1027,21 @@ export default function POS() {
                     const displayUnitPrice = toDisplayPrice(unitPrice, item.buyUnit, item.product.unit, item.product.boxQuantity || 1);
                     const receiptQtyStr = qtyLabel(item.quantity, item.stockPieces, item.buyUnit, item.product.unit);
                     return (
-                      <div key={idx} style={{ marginBottom: "5px" }}>
+                      <div key={idx} style={{ marginBottom: "6px" }}>
                         <div style={{ fontSize: "12px", fontWeight: "bold", color: "#000", wordBreak: "break-word" }}>
                           {idx + 1}. {item.product.name}
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000", marginTop: "1px" }}>
-                          <span>{receiptQtyStr} × {formatCurrencyShort(displayUnitPrice)}/{item.buyUnit}</span>
-                          <span style={{ fontWeight: "bold" }}>{formatCurrencyShort(totalPrice)} so'm</span>
+                          <span>1 {item.buyUnit} narxi:</span>
+                          <span>{formatCurrencyShort(displayUnitPrice)} so'm</span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000" }}>
+                          <span>Miqdor:</span>
+                          <span>{receiptQtyStr}</span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#000", fontWeight: "bold" }}>
+                          <span>= Jami:</span>
+                          <span>{formatCurrencyShort(totalPrice)} so'm</span>
                         </div>
                       </div>
                     );
